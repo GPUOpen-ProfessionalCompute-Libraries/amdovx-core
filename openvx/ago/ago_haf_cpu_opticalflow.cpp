@@ -196,7 +196,6 @@ vx_int32		   winsz
 		// calculate sharr derivatives Ix and Iy
 		ComputeSharr(dataStrideInBytes, pScratch, oldPyramid[level].width, oldPyramid[level].height, oldPyramid[level].strideInBytes, oldPyramid[level].pImage, pScharrScratch);
 		float ptScale = (float)(pow(pyramidScale, level));
-		//	printf("\nLevel : %d***************\n", level);
 
 		// do the Lukas Kanade tracking for each feature point
 		for (unsigned int pt = 0; pt < keyPointCount; pt++){
@@ -535,13 +534,11 @@ vx_int32		   winsz
 			if (!level){
 				newKeyPoint[pt].x = (vx_int32)(nextPt.x + halfWin - delta_dx + 0.5f);
 				newKeyPoint[pt].y = (vx_int32)(nextPt.y + halfWin - delta_dy + 0.5f);
-				//printf("Level: %d Key Point: %d  x: %d y: %d\n", level, pt, newKeyPoint[pt].x, newKeyPoint[pt].y);
 			}
 			else
 			{
 				pNextPtArray[pt].x = (nextPt.x + halfWin - delta_dx);
 				pNextPtArray[pt].y = (nextPt.y + halfWin - delta_dy);
-				//printf("Level: %d Key Point: %d  x: %d y: %d\n", level, pt, (int)pNextPtArray[pt].x, (int)pNextPtArray[pt].y);
 			}
 		}
 	}

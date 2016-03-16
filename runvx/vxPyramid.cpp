@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxPyramid.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -49,6 +47,8 @@ CVxParamPyramid::CVxParamPyramid()
 	m_fpReadImage = nullptr;
 	m_fpWriteImage = nullptr;
 	m_fpCompareImage = nullptr;
+	m_useCheckSumForCompare = false;
+	m_generateCheckSumForCompare = false;
 }
 
 CVxParamPyramid::~CVxParamPyramid()
@@ -115,6 +115,7 @@ int CVxParamPyramid::Initialize(vx_context context, vx_graph graph, const char *
 	}
 	else if (!_stricmp(objType, "pyramid-virtual")) {
 		m_pyramid = vxCreateVirtualPyramid(graph, m_numLevels, m_scale, m_width, m_height, m_format);
+		m_isVirtualObject = true;
 	}
 	else ReportError("ERROR: invalid pyramid type: %s\n", objType);
 	vx_status ovxStatus = vxGetStatus((vx_reference)m_pyramid);
@@ -214,9 +215,9 @@ int CVxParamPyramid::Finalize()
 
 	// compute frame size in bytes
 	m_pyramidFrameSize = 0;
-	m_imageFrameSize = new size_t[m_numLevels];
-	m_rectFullLevel = new vx_rectangle_t[m_numLevels];
-	m_rectCompareLevel = new vx_rectangle_t[m_numLevels];
+	if (!m_imageFrameSize) m_imageFrameSize = new size_t[m_numLevels];
+	if (!m_rectFullLevel) m_rectFullLevel = new vx_rectangle_t[m_numLevels];
+	if (!m_rectCompareLevel) m_rectCompareLevel = new vx_rectangle_t[m_numLevels];
 	for (vx_uint32 level = 0; level < (vx_uint32)m_numLevels; level++) {
 		// get image at current level
 		vx_image image = vxGetPyramidLevel(m_pyramid, level);
@@ -251,8 +252,15 @@ int CVxParamPyramid::Finalize()
 		m_pyramidFrameSize += m_imageFrameSize[level];
 	}
 
+	// close files if already open
+	for (vx_size level = 0; level < m_numLevels; level++) {
+		if (m_fpReadImage && m_fpReadImage[level]) fclose(m_fpReadImage[level]);
+		if (m_fpWriteImage && m_fpWriteImage[level]) fclose(m_fpWriteImage[level]);
+		if (m_fpCompareImage && m_fpCompareImage[level]) fclose(m_fpCompareImage[level]);
+	}
+
 	// open files for read/write/compare
-	if (m_fileNameRead.length() > 0) {
+	if (m_fileNameRead.length() > 0 && !m_fpReadImage) {
 		m_fpReadImage = new FILE *[m_numLevels]();
 		for (vx_uint32 level = 0; level < (vx_uint32)m_numLevels; level++) {
 			// get width and height of current level
@@ -267,7 +275,7 @@ int CVxParamPyramid::Finalize()
 			if (!m_fpReadImage[level]) ReportError("ERROR: Unable to open: %s\n", fileName);
 		}
 	}
-	if (m_fileNameWrite.length() > 0) {
+	if (m_fileNameWrite.length() > 0 && !m_fpWriteImage) {
 		m_fpWriteImage = new FILE *[m_numLevels]();
 		for (vx_uint32 level = 0; level < (vx_uint32)m_numLevels; level++) {
 			// get width and height of current level
@@ -282,7 +290,7 @@ int CVxParamPyramid::Finalize()
 			if (!m_fpWriteImage[level]) ReportError("ERROR: Unable to create: %s\n", fileName);
 		}
 	}
-	if (m_fileNameCompare.length() > 0) {
+	if (m_fileNameCompare.length() > 0 && !m_fpCompareImage) {
 		m_fpCompareImage = new FILE *[m_numLevels]();
 		for (vx_uint32 level = 0; level < (vx_uint32)m_numLevels; level++) {
 			// get width and height of current level
@@ -366,7 +374,7 @@ int CVxParamPyramid::CompareFrame(int frameNumber)
 			else {
 				m_compareCountMismatches++;
 				printf("ERROR: pyramid level#%d CHECKSUM MISMATCHED for %s with frame#%d [%s instead of %s]\n", level, GetVxObjectName(), frameNumber, checkSumString, checkSumStringRef);
-				if (m_abortOnCompareMismatch) return -1;
+				if (!m_discardCompareErrors) return -1;
 			}
 		}
 		else
@@ -385,7 +393,7 @@ int CVxParamPyramid::CompareFrame(int frameNumber)
 			}
 			else {
 				m_compareCountMismatches++;
-				if (m_abortOnCompareMismatch) return -1;
+				if (!m_discardCompareErrors) return -1;
 			}
 		}
 		vxReleaseImage(&image);

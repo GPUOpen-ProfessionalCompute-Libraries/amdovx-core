@@ -28,6 +28,7 @@ THE SOFTWARE.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <inttypes.h>
 
 #include <sstream>
@@ -42,9 +43,11 @@ THE SOFTWARE.
 #include <wincrypt.h>
 #else
 #include <chrono>
+#include <unistd.h>
+#if HAVE_OpenSSL
 #include <openssl/hmac.h>
 #include <openssl/md5.h>
-#include <unistd.h>
+#endif
 
 #include <strings.h>
 #define _strnicmp strncasecmp
@@ -122,7 +125,7 @@ private:
 #if _WIN32
 	HCRYPTPROV m_cryptProv;
 	HCRYPTHASH m_cryptHash;
-#else
+#elif HAVE_OpenSSL
 	MD5_CTX m_handle;
 #endif
 	vx_uint8 m_hash[16];

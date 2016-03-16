@@ -161,6 +161,10 @@ enum vx_df_image_amd_e {
 	VX_DF_IMAGE_F32x3_AMD = VX_DF_IMAGE('F', '3', '3', '2'),  // AGO image with THREE 32-bit floating-point channels in one buffer
 };
 
+/*! \brief module entry point for vxUnpublishKernels.
+*/
+typedef vx_status(VX_API_CALL *vx_unpublish_kernels_f)(vx_context context);
+
 /*! \brief AMD data structure to specify target affinity.
 */
 typedef struct {
@@ -301,5 +305,37 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetReferenceName(vx_reference ref, const vx
 * \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
 */
 VX_API_ENTRY vx_status VX_API_CALL vxGetReferenceName(vx_reference ref, vx_char name[], vx_size size);
+
+/**
+* \brief Set module internal data.
+* \ingroup vx_framework_reference
+*
+* This function is used to set module specific internal data. This is for use by vxPublishKernels().
+*
+* \param [in] context The context.
+* \param [in] module The name of the module used in vxLoadKernels.
+* \param [in] ptr The module internal buffer.
+* \param [in] size Size of the module internal buffer.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetModuleInternalData(vx_context context, const vx_char * module, void * ptr, vx_size size);
+
+/**
+* \brief Retrieve module internal data.
+* \ingroup vx_framework_reference
+*
+* This function is used to retrieve module specific internal data. This is for use by vxUnpublishKernels().
+*
+* \param [in] context The context.
+* \param [in] module The name of the module used in vxLoadKernels.
+* \param [out] ptr The module internal buffer.
+* \param [out] size Size of the module internal buffer.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxGetModuleInternalData(vx_context context, const vx_char * module, void ** ptr, vx_size * size);
 
 #endif

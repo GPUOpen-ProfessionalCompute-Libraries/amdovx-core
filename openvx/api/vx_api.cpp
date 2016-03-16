@@ -196,6 +196,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 						status = VX_SUCCESS;
 					}
 				}
+				else if (size == 0) {
+					// special case to just request internal context without creating one
+					// when not available
+					*(cl_context *)ptr = context->opencl_context;
+					status = VX_SUCCESS;
+				}
 				break;
 #endif
 			default:
@@ -2284,7 +2290,17 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetParameterByIndex(vx_node node, vx_uint32
 			if (node->paramList[index]) {
 				agoReleaseData(node->paramList[index], false);
 			}
-			node->paramList[index] = (AgoData *)value;
+			AgoData * data = (AgoData *)value;
+			if (data && agoIsPartOfDelay(data)) {
+				// get the trace to delay object from original node parameter without vxAgeDelay changes
+				int siblingTrace[AGO_MAX_DEPTH_FROM_DELAY_OBJECT], siblingTraceCount = 0;
+				AgoData * delay = agoGetSiblingTraceToDelayForInit(data, siblingTrace, siblingTraceCount);
+				if (delay) {
+					// get the data 
+					data = agoGetDataFromTrace(delay, siblingTrace, siblingTraceCount);
+				}
+			}
+			node->paramList[index] = node->paramListForAgeDelay[index] = data;
 			if (node->paramList[index]) {
 				agoRetainData((AgoGraph *)node->ref.scope, node->paramList[index], false);
 			}
@@ -2306,19 +2322,9 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetParameterByReference(vx_parameter parame
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (agoIsValidParameter(parameter) && parameter->scope->type == VX_TYPE_NODE && parameter->ref.external_count > 0) {
-		status = VX_ERROR_INVALID_PARAMETERS;
 		vx_node node = (vx_node)parameter->scope;
 		vx_uint32 index = parameter->index;
-		if ((index < node->paramCount) && (!node->parameters[index].type || node->parameters[index].type == value->type)) {
-			if (node->paramList[index]) {
-				agoReleaseData(node->paramList[index], false);
-			}
-			node->paramList[index] = (AgoData *)value;
-			if (node->paramList[index]) {
-				agoRetainData((AgoGraph *)node->ref.scope, node->paramList[index], false);
-			}
-			status = VX_SUCCESS;
-		}
+		status = vxSetParameterByIndex(node, index, value);
 	}
 	return status;
 }
@@ -2923,6 +2929,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxAgeDelay(vx_delay delay)
 			data->children[i] = data->children[i-1];
 		}
 		data->children[0] = childLast;
+		data->u.delay.age++;
 	}
 	return status;
 }
@@ -4841,7 +4848,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatAttribute(vx_meta_format meta,
 				}
 				break;
 #endif
-				/**********************************************************************/
+			/**********************************************************************/
 			case VX_ARRAY_ATTRIBUTE_CAPACITY:
 				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_ARRAY) {
 					data->u.arr.capacity = *(vx_size *)ptr;
@@ -4928,6 +4935,36 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetReferenceName(vx_reference ref, vx_char 
 		else if (ref->type == VX_TYPE_NODE) {
 			strncpy(name, ((AgoNode *)ref)->akernel->name, size);
 			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+VX_API_ENTRY vx_status VX_API_CALL vxGetModuleInternalData(vx_context context, const vx_char * module, void ** ptr, vx_size * size)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context)) {
+		for (auto it = context->modules.begin(); it != context->modules.end(); it++) {
+			if (it->hmodule && !strcmp(it->module_name, module)) {
+				*ptr = it->module_internal_data_ptr;
+				*size = it->module_internal_data_size;
+				status = VX_SUCCESS;
+			}
+		}
+	}
+	return status;
+}
+
+VX_API_ENTRY vx_status VX_API_CALL vxSetModuleInternalData(vx_context context, const vx_char * module, void * ptr, vx_size size)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context)) {
+		for (auto it = context->modules.begin(); it != context->modules.end(); it++) {
+			if (it->hmodule && !strcmp(it->module_name, module)) {
+				it->module_internal_data_ptr = (vx_uint8 *)ptr;
+				it->module_internal_data_size = size;
+				status = VX_SUCCESS;
+			}
 		}
 	}
 	return status;

@@ -589,12 +589,6 @@ int HafCpu_CannySuppThreshold_U8XY_U16_3x3
 		}
 	}
 	*pxyStackTop = (vx_uint32)(pxyStack - xyStack);
-//	printf("Number of points in XY stack: %d\n", *pxyStackTop);
-#if 0
-	FILE *fp = fopen("c:\\temp\\norm.yuv", "wb");
-	if (fp) fwrite(pDst, 1, 640 * 480, fp);
-	fclose(fp);
-#endif
 	return AGO_SUCCESS;
 }
 

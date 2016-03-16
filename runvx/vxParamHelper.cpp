@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxParamHelper.h"
 
 int g_numCvUse = 0;
@@ -153,19 +151,21 @@ int GuiTrackBarProcessKey(int key)
 
 /////////////////////////////////
 // global OpenCV image count and specified read inputs count
-int ProcessCvWindowKeyRefresh()
+int ProcessCvWindowKeyRefresh(int waitKeyDelayInMilliSeconds)
 {
 #if USE_OPENCV
 	if (g_numCvUse > 0) {
 		// process keyboard
-		int key = waitKey(1);
-		if (key == 'q' || key == 27) {
-			return 1;
-		}
-		else if (key == ' ') {
-			printf("Paused: Press spacebar to continue...\n"); fflush(stdout);
-			while (waitKey(0) != ' ')
-				;
+		int key = waitKey(waitKeyDelayInMilliSeconds);
+		if (key == 'q' || key == 27 || key == ' ') {
+			if (key == ' ' && waitKeyDelayInMilliSeconds != 0) {
+				printf("Paused: Press spacebar to continue...\n"); fflush(stdout);
+				while ((key = waitKey(0)) != ' ' && key != 'q' && key != 27)
+					;
+			}
+			if (key == 'q' || key == 27) {
+				return 1;
+			}
 		}
 		else if (key >= 0) {
 			GuiTrackBarProcessKey(key);

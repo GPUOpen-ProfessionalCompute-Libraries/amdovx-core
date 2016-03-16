@@ -648,12 +648,11 @@ static void agoReadGraphFromStringInternal(AgoGraph * agraph, AgoReference * * r
 						break;
 					}
 					fseek(fp, 0L, SEEK_END); long size = ftell(fp); fseek(fp, 0L, SEEK_SET);
-					str_subgraph = (char *)calloc(1, size + 1); if (!str_subgraph) { 
-						agoAddLogEntry(&agraph->ref, VX_FAILURE, "FATAL: calloc(1,%d) failed\n", (int)size + 1);
+					if (!(str_subgraph = (char *)calloc(1, size + 1)) || (fread(str_subgraph, sizeof(char), size, fp) != size)) {
+						agoAddLogEntry(&agraph->ref, VX_FAILURE, "FATAL: calloc/fread(%d) failed\n", (int)size + 1);
 						agraph->status = -1; 
 						break; 
 					}
-					(void)fread(str_subgraph, sizeof(char), size, fp);
 					fclose(fp);
 					// update suffix
 					const char * name = arg[1];
@@ -1055,8 +1054,9 @@ int agoReadGraph(AgoGraph * agraph, AgoReference * * ref, int num_ref, ago_data_
 	long cur = ftell(fp); fseek(fp,  0L, SEEK_END);
 	long end = ftell(fp); fseek(fp, cur, SEEK_SET);
 	long size = end - cur; if (size < 1) return agraph->status;
-	char * str = (char *)calloc(1, size + 1); if (!str) return -1;
-	(void)fread(str, sizeof(char), size, fp);
+	char * str = (char *)calloc(1, size + 1);
+	if (!str || (fread(str, sizeof(char), size, fp) != size))
+		return -1;
 
 	// read the graph from file
 	std::vector< std::pair< std::string, std::string > > vars;
@@ -1119,21 +1119,25 @@ int agoLoadModule(AgoContext * context, const char * module)
 				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: vxPublishKernels symbol missing in %s\n", filePath);
 			}
 			else {
+				// add module entry into context
+				ModuleData data;
+				strncpy(data.module_name, module, sizeof(data.module_name) - 1);
+				strncpy(data.module_path, filePath, sizeof(data.module_path) - 1);
+				data.hmodule = hmodule;
+				data.module_internal_data_ptr = nullptr;
+				data.module_internal_data_size = 0;
+				context->modules.push_back(data);
+				context->num_active_modules++;
+				// invoke vxPublishKernels
 				vx_uint32 count = context->kernelList.count;
 				context->importing_module_index_plus1 = context->num_active_modules + 1;
 				status = publish_kernels_f(context);
 				context->importing_module_index_plus1 = 0;
 				if (status == VX_SUCCESS) {
 					agoAddLogEntry(&context->ref, VX_SUCCESS, "OK: loaded %d kernels from %s\n", context->kernelList.count - count, filePath);
-					ModuleData data;
-					strncpy(data.module_name, module, sizeof(data.module_name)-1);
-					strncpy(data.module_path, filePath, sizeof(data.module_path) - 1);
-					data.hmodule = hmodule;
-					context->modules.push_back(data);
-					context->num_active_modules++;
 				}
 				else {
-					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: vxPublishKernels => %d (failed) -- %s\n", status, filePath);
+					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: vxPublishKernels(%s) failed (%d:%s)\n", module, status, agoEnum2Name(status));
 				}
 			}
 		}
@@ -1446,7 +1450,7 @@ vx_status agoVerifyNode(AgoNode * node)
 #if 0 // TBD: disabled temporarily as a quick workaround for bidirectional buffer issue
 				// virtual objects can not be used as bidirectional arguments
 				if (data->isVirtual) {
-					agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_PARAMETERS, "ERROR: agoVerifyGraph: kernel %s: bidirectional argument shouldn't be virtual for argument#%d (%s)\n", kernel->name, arg, data->name);
+					agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_PARAMETERS, "ERROR: agoVerifyGraph: kernel %s: bidirectional argument shouldn't be virtual for argument#%d (%s)\n", kernel->name, arg, data->name.c_str());
 					return VX_ERROR_INVALID_PARAMETERS;
 				}
 #endif
@@ -1535,6 +1539,7 @@ int agoInitializeGraph(AgoGraph * graph)
 			}
 			node->initialized = true;
 			// keep a copy of paramList into paramListForAgeDelay
+			// TBD: needs to handle reverification path
 			memcpy(node->paramListForAgeDelay, node->paramList, sizeof(node->paramListForAgeDelay));
 		}
 	}
@@ -1587,6 +1592,8 @@ static int agoWaitForNodesCompletion(AgoGraph * graph)
 
 static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * dataToSync)
 {
+	cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
+
 	if (dataToSync->opencl_buffer && !(dataToSync->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
 		if (node->flags & AGO_KERNEL_FLAG_DEVICE_GPU) {
 			if (dataToSync->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE | AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT)) {
@@ -1594,9 +1601,9 @@ static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * d
 				if (dataToSync->ref.type == VX_TYPE_LUT) {
 					size_t origin[3] = { 0, 0, 0 };
 					size_t region[3] = { 256, 1, 1 };
-					cl_int err = clEnqueueWriteImage(graph->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, origin, region, 256, 0, dataToSync->buffer, 0, NULL, NULL);
+					cl_int err = clEnqueueWriteImage(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, origin, region, 256, 0, dataToSync->buffer, 0, NULL, NULL);
 					if (err) { 
-						agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clEnqueueWriteImage(lut) => %d\n", err);
+						agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: clEnqueueWriteImage(lut) => %d\n", err);
 						return -1; 
 					}
 				}
@@ -1607,9 +1614,9 @@ static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * d
 						size = dataToSync->u.arr.itemsize * dataToSync->u.arr.numitems;
 					}
 					if (size > 0) {
-						cl_int err = clEnqueueWriteBuffer(graph->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, size, dataToSync->buffer, 0, NULL, NULL);
+						cl_int err = clEnqueueWriteBuffer(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, size, dataToSync->buffer, 0, NULL, NULL);
 						if (err) { 
-							agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d\n", err);
+							agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d\n", err);
 							return -1; 
 						}
 					}
@@ -1625,9 +1632,9 @@ static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * d
 				if (dataToSync->ref.type == VX_TYPE_LUT) {
 					size_t origin[3] = { 0, 0, 0 };
 					size_t region[3] = { 256, 1, 1 };
-					cl_int err = clEnqueueReadImage(graph->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, origin, region, 256, 0, dataToSync->buffer, 0, NULL, NULL);
+					cl_int err = clEnqueueReadImage(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, origin, region, 256, 0, dataToSync->buffer, 0, NULL, NULL);
 					if (err) { 
-						agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clEnqueueReadImage(lut) => %d\n", err);
+						agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: clEnqueueReadImage(lut) => %d\n", err);
 						return -1; 
 					}
 				}
@@ -1638,9 +1645,9 @@ static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * d
 						size = dataToSync->u.arr.numitems * dataToSync->u.arr.itemsize;
 					}
 					if (size > 0) {
-						cl_int err = clEnqueueReadBuffer(graph->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, size, dataToSync->buffer, 0, NULL, NULL);
+						cl_int err = clEnqueueReadBuffer(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, size, dataToSync->buffer, 0, NULL, NULL);
 						if (err) { 
-							agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clEnqueueReadBuffer() => %d\n", err);
+							agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: clEnqueueReadBuffer() => %d\n", err);
 							return -1; 
 						}
 					}
@@ -1672,17 +1679,23 @@ int agoExecuteGraph(AgoGraph * graph)
 			if (data && agoIsPartOfDelay(data)) {
 				// get the trace to delay object from original node parameter without vxAgeDelay changes
 				int siblingTrace[AGO_MAX_DEPTH_FROM_DELAY_OBJECT], siblingTraceCount = 0;
-				AgoData * delay = agoGetSiblingTraceToDelay(node->paramListForAgeDelay[arg], siblingTrace, siblingTraceCount);
+				AgoData * delay = agoGetSiblingTraceToDelayForUpdate(node->paramListForAgeDelay[arg], siblingTrace, siblingTraceCount);
 				if (delay) {
 					// get the data 
-					data = agoGetDataFromSiblingTrace(delay, siblingTrace, siblingTraceCount);
+					data = agoGetDataFromTrace(delay, siblingTrace, siblingTraceCount);
 					if (data) {
 						// update the node parameter
 						node->paramList[arg] = data;
 					}
-					else return VX_FAILURE;
+					else {
+						agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: SiblingTrace#1 missing\n");
+						return VX_FAILURE;
+					}
 				}
-				else return VX_FAILURE;
+				else {
+					agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: SiblingTrace#2 missing\n");
+					return VX_FAILURE;
+				}
 			}
 		}
 	}
@@ -1693,17 +1706,23 @@ int agoExecuteGraph(AgoGraph * graph)
 			if (data && agoIsPartOfDelay(data)) {
 				// get the trace to delay object from original node parameter without vxAgeDelay changes
 				int siblingTrace[AGO_MAX_DEPTH_FROM_DELAY_OBJECT], siblingTraceCount = 0;
-				AgoData * delay = agoGetSiblingTraceToDelay(supernode->dataListForAgeDelay[arg], siblingTrace, siblingTraceCount);
+				AgoData * delay = agoGetSiblingTraceToDelayForUpdate(supernode->dataListForAgeDelay[arg], siblingTrace, siblingTraceCount);
 				if (delay) {
 					// get the data 
-					data = agoGetDataFromSiblingTrace(delay, siblingTrace, siblingTraceCount);
+					data = agoGetDataFromTrace(delay, siblingTrace, siblingTraceCount);
 					if (data) {
 						// update the supernode parameter
 						supernode->dataList[arg] = data;
 					}
-					else return VX_FAILURE;
+					else {
+						agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: SiblingTrace#3 missing\n");
+						return VX_FAILURE;
+					}
 				}
-				else return VX_FAILURE;
+				else {
+					agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: SiblingTrace#4 missing\n");
+					return VX_FAILURE;
+				}
 			}
 		}
 	}
@@ -1773,8 +1792,10 @@ int agoExecuteGraph(AgoGraph * graph)
 #if ENABLE_OPENCL
 				if (nodeLaunchHierarchicalLevel > 0 && nodeLaunchHierarchicalLevel < node->hierarchical_level) {
 					status = agoWaitForNodesCompletion(graph);
-					if (status != VX_SUCCESS)
-                        return status;
+					if (status != VX_SUCCESS) {
+						agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: agoWaitForNodesCompletion failed (%d:%s)\n", status, agoEnum2Name(status));
+						return status;
+					}
 					nodeLaunchHierarchicalLevel = 0;
 				}
 				// make sure that all input buffers are synched
@@ -1788,8 +1809,10 @@ int agoExecuteGraph(AgoGraph * graph)
 							if (jdata)
 								status = agoDataSyncFromGpuToCpu(graph, node, jdata);
 						}
-						if (status)
+						if (status) {
+							agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: agoDataSyncFromGpuToCpu failed (%d:%s) for node(%s) arg#%d data(%s)\n", status, agoEnum2Name(status), node->akernel->name, i, data->name.c_str());
 							return status;
+						}
 					}
 				}
 #endif
@@ -1806,6 +1829,7 @@ int agoExecuteGraph(AgoGraph * graph)
 					status = kernel->kernel_f(node, (vx_reference *)node->paramList, node->paramCount);
 				}
 				if (status) {
+					agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: kernel %s exec failed (%d:%s)\n", kernel->name, status, agoEnum2Name(status));
 					return status;
 				}
 				agoPerfCaptureStop(&node->perf);
@@ -1835,8 +1859,10 @@ int agoExecuteGraph(AgoGraph * graph)
 #if ENABLE_OPENCL
 	if (nodeLaunchHierarchicalLevel > 0) {
 		status = agoWaitForNodesCompletion(graph);
-		if (status != VX_SUCCESS)
+		if (status != VX_SUCCESS) {
+			agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: agoWaitForNodesCompletion failed (%d:%s)\n", status, agoEnum2Name(status));
 			return status;
+		}
 	}
 	graph->opencl_perf_total.kernel_enqueue += graph->opencl_perf.kernel_enqueue;
 	graph->opencl_perf_total.kernel_wait += graph->opencl_perf.kernel_wait;

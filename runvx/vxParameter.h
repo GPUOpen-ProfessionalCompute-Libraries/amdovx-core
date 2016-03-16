@@ -44,7 +44,8 @@ public:
 	bool IsUsingMultiFrameCapture(){ return m_usingMultiFrameCapture; }
 	void SetCaptureFrameStart(vx_uint32 frameStart) { m_captureFrameStart = frameStart; }
 	void SetVerbose(bool verbose) { m_verbose = verbose; }
-	void SetAbortOnMismatch(bool abortOnCompareMismatch) { m_abortOnCompareMismatch = abortOnCompareMismatch; }
+	void SetDiscardCompareErrors(bool discardCompareErrors) { m_discardCompareErrors = discardCompareErrors; }
+	bool IsVirtualObject() { return m_isVirtualObject; }
 
 	// Initialize: create OpenVX object and further uses InitializeIO to input/output initialization
 	//   desc: object description as specified on command-line or in script
@@ -111,7 +112,8 @@ protected:
 	FILE * m_fpWrite;
 	FILE * m_fpCompare;
 	bool m_verbose;
-	bool m_abortOnCompareMismatch;
+	bool m_discardCompareErrors;
+	bool m_isVirtualObject;
 	// for multi-frame capture support
 	bool m_usingMultiFrameCapture;
 	vx_uint32 m_captureFrameStart;
@@ -126,6 +128,28 @@ public:
 	void AddToArrayListForView(int colorIndex, int x, int y); // adds coordinates2d
 	size_t GetArrayListForViewCount() { return m_arrayListForView.size(); }
 	const ArrayItemForView * GetArrayListForViewItemAt(size_t index) { return &m_arrayListForView[index]; }
+};
+
+// CVxParamDelay for vx_delay object
+// TBD: this needs to be moved to separate file
+class CVxParamDelay : public CVxParameter
+{
+public:
+	CVxParamDelay();
+	virtual ~CVxParamDelay();
+	virtual int Initialize(vx_context context, vx_graph graph, const char * desc);
+	virtual int InitializeIO(vx_context context, vx_graph graph, vx_reference ref, const char * io_params);
+	virtual int Finalize();
+	virtual int ReadFrame(int frameNumber);
+	virtual int WriteFrame(int frameNumber);
+	virtual int CompareFrame(int frameNumber);
+	virtual int Shutdown();
+
+private:
+	// vx configuration
+	vx_size m_count;
+	// vx object
+	vx_delay m_delay;
 };
 
 // parse the description of a data object and create parameter object: this function

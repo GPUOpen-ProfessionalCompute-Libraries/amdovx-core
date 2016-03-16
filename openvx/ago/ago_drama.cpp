@@ -309,12 +309,12 @@ int agoOptimizeDramaComputeGraphHierarchy(AgoGraph * graph)
 #endif
 				if (data->outputUsageCount > 1) {
 					vx_status status = VX_ERROR_MULTIPLE_WRITERS;
-					agoAddLogEntry(&graph->ref, status, "ERROR: vxVerifyGraph: kernel %s: multiple writers for argument#%d (%s)\n", node->akernel->name, arg, data->name);
+					agoAddLogEntry(&graph->ref, status, "ERROR: vxVerifyGraph: kernel %s: multiple writers for argument#%d (%s)\n", node->akernel->name, arg, data->name.c_str());
 					return status;
 				}
 				else if (data->isVirtual && data->outputUsageCount == 0 && !data->isInitialized) {
 					vx_status status = VX_ERROR_MULTIPLE_WRITERS;
-					agoAddLogEntry(&graph->ref, status, "ERROR: vxVerifyGraph: kernel %s: no writer/initializer for virtual buffer at argument#%d (%s)\n", node->akernel->name, arg, data->name);
+					agoAddLogEntry(&graph->ref, status, "ERROR: vxVerifyGraph: kernel %s: no writer/initializer for virtual buffer at argument#%d (%s)\n", node->akernel->name, arg, data->name.c_str());
 					return status;
 				}
 			}

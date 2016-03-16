@@ -134,7 +134,7 @@ int64_t agoGetClockFrequency()
 #endif
 }
 
-#if __linux__
+#if !_WIN32
 #include "ago_internal.h"
 
 #include <mutex>

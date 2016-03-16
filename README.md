@@ -4,7 +4,7 @@ AMD OpenVX (beta preview) is a highly optimized open source implementation of th
 #### Features
 * The code is highly optimized for both x86 CPU and OpenCL for GPU
 * Supported hardware spans the range from low power embedded APUs (like the new G series) to laptop, desktop and workstation graphics
-* Supports Windows and Linux
+* Supports Windows, Linux, and OS X
 * Includes a “graph optimizer” that looks at the entire processing pipeline and removes/replaces/merges functions to improve performance and minimize bandwidth at runtime 
 * Scripting support allows for rapid prototyping, without re-compiling at production performance levels
 * Interoperates with the popular (open source library) OpenCV
@@ -18,13 +18,17 @@ Build this project to generate AMD OpenVX library and RUNVX executable.
 ## Build Instructions
 
 #### Pre-requisites
-* AMD APP SDK 3.0 [download](http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/).
+* CMake 2.8 or newer [download](http://cmake.org/download/).
 * OpenCV 3.0 [download](http://opencv.org/downloads.html).
-* CMake 3.1 or newer [download](http://cmake.org/download/).
 * OpenCV_DIR environment variable should point to OpenCV/build folder
+* CPU: SSE4.1 or above CPU, 64-bit.
+* GPU: Radeon R7 Series or above (Kaveri+ APU), Radeon 3xx Series or above (optional)
+  * DRIVER: AMD Catalyst 15.7 or higher (version 15.20) with OpenCL 2.0 runtimes
+  * AMD APP SDK 3.0 [download](http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/).
+* libssl-dev on linux (optional)
 
 #### Build using Visual Studio Professional 2013 on 64-bit Windows 10/8.1/7
 * Use amdovx-core/amdovx.sln to build for x64 platform
 
-#### Build using CMake on Linux (Ubuntu 15.10 64-bit)
+#### Build using CMake
 * Use CMake to configure and generate Makefile

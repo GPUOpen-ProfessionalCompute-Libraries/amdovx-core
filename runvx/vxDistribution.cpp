@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxDistribution.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -274,7 +272,7 @@ int CVxParamDistribution::CompareFrame(int frameNumber)
 	if (status) {
 		m_compareCountMismatches++;
 		printf("ERROR: distribution COMPARE MISMATCHED for %s with frame#%d of %s\n", GetVxObjectName(), frameNumber, fileName);
-		if (m_abortOnCompareMismatch) return -1;
+		if (!m_discardCompareErrors) return -1;
 	}
 	else {
 		m_compareCountMatches++;

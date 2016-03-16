@@ -18,13 +18,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 2.8)
 project (runvx)
 
 set (CMAKE_CXX_STANDARD 11)
 
-find_package(OpenCL)
-find_package(OpenCV)
+find_package(OpenCL QUIET)
+find_package(OpenCV QUIET)
 
 include_directories(../openvx/include)
 
@@ -48,7 +48,6 @@ list(APPEND SOURCES
 )
 
 add_executable(runvx ${SOURCES})
-
 target_link_libraries(runvx openvx)
 
 if (OpenCL_FOUND)
@@ -67,9 +66,17 @@ else(OpenCV_FOUND)
 	target_compile_definitions(runvx PUBLIC USE_OPENCV=0)
 endif(OpenCV_FOUND)
 
+if( POLICY CMP0054 )
+  cmake_policy( SET CMP0054 OLD )
+endif()
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	target_link_libraries(runvx crypto)
+else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+	find_package(OpenSSL QUIET)
+	if(OPENSSL_FOUND)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OpenSSL=1")
+		target_link_libraries(runvx crypto)
+	endif(OPENSSL_FOUND)
 endif()

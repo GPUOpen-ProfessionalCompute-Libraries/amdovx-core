@@ -743,7 +743,29 @@ bool agoIsPartOfDelay(AgoData * adata)
 	return adata->isDelayed ? true : false;
 }
 
-AgoData * agoGetSiblingTraceToDelay(AgoData * data, int trace[], int& traceCount)
+AgoData * agoGetSiblingTraceToDelayForInit(AgoData * data, int trace[], int& traceCount)
+{
+	if (data && data->isDelayed) {
+		traceCount = 0;
+		while (data && data->ref.type != VX_TYPE_DELAY && traceCount < AGO_MAX_DEPTH_FROM_DELAY_OBJECT) {
+			vx_int32 siblingIndex = data->siblingIndex;
+			AgoData * parent = data->parent;
+			if (parent && parent->ref.type == VX_TYPE_DELAY) {
+				for (vx_uint32 child = 0; child < parent->numChildren; child++) {
+					if (data == parent->children[child]) {
+						siblingIndex = (parent->u.delay.age + (vx_int32)child) % parent->u.delay.count;
+						break;
+					}
+				}
+			}
+			trace[traceCount++] = siblingIndex;
+			data = parent;
+		}
+	}
+	return (data && data->ref.type == VX_TYPE_DELAY) ? data : nullptr;
+}
+
+AgoData * agoGetSiblingTraceToDelayForUpdate(AgoData * data, int trace[], int& traceCount)
 {
 	if (data && data->isDelayed) {
 		traceCount = 0;
@@ -752,10 +774,10 @@ AgoData * agoGetSiblingTraceToDelay(AgoData * data, int trace[], int& traceCount
 			data = data->parent;
 		}
 	}
-	return (data->ref.type == VX_TYPE_DELAY) ? data : nullptr;
+	return (data && data->ref.type == VX_TYPE_DELAY) ? data : nullptr;
 }
 
-AgoData * agoGetDataFromSiblingTrace(AgoData * data, int trace[], int traceCount)
+AgoData * agoGetDataFromTrace(AgoData * data, int trace[], int traceCount)
 {
 	for (int i = traceCount - 1; data && i >= 0; i--) {
 		vx_uint32 child = (vx_uint32)trace[i];
@@ -1792,8 +1814,6 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 			if (data->u.delay.type != data->children[child]->ref.type)
 				return -1;
 		}
-		// initialize/update other attributes (if needed)
-		data->u.delay.age = 0;
 	}
 	else if (data->ref.type == VX_TYPE_PYRAMID) {
 		// make sure number of children is +ve integer and consistent number of children exist
@@ -1896,7 +1916,6 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 		data->size = data->u.arr.itemsize * data->u.arr.capacity;
 		if (!data->size) 
 			return -1;
-		data->u.arr.numitems = 0;
 	}
 	else if (data->ref.type == VX_TYPE_DISTRIBUTION) {
 		// calculate other attributes and buffer size
@@ -2767,10 +2786,27 @@ AgoContext::~AgoContext()
 		if (it->text_allocated)
 			free(it->text_allocated);
 	}
-	agoResetKernelList(&kernelList);
+
 #if ENABLE_OPENCL
 	agoGpuOclReleaseContext(this);
 #endif
+
+	// unload modules
+	for (auto it = modules.begin(); it != modules.end(); it++) {
+		if (it->hmodule) {
+			vx_unpublish_kernels_f unpublish_kernels_f = (vx_unpublish_kernels_f)agoGetFunctionAddress(it->hmodule, "vxUnpublishKernels");
+			if (unpublish_kernels_f) {
+				vx_status status = unpublish_kernels_f(this);
+				if (status != VX_SUCCESS) {
+					agoAddLogEntry(&ref, VX_FAILURE, "ERROR: vxUnpublishKernels(%s) failed (%d:%s)\n", it->module_name, status, agoEnum2Name(status));
+				}
+			}
+		}
+	}
+
+	// remove kernel objects
+	agoResetKernelList(&kernelList);
+
 	// critical section
 	DeleteCriticalSection(&cs);
 }

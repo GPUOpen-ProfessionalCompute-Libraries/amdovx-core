@@ -15666,8 +15666,9 @@ int agoKernel_ScaleImage_U8_U8_Area(AgoNode * node, AgoKernelCommand cmd)
 				code += "\n";
 				int N = Nx + Nxf;
 				if (N > 12) {
-					printf("ERROR: ScalarArea OCL Nx+Nxf=%d not supported yet\n", N);
-					return -1;
+					status = VX_ERROR_NOT_SUPPORTED;
+					agoAddLogEntry((vx_reference)node, status, "ERROR: ScalarArea OCL Nx+Nxf=%d not supported yet\n", N);
+					return status;
 				}
 				int ndw = (N + 4 + 3) >> 2;
 				char slist[] = "0123"; slist[ndw] = '\0';

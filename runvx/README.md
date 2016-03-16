@@ -3,53 +3,39 @@
 ## DESCRIPTION
 This guide provides an overview of the content and usage of the RunVX tool. This tool is used to run OpenVX graphs, with a simple, easy-to-use interface. It encapsulates most of the routine OpenVX calls, thus speeding up development and enabling rapid prototyping.
 
-## GETTING STARTED
-The RunVX tool is simple to setup and use. The graph is provided as a GDF format file (graph description file), a simple and intuitive syntax to describe the various nodes and the dependencies. The tool has other useful features like comparing outputs, visualizing output keypoints on the picture window, using the OpenCV library.
-
-### Supported Development Environments
-The following are the minimum requirements for running the AMD RunVX tool.
-* OS:             Microsoft Windows 7/8.1/10 (64-bit only), Ubuntu 15.10 64-bit 
-* IDE/Compiler:   Microsoft Visual Studio Professional 2013 (for example code)
-* CPU:            SSE4.1 or above CPU, 64-bit.
-* GPU:            Radeon R7 Series or above (Kaveri+ APU), Radeon 3xx Series or above
-* DRIVER:         AMD Catalyst 15.7 (version 15.20) with OpenCL2.0 runtimes
-* SUPPORT TOOLS
-    * AMD APP SDK v3.0 Beta or higher (64-bit) from [here](http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/)
-    * OpenCV 3.0 compliant cameras and webcams are required for graphs using camera inputs. The following cameras have been tested with this version
-        * Microsoft LifeCam HD3000
-        * Logitech c270 HD Webcam
-        * Creative Senz3D VF0780 
-        * HP laptop built-in camera
-
 ## RUNVX TOOL
-RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX takes a GDF (Graph Description Format) file and outputs images, pyramids, arrays, distributions, etc. This guide describes the elements of RunVX tool and the syntax used to run OpenVX graphs.
+RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX takes a GDF (Graph Description Format) file, a simple and intuitive syntax to describe the various data, nodes, and their dependencies. This guide describes the elements of RunVX tool and the syntax used to run various OpenVX graphs. The tool has other useful features, such as, file read/write, data compares, image and keypoint data visualization, etc.
 
-### RunVX Syntax
-    runvx.exe [options] file <GDF-file> argument(s)
-    runvx.exe [options] node <kernelName> argument(s)
-
-    options:
-      -h                                 -- show full help
-      -v                                 -- verbose
-      -root:<directory>                  -- replace ~ in filenames with directory 
-                                              in the command-line and GDF file. 
-                                              The default value of '~' is '.' 
-                                              when this option is not specified.
-      -frames:[<start>[,<end>]]/[live]   -- run the graph/node for specified frames
-      -frames-or-eof::[<start>[,<end>]]  -- run the graph/node for specified frames
-                                              or until eof
-      -affinity:<type>                   -- set default target affinity to type 
-                                              (shall be CPU or GPU)
-      -ago-profile                       -- print node-level performance data for 
-                                              profiling
-      -no-abort-on-mismatch              -- continue graph processing even if a 
-                                              mismatch occurs
-      -no-run                            -- abort after vxVerifyGraph
-      -disable-virtual                   -- replace all virtual data types in GDF 
-                                              with non-virtual data types
+### RunVX Usage and GDF Syntax
+    runvx.exe [options] file <file.gdf> [argument(s)]
+    runvx.exe [options] node <kernelName> [argument(s)]
+    runvx.exe [options] shell [argument(s)]
+        
+    The argument(s) are data objects created using <data-description> syntax.
+    These arguments can be accessed from inside GDF as $1, $2, etc.
     
-    kernelName:
-    The supported kernel name list is given below.
+    The available command-line options are:
+      -h
+          Show full help.
+      -v
+          Turn on verbose logs.
+      -root:<directory>
+          Replace ~ in filenames with <directory> in the command-line and
+          GDF file. The default value of '~' is current working directory.
+      -frames:[<start>:]<end>|eof|live
+          Run the graph/node for specified frames or until eof or just as live.
+          Use live to indicate that input is live until aborted by user.
+      -affinity:CPU|GPU[<device-index>]
+          Set context affinity to CPU or GPU.
+      -dump-profile
+          Print performance profiling information after graph launch.
+      -discard-compare-errors
+          Continue graph processing even if compare mismatches occur.
+      -disable-virtual
+          Replace all virtual data types in GDF with non-virtual data types.
+          Use of this flag (i.e. for debugging) can make a graph run slower.
+    
+    The supported list of OpenVX built-in kernel names is given below:
         org.khronos.openvx.color_convert
         org.khronos.openvx.channel_extract
         org.khronos.openvx.channel_combine
@@ -91,95 +77,202 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
         org.khronos.openvx.optical_flow_pyr_lk
         org.khronos.openvx.remap
         org.khronos.openvx.halfscale_gaussian
-        
-
-    argument(s):
-    GDF objects can be created on command-line with I/O capability and passed into a GDF file. A GDF file can access these GDF objects using $1, $2, $3, etc. corresponding to its position command-line. In addition to read/write/compare/initialize, image objects can be connected to a camera, image and keypoint-array objects can be displayed in a window. See below for argument specification, which is an extension to GDF object syntax for limited set of GDF objects.
-
-    image:<width>,<height>,<format>[[:<io-params>]...]
-    image-virtual:<width>,<height>,<image-format>
-    image-uniform:<width>,<height>,<image-format>,<uniform-pixel-value>[[:<io-params>]...] 
-      <image-format>         -   four letter string with values of VX_DF_IMAGE (see vx_df_image_e in vx_types.h)
-                                 some useful formats are: RGB2,RGBX,IYUV,NV12,U008,S016,U032,U001,F032,...
-      <uniform-pixel-val>    -   pixel value for uniform image
-      <io-params>            -   READ,<fileNameorURL>[,frames{<start>[;<count>;repeat]}] or camera,deviceNumber
-                                   to read input from file, URL, camera 
-                                 VIEW,<window-name> to display in a window
-                                 WRITE,<fileNameOrURL> to write
-                                 COMPARE,<fileName>[,rect{<start-x>;<start-y>;<end-x>;<end-y>}][,err{<min>;<max>}]
-                                   [,checksum|checksum-save-instead-of-test]
-                                   to compare output for exact-match or md5 checksum match or match
-                                   with range of pixel values, or generate md5 checksum without comparing.
-
-    array:<format>,<capacity>[[:<io-params>]...]
-    array-virtual:<format>,<capacity>[[:<io-params>]...]
-      <format>               -   KEYPOINT/COORDINATES2D/COORDINATES3D/RECTANGLE
-      <io-params>            -   READ,<fileName>[,ascii|binary] to read 
-                                 VIEW,<window-name> to display points overlaid in a window
-                                 WRITE,<fileName>[,ascii|binary] to write
-                                 COMPARE,<fileName>[,ascii|binary][,err{<x>;<y>[;<strength>]}]
-
-    pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>[:<io-params>]
-    pyramid-virtual:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
-      <numLevels>            -   number of levels of the pyramid
-      <image-format>         -   four letter string with values of VX_DF_IMAGE (see vx_df_image_e in vx_types.h)
-                                   some useful formats are: U008,S016,...
-    <io-params>              -   READ,<fileName[%n]> read image into pyramid at level n
-                                 WRITE,<fileName[%n]> write level n to file
-                                 COMPARE,<fileName>[,rect{<start-x>;<start-y>;<end-x>;<end-y>}][,err{<min>;<max>}]
-                                 [,checksum|checksum-save-instead-of-test]
-                                   to compare output for exact-match or md5 checksum match or match
-                                   with range of pixel values, or generate md5 checksum without comparing
-
-    distribution:<numBins>,<offset>,<range>[[:<io-params>]...]
-      <numBins>              -   num of bins
-      <offset>               -   start offset value
-      <range>                -   end value to use as range
-      <io-params>            -   READ,<fileName>[,ascii|binary] to read 
-                                 VIEW,<window-name> to overlay distribution visualization on a window
-                                 WRITE,<fileName>[,ascii|binary] to write
-                                 COMPARE,<fileName>[,ascii|binary] exact match compare
-
-    convolution:<columns>,<rows>[[:<io-params>]...]
-      <io-params>            -   READ,<fileName>[,ascii|binary|scale] to read 
-                                 WRITE,<fileName>[,ascii|binary|scale] to write
-                                 COMPARE,<fileName>[,ascii|binary|scale] exact match compare
-                                 SCALE,<scale-factor> scale value of the convolution
-                                 INIT,{<value1>;<value2>;...<valueN>} initialize matrix to immediate value
-
-    lut:<data-type>,<count>[[:<io-params>]...]
-      <data-type>            -   useful data types are: UINT8
-      <io-params>            -   READ,<fileName>[,ascii|binary] to read 
-                                 WRITE,<fileName>[,ascii|binary] to write
-                                 COMPARE,<fileName>[,ascii|binary] exact match compare
-                                 VIEW,<window-name> to view lookup table on a window
-
-    matrix:<data-type>,<columns>,<rows>[:<mode>,<fileName>]
-      <data-type>            -   useful data types are: INT32, FLOAT32
-      <io-params>            -   READ,<fileName>[,ascii|binary] to read 
-                                 WRITE,<fileName>[,ascii|binary] to write
-                                 COMPARE,<fileName>[,ascii|binary] exact match compare
-                                 INIT,{<value1>;<value2>;...<valueN>} initialize matrix to immediate value
-
-    remap:<srcWidth>,<srcHeight>,<dstWidth>,<dstHeight>[:<io-params>]
-      <io-params>            -   READ,<fileName>[,ascii|binary] to read 
-                                 WRITE,<fileName>[,ascii|binary] to write
-                                 COMPARE,<fileName>[,ascii|binary][,err{<x>;<y>}] compare within range
-                                 INIT,<filename>|rotate-90|rotate-180|rotate-270|scale|hflip|vflip
-                                   initialize remap table with file or in-built remaps
-
-    scalar:<data-type>,<value>[:<io-params>]
-      <data-type>            -   any scalar datatype supported by OpenVX some useful data types are: INT32, UINT32, FLOAT32, ENUM, BOOL, SIZE, ...
-      <io-params>            -   READ,<fileName> to read from file
-                                 WRITE,<fileName> to write to file
-                                 COMPARE,<fileName>[,range] compare within range in file,separated by space
-                                 VIEW,<window-name> to view scalar value on a window
-
-    threshold:<thresh-type>,<data-type>[:<io-params>]
-      <thresh-type>          -   BINARY/RANGE
-      <data-type>            -   useful data types are: UINT8, INT16
-      <io-params>            -   READ,<fileName> to read from file
-                                 INIT,<value1>[,<value2>] threshold value or range
+    
+    The available GDF commands are:
+      import <libraryName>
+          Import kernels in a library using vxLoadKernel API.
+    
+      type <typeName> userstruct:<size-in-bytes>
+          Create an OpenVX user defined structure using vxRegisterUserStruct API.
+          The <typeName> can be used as a type in array object.
+    
+      data <dataName> = <data-description>
+          Create an OpenVX data object in context using the below syntax for
+          <data-description>:
+              array:<data-type>,<capacity>
+              convolution:<columns>,<rows>
+              distribution:<numBins>,<offset>,<range>
+              delay:<exemplar>,<slots>
+              image:<width>,<height>,<image-format>
+              image-uniform:<width>,<height>,<image-format>,<uniform-pixel-value>
+              image-roi:<master-image>,rect{<start-x>;<start-y>;<end-x>;<end-y>}
+              lut:<data-type>,<count>
+              matrix:<data-type>,<columns>,<rows>
+              pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
+              remap:<srcWidth>,<srcHeight>,<dstWidth>,<dstHeight>
+              scalar:<data-type>,<value>
+              threshold:<thresh-type>,<data-type>
+          For virtual object in default graph use the below syntax for
+          <data-description>:
+              array-virtual:<data-type>,<capacity>
+              image-virtual:<width>,<height>,<image-format>
+              pyramid-virtual:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
+    
+          where:
+              <master-image> can be name of a image data object (including $1, $2, ...)
+              <exemplar> can be name of a data object (including $1, $2, ...)
+              <thresh-type> can be BINARY,RANGE
+              <uniform-pixel-value> can be an integer or {<byte>;<byte>;...}
+              <image-format> can be RGB2,RGBX,IYUV,NV12,U008,S016,U001,F032,...
+              <data-type> can be UINT8,INT16,INT32,UINT32,FLOAT32,ENUM,BOOL,SIZE,
+                                 KEYPOINT,COORDINATES2D,RECTANGLE,<typeName>,...
+    
+      node <kernelName> [<argument(s)>]
+          Create a node of specified kernel in the default graph with specified
+          node arguments. Node arguments have to be OpenVX data objects created
+          earlier in GDF or data objects specified on command-line accessible as
+          $1, $2, etc. For scalar enumerations as node arguments, use !<enumName>
+          syntax (e.g., !VX_CHANNEL_Y for channel_extract node).
+    
+      include <file.gdf>
+          Specify inclusion of another GDF file.
+    
+      shell
+          Start a shell command session.
+    
+      set <option> [<value>]
+          Specify or query the following global options:
+              set verbose [on|off]
+                  Turn on/off verbose option.
+              set frames [[<start-frame>:]<end-frame>|eof|live|default]
+                  Specify input frames to be processed. Here are some examples:
+                      set frames 10      # process frames 0 through 9
+                      set frames 1:10    # process frames 1 through 9
+                      set frames eof     # process all frames till end-of-file
+                      set frames live    # input is live until terminated by user
+                      set frames default # process all frames specified on input
+              set dump-profile [on|off]
+                  Turn on/off profiler output.
+              set wait [key|<milliseconds>]
+                  Specify wait time between frame processing to give extra time
+                  for viewing. Or wait for key press between frames.
+              set compare [on|off|discard-errors]
+                  Turn on/off data compares or just discard data compare errors.
+              set use-schedule-graph [on|off]
+                  Turn on/off use of vxScheduleGraph instead of vxProcessGraph.
+    
+      graph <command> [<arguments> ...]
+          Specify below graph specific commands:
+              graph auto-age [<delayName> [<delayName> ...]]
+                  Make the default graph use vxAgeDelay API for the specified
+                  delay objects after processing each frame.
+              graph affinity [CPU|GPU[<device-index>]]
+                  Specify graph affinity to CPU or GPU.
+              graph save-and-reset <graphName>
+                  Verify the default graph and save it as <graphName>. Then
+                  create a new graph as the default graph. Note that the earlier
+                  virtual data object won't be available after graph reset.
+              graph reset [<graphName(s)>]
+                  Reset the default or specified graph(s). Note that the earlier
+                  virtual data object won't be available after graph reset.
+              graph launch [<graphName(s)>]
+                  Launch the default or specified graph(s).
+    
+      init <dataName> <initial-value>
+          Initialize data object with specified value.
+          - convolution object initial values can be:
+              {<value1>;<value2>;...<valueN>}
+              scale{<scale>}
+          - matrix object initial values can be:
+              {<value1>;<value2>;...<valueN>}
+          - remap object initial values can be:
+              dst is same as src: same
+              dst is 90 degree rotation of src: rotate-90
+              dst is 180 degree rotation of src: rotate-180
+              dst is 270 degree rotation of src: rotate-270
+              dst is horizontal flip of src: hflip
+              dst is vertical flip of src: vflip
+          - threshold object initial values can be:
+              For VX_THRESHOLD_TYPE_BINARY: <value>
+              For VX_THRESHOLD_TYPE_RANGE: {<lower>;<upper>}
+    
+      read <dataName> <fileName> [ascii|binary] [<option(s)>]
+          Read frame-level data from the specified <fileName>.
+          - images can be read from containers (such as, .jpg, .avi, .mp4, etc.)
+            as well as raw binary files
+          - certain raw data formats support reading data for all frames from a
+            single file (such as, video.yuv, video.rgb, video.avi etc.)
+            The data objects that support this feature are image, scalar, and
+            threshold data objects.
+          - certain data formats support printf format-syntax (e.g., joy_%04d.yuv)
+            to read individual data from separate files. Note that scalar and
+            threshold data objects doesn't support this feature. Also note that
+            pyramid objects expect all frames of each level in separate files.
+          - convolution objects support the option: scale
+            This will read scale value as the first 32-bit integer in file(s).
+    
+      write <dataName> <fileName> [ascii|binary] [<option(s)>]
+          Write frame-level data to the specified <fileName>.
+          - certain raw data formats support writing data for all frames into a
+            single file (such as, video.yuv, video.rgb, video.u8, etc.)
+            The data objects that support this feature are image, scalar, and
+            threshold data objects.
+          - certain data formats support printf format-syntax (e.g., joy_%04d.yuv)
+            to write individual data from separate files. Note that scalar and
+            threshold data objects doesn't support this feature. Also note that
+            pyramid objects expect all frames of each level in separate files.
+          - convolution objects support the option: scale
+            This will write scale value as the first 32-bit integer in file(s).
+    
+      compare <dataName> <fileName> [ascii|binary] [<option(s)>]
+          Compare frame-level data from the specified <fileName>.
+          - certain raw data formats support comparing data for all frames from a
+            single file (such as, video.yuv, video.rgb, video.u8, etc.)
+            The data objects that support this feature are image, scalar, and
+            threshold data objects.
+          - certain data formats support printf format-syntax (e.g., joy_%04d.yuv)
+            to read individual data from separate files. Note that scalar and
+            threshold data objects doesn't support this feature.
+          - array objects with VX_TYPE_KEYPOINT data type support the options:
+              specify tolerance: err{<x>;<y>;<strength>[;<%mismatch>]}
+              specify compare log file: log{<fileName>}
+          - array objects with VX_TYPE_COORDINATES2D data type support the options:
+              specify tolerance: err{<x>;<y>[;<%mismatch>]}
+              specify compare log file: log{<fileName>}
+          - convolution objects support the option:
+              read scale value as the first 32-bit integer in file(s): scale
+          - image and pyramid objects support the options:
+              specify compare region: rect{<start-x>;<start-y>;<end-x>;<end-y>}
+              specify valid pixel difference: err{<min>;<max>}
+              specify pixel checksum to compare: checksum
+              specify generate checksum: checksum-save-instead-of-test
+          - matrix objects support the options:
+              specify tolerance: err{<tolerance>}
+          - remap objects support the options:
+              specify tolerance: err{<x>;<y>}
+          - scalar objects support the option:
+              specify that file specifies inclusive range of valid values: range
+    
+      view <dataName> <windowName>
+          Display frame-level data in a window with title <windowName>. Each window
+          can display an image data object and optionally additional other data
+          objects overlaid on top of the image.
+          - supported data object types are: array, distribution, image, lut,
+            scalar, and delay.
+          - display of array, distribution, lut, and scalar objects are
+            overlaid on top of an image with the same <windowName>.
+          - delay object displays reference in the slot#0 of current time.
+    
+      directive <dataName> <directive>
+          Specify a directive to data object. Only a few directives are supported:
+          - Use sync-cl-write directive to issue VX_DIRECTIVE_AMD_COPY_TO_OPENCL
+            directive whenever data object is updated using init or read commands.
+            Supported for array, image, lut, and remap data objects only.
+          - Use readonly directive to issue VX_DIRECTIVE_AMD_READ_ONLY directive
+            that informs the OpenVX framework that object won't be updated after
+            init command. Supported for convolution and matrix data objects only.
+    
+      pause
+          Wait until a key is pressed before processing next GDF command.
+    
+      help [command]
+          Show the GDF command help.
+    
+      exit
+          Exit from shell or included GDF file.
+    
+      quit
+          Abort the application.
 
 ## Examples
 Here are few examples that demonstrate use of RUNVX prototyping tool.
@@ -187,35 +280,53 @@ Here are few examples that demonstrate use of RUNVX prototyping tool.
 ### Canny Edge Detector
 This example demonstrates building OpenVX graph for Canny edge detector. Use [raja-koduri-640x480.jpg](http://cdn5.applesencia.com/wp-content/blogs.dir/17/files/2013/04/raja-koduri-640x480.jpg) for this example.
 
-    % runvx[.exe] file canny.gdf image:640,480,RGB2:READ,raja-koduri-640x480.jpg:VIEW,RGB image:640,480,U008:VIEW,SKIN
+    % runvx[.exe] file canny.gdf
 
 File **canny.gdf**:
 
+    # create input and output images
+    data input  = image:640,480,RGB2
+    data output = image:640,480,U008
+    
+    # specify input source for input image and request for displaying input and output images
+    read input  raja-koduri-640x480.jpg
+    view input  inputWindow
+    view output edgesWindow
+    
     # compute luma image channel from input RGB image
     data yuv  = image-virtual:0,0,IYUV
     data luma = image-virtual:0,0,U008
-    node org.khronos.openvx.color_convert $1 yuv
+    node org.khronos.openvx.color_convert input yuv
     node org.khronos.openvx.channel_extract yuv !CHANNEL_Y luma
-
+    
     # compute edges in luma image using Canny edge detector
     data hyst = threshold:RANGE,UINT8:INIT,80,100
     data gradient_size = scalar:INT32,3
-    node org.khronos.openvx.canny_edge_detector luma hyst gradient_size !NORM_L1 $2
-    
+    node org.khronos.openvx.canny_edge_detector luma hyst gradient_size !NORM_L1 output
+
 ### Skintone Pixel Detector
 This example demonstrates building OpenVX graph for pixel-based skin tone detector [Peer et al. 2003]. Use [raja-koduri-640x480.jpg](http://cdn5.applesencia.com/wp-content/blogs.dir/17/files/2013/04/raja-koduri-640x480.jpg) for this example.
 
-    % runvx[.exe] file skintonedetect.gdf image:640,480,RGB2:READ,raja-koduri-640x480.jpg:VIEW,RGB image:640,480,U008:VIEW,SKIN
+    % runvx[.exe] file skintonedetect.gdf
 
 File **skintonedetect.gdf**:
 
+    # create input and output images
+    data input  = image:640,480,RGB2
+    data output = image:640,480,U008
+    
+    # specify input source for input image and request for displaying input and output images
+    read input  raja-koduri-640x480.jpg
+    view input  inputWindow
+    view output skintoneWindow
+    
     # threshold objects
     data thr95  = threshold:BINARY,UINT8:INIT,95 # threshold for computing R > 95
     data thr40  = threshold:BINARY,UINT8:INIT,40 # threshold for computing G > 40
     data thr20  = threshold:BINARY,UINT8:INIT,20 # threshold for computing B > 20
     data thr15  = threshold:BINARY,UINT8:INIT,15 # threshold for computing R-G > 15
     data thr0   = threshold:BINARY,UINT8:INIT,0  # threshold for computing R-B > 0
-
+    
     # virtual image objects for intermediate results
     data R      = image-virtual:0,0,U008
     data G      = image-virtual:0,0,U008
@@ -230,24 +341,23 @@ File **skintonedetect.gdf**:
     data and1   = image-virtual:0,0,U008
     data and2   = image-virtual:0,0,U008
     data and3   = image-virtual:0,0,U008
-
+    
     # extract R,G,B channels and compute R-G and R-B
-    node org.khronos.openvx.channel_extract $1 !CHANNEL_B R # extract R channel from input (argument 1)
-    node org.khronos.openvx.channel_extract $1 !CHANNEL_G G # extract G channel from input (argument 1)
-    node org.khronos.openvx.channel_extract $1 !CHANNEL_R B # extract B channel from input (argument 1)
+    node org.khronos.openvx.channel_extract input !CHANNEL_B R # extract R channel
+    node org.khronos.openvx.channel_extract input !CHANNEL_G G # extract G channel
+    node org.khronos.openvx.channel_extract input !CHANNEL_R B # extract B channel
     node org.khronos.openvx.subtract R   G   !SATURATE RmG  # compute R-G
     node org.khronos.openvx.subtract R   B   !SATURATE RmB  # compute R-B
-
+    
     # compute threshold
     node org.khronos.openvx.threshold R   thr95 R95         # compute R > 95
     node org.khronos.openvx.threshold G   thr40 G40         # compute G > 40
     node org.khronos.openvx.threshold B   thr20 B20         # compute B > 20
     node org.khronos.openvx.threshold RmG thr15 RmG15       # compute RmG > 15
     node org.khronos.openvx.threshold RmB thr0  RmB0        # compute RmB > 0
-
+    
     # aggregate all thresholded values to produce SKIN pixels
     node org.khronos.openvx.and R95   G40   and1            # compute R95 & G40
     node org.khronos.openvx.and and1  B20   and2            # compute B20 & and1
     node org.khronos.openvx.and RmG15 RmB0  and3            # compute RmG15 & RmB0
-    node org.khronos.openvx.and and2 and3 $2                # compute and2 & and3 as output (argument 2)
-    
+    node org.khronos.openvx.and and2 and3 output            # compute and2 & and3 as output

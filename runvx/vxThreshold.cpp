@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxThreshold.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -90,6 +88,10 @@ int CVxParamThreshold::InitializeIO(vx_context context, vx_graph graph, vx_refer
 		io_params = ScanParameters(io_params, "<io-operation>,<parameter>", "s,S", ioType, fileName);
 		if (!_stricmp(ioType, "read"))
 		{ // read request syntax: read,<fileName>
+			if (m_fpRead) {
+				fclose(m_fpRead);
+				m_fpRead = nullptr;
+			}
 			m_fileNameRead.assign(RootDirUpdated(fileName));
 			if (*io_params == ',') {
 				ReportError("ERROR: invalid threshold read option: %s\n", io_params);
@@ -98,8 +100,13 @@ int CVxParamThreshold::InitializeIO(vx_context context, vx_graph graph, vx_refer
 		else if (!_stricmp(ioType, "init")) {
 			if (m_thresh_type == VX_THRESHOLD_TYPE_RANGE) {
 				vx_int32 lower = 0, upper = 0;
-				ScanParameters(fileName, "<threshold-lower>", "d", &lower);
-				io_params = ScanParameters(io_params, ",<threshold-upper>", ",d", &upper);
+				if (fileName[0] == '{') {
+					ScanParameters(fileName, "{<threshold-lower>;<threshold-upper>}", "{d;d}", &lower, &upper);
+				}
+				else {
+					ScanParameters(fileName, "<threshold-lower>", "d", &lower);
+					io_params = ScanParameters(io_params, ",<threshold-upper>", ",d", &upper);
+				}
 				ERROR_CHECK(vxSetThresholdAttribute(m_threshold, VX_THRESHOLD_ATTRIBUTE_THRESHOLD_LOWER, &lower, sizeof(vx_int32)));
 				ERROR_CHECK(vxSetThresholdAttribute(m_threshold, VX_THRESHOLD_ATTRIBUTE_THRESHOLD_UPPER, &upper, sizeof(vx_int32)));
 			}

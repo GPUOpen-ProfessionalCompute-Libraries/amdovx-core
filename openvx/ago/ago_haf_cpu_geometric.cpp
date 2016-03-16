@@ -134,8 +134,8 @@ int HafCpu_Remap_U8_U8_Nearest
 		if (extra_pixels){
 			unsigned char *pd = (unsigned char *)pdst;
 			for (unsigned int i = 0; i < extra_pixels; i++, pMapY_X++){
-				int x = (pMapY_X->x != 0xFFFF) ? (pMapY_X->x >> 3) + ((pMapY_X->x&7)>>2): 0;
-				int y = (pMapY_X->y != 0xFFFF) ? (pMapY_X->y >> 3) + ((pMapY_X->y&7)>>2) : 0;
+				int x = (pMapY_X->x != -1) ? (pMapY_X->x >> 3) + ((pMapY_X->x&7)>>2): 0;
+				int y = (pMapY_X->y != -1) ? (pMapY_X->y >> 3) + ((pMapY_X->y&7)>>2) : 0;
 				pd[i] = pSrcImage[y*srcImageStrideInBytes + x];
 			}
 		}
@@ -234,8 +234,8 @@ int HafCpu_Remap_U8_U8_Nearest_Constant
 		if (extra_pixels){
 			unsigned char *pd = (unsigned char *)pdst;
 			for (unsigned int i = 0; i < extra_pixels; i++, pMapY_X++){
-				int x = (pMapY_X->x != 0xFFFF) ? (pMapY_X->x >> 3) + ((pMapY_X->x & 7) >> 2) : border;
-				int y = (pMapY_X->y != 0xFFFF) ? (pMapY_X->y >> 3) + ((pMapY_X->y & 7) >> 2) : border;
+				int x = (pMapY_X->x != -1) ? (pMapY_X->x >> 3) + ((pMapY_X->x & 7) >> 2) : border;
+				int y = (pMapY_X->y != -1) ? (pMapY_X->y >> 3) + ((pMapY_X->y & 7) >> 2) : border;
 				pd[i] = pSrcImage[y*srcImageStrideInBytes + x];
 			}
 		}
@@ -1939,8 +1939,8 @@ ago_scale_matrix_t * matrix
 					(pSrcImage[M128I(mapx3).m128i_i32[2]] << 16) | (pSrcImage[M128I(mapx3).m128i_i32[3]] << 24);
 
 			}
-			while (x < dstWidth)
-				pDstImage[x] = pSrcImage[Xmap[x++] + yadd];
+			for (; x < dstWidth; x++)
+				pDstImage[x] = pSrcImage[Xmap[x] + yadd];
 
 			pDstImage += dstImageStrideInBytes;
 
@@ -1952,8 +1952,8 @@ ago_scale_matrix_t * matrix
 		{
 			unsigned int yadd = Ymap[y] * srcImageStrideInBytes;
 			x = 0;
-			while (x < dstWidth)
-				pDstImage[x] = pSrcImage[Xmap[x++] + yadd];
+			for (; x < dstWidth; x++)
+				pDstImage[x] = pSrcImage[Xmap[x] + yadd];
 			pDstImage += dstImageStrideInBytes;
 		}
 	}

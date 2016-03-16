@@ -27,65 +27,68 @@ THE SOFTWARE.
 #include "vxParameter.h"
 
 class CVxEngine {
-
 public:
 	CVxEngine();
 	virtual ~CVxEngine();
-	// functions to setup
-	// returns 0 on SUCCESS, else error code
-	int Initialize(int paramCount, int defaultTargetAffinity, int defaultTargetInfo, bool useProcessGraph, bool disableVirtual);
+	int Initialize(int paramCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual);
+	void SetConfigOptions(bool verbose, bool discardCompareErrors, bool enableDumpProfile, bool enableDumpGDF, int waitKeyDelayInMilliSeconds);
+	void SetFrameCountOptions(bool enableMultiFrameProcessing, bool framesEofRequested, bool frameCountSpecified, int frameStart, int frameEnd);
 	int SetGraphOptimizerFlags(vx_uint32 graph_optimizer_flags);
-	vx_context getContext();
 	int SetParameter(int index, const char * param);
+	int Shell(int level, FILE * fp = nullptr);
+	int BuildAndProcessGraph(int level, char * graphScript, bool importMode);
+	int SetImportedData(vx_reference ref, const char * name, const char * params);
+	int Shutdown();
+	void DisableWaitForKeyPress();
+
+protected:
+	vx_context getContext();
 	void viewParameters();
-	void GetMedianRunTime();
-	int BuildGraph(char * graphScript, bool useAgoImport, bool useAgoDump);
-	// functions for execution
-	// returns 0 on SUCCESS, else error code
-	// ReadFrame() returns +ve value to indicate data unavailability
+	int BuildAndProcessGraphFromLine(int level, char * line);
+	int ProcessGraph(std::vector<const char *> * graphNameList = nullptr, size_t beginIndex = 0);
 	int ReadFrame(int frameNumber);
 	int ExecuteFrame(int frameNumber);
 	int WriteFrame(int frameNumber);
 	int CompareFrame(int frameNumber);
-	const char * MeasureFrame(int frameNumber);
-	// functions for profiling
-	vx_status DumpInternalProfile(char * fileName);
-	const char * GetPerformanceStatistics();
-	// functions for termination
-	int Shutdown();
-	void DisableWaitForKeyPress();
-	// save data object and parameters
-	int SetImportedData(vx_reference ref, const char * name, const char * params);
+	void MeasureFrame(int frameNumber, int status, std::vector<vx_graph>& graphList);
+	float GetMedianRunTime();
+	void PerformanceStatistics(int status, std::vector<vx_graph>& graphList);
 	bool IsUsingMultiFrameCapture();
-	void SetCaptureFrameStart(vx_uint32 frameStart) { m_captureFrameStart = frameStart; }
-	void SetVerbose(bool verbose);
-	void SetAbortOnMismatch(bool abortOnMismatch);
-
-private:
-	// implementation specific functions
-	// ExecuteVXU - run utility that correspond to m_vxuName - called by ExecuteFrame
-	int ExecuteVXU();
+	void ReleaseAllVirtualObjects();
 
 private:
 	// implementation specific data
 	// m_paramMap - holds names and pointers to all data objects
 	// m_paramCount - number of data objects on command-line
-	// m_vxuName - contains vxuName when BuildUtility() is called, otherwise nullptr
 	map<string, CVxParameter *> m_paramMap;
 	map<string, vx_enum> m_userStructMap;
 	int m_paramCount;
-	const char * m_vxuName;
 	vx_context m_context;
 	vx_graph m_graph;
 	float m_perfMultiplicationFactor; // to convert vx_perf_t to milli-seconds
-	bool m_useProcessGraph;
-	vector<float> m_times_vector;
-	// to support multi-frame capture
+	bool m_enableScheduleGraph;
+	std::vector<float> m_timeMeasurements;
+	std::vector<std::string> m_graphAutoAgeList;
+	std::map<std::string, vx_graph> m_graphNameListForObj;
+	std::map<std::string, std::vector<std::string> > m_graphNameListForAge;
+	// configuration flags
 	bool m_usingMultiFrameCapture;
-	vx_uint32 m_captureFrameStart;
-	// disable virtual objects
 	bool m_disableVirtual;
-	// verbose flag
 	bool m_verbose;
+	bool m_discardCompareErrors;
+	bool m_enableDumpProfile;
+	bool m_enableDumpGDF;
+	bool m_enableMultiFrameProcessing;
+	bool m_framesEofRequested;
+	bool m_frameCountSpecified;
+	int m_frameStart;
+	int m_frameEnd;
+	int m_waitKeyDelayInMilliSeconds;
+	bool m_disableCompare;
+	int m_numGraphProcessed;
+	bool m_graphVerified;
 };
+
+void PrintHelpGDF(const char * command = nullptr);
+
 #endif /* CVX_ENGINE_H*/

@@ -54,6 +54,11 @@ using namespace std;
 #include <intrin.h>
 #else
 #include <dlfcn.h>
+#if __APPLE__
+#include <x86intrin.h>
+#include <cstdlib>
+#include <cmath>
+#endif
 #endif
 
 #if ENABLE_OPENCL

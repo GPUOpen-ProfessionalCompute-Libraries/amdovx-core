@@ -18,12 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 2.8)
 project (openvx)
 
 set (CMAKE_CXX_STANDARD 11)
 
-find_package(OpenCL)
+find_package(OpenCL QUIET)
 
 include_directories(include ago api)
 
@@ -63,7 +63,7 @@ list(APPEND SOURCES
 	api/vx_nodes.cpp
 )
 
-add_library(openvx STATIC ${SOURCES})
+add_library(openvx SHARED ${SOURCES})
 
 if (OpenCL_FOUND)
 	target_compile_definitions(openvx PUBLIC ENABLE_OPENCL=1)
@@ -73,10 +73,14 @@ else(OpenCL_FOUND)
 	target_compile_definitions(openvx PUBLIC ENABLE_OPENCL=0)
 endif(OpenCL_FOUND)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mxop")
-	target_link_libraries(openvx dl)
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+if( POLICY CMP0054 )
+  cmake_policy( SET CMP0054 OLD )
 endif()
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /DVX_API_ENTRY=__declspec(dllexport)")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /DVX_API_ENTRY=__declspec(dllexport)")
+else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -std=c++11")
+	target_link_libraries(openvx dl)
+endif()
+

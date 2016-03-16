@@ -30,7 +30,7 @@ THE SOFTWARE.
 extern int g_numCvUse;
 
 // process OpenCV window key refresh
-int ProcessCvWindowKeyRefresh();
+int ProcessCvWindowKeyRefresh(int waitKeyDelayInMilliSeconds);
 
 // input track bars connected to scalar objects
 int GuiTrackBarInitializeScalar(vx_reference obj, int id, float valueMin, float valueMax, float valueInc);

@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxArray.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -79,6 +77,7 @@ int CVxParamArray::Initialize(vx_context context, vx_graph graph, const char * d
 		// create array object
 		if (!_stricmp(objType, "array-virtual")) {
 			m_array = vxCreateVirtualArray(graph, m_format, m_capacity);
+			m_isVirtualObject = true;
 		}
 		else {
 			m_array = vxCreateArray(context, m_format, m_capacity);
@@ -475,7 +474,7 @@ int CVxParamArray::CompareFrame(int frameNumber)
 	// report error if mismatched
 	if (mismatchDetected) {
 		m_compareCountMismatches++;
-		if (m_abortOnCompareMismatch) return -1;
+		if (!m_discardCompareErrors) return -1;
 	}
 	else {
 		m_compareCountMatches++;
@@ -559,7 +558,7 @@ bool CVxParamArray::CompareFrameKeypoints(size_t numItems, size_t numItemsRef, v
 				vx_keypoint_t * kpCur = &vxArrayItem(vx_keypoint_t, kpActualBase, i, stride);
 				if (kpCur->tracking_status) {
 					if ((kpCur->x == kpRef->x) && (kpCur->y == kpRef->y)) {
-						if (abs(kpCur->strength - kpRef->strength) <= m_errStrength) {
+						if (fabsf(kpCur->strength - kpRef->strength) <= m_errStrength) {
 							AddToArrayListForView(colorIndex_match_XYexact_S, kpCur->x, kpCur->y, kpCur->strength);
 							if (fpLog) fprintf(fpLog, "MATCH-XY-EXACT-S          -- %5d %5d %20.12e (ref:%06d) %5d %5d %20.12e (cur:%06d)\n", kpRef->x, kpRef->y, kpRef->strength, (int)j, kpCur->x, kpCur->y, kpCur->strength, (int)i);
 							count_match_XYexact_S++;
@@ -572,7 +571,7 @@ bool CVxParamArray::CompareFrameKeypoints(size_t numItems, size_t numItemsRef, v
 						matched = true;
 					}
 					else if ((abs(kpCur->x - kpRef->x) <= m_errX) && (abs(kpCur->y - kpRef->y) <= m_errY) &&
-						(abs(kpCur->strength - kpRef->strength) <= m_errStrength))
+						(fabsf(kpCur->strength - kpRef->strength) <= m_errStrength))
 					{
 						AddToArrayListForView(colorIndex_match_XYS, kpCur->x, kpCur->y, kpCur->strength);
 						if (fpLog) fprintf(fpLog, "MATCH-XYS                     -- %5d %5d %20.12e (ref:%06d) %5d %5d %20.12e (cur:%06d)\n", kpRef->x, kpRef->y, kpRef->strength, (int)j, kpCur->x, kpCur->y, kpCur->strength, (int)i);
@@ -603,7 +602,7 @@ bool CVxParamArray::CompareFrameKeypoints(size_t numItems, size_t numItemsRef, v
 				vx_keypoint_t * kpRef = &kpRefBase[j];
 				if (kpRef->tracking_status) {
 					if ((abs(kpCur->x - kpRef->x) <= m_errX) && (abs(kpCur->y - kpRef->y) <= m_errY) &&
-						(abs(kpCur->strength - kpRef->strength) <= m_errStrength))
+						(fabsf(kpCur->strength - kpRef->strength) <= m_errStrength))
 					{
 						matched = true;
 					}

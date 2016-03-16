@@ -1241,8 +1241,8 @@ int agoOptimizeDramaRemoveNodeMerge(AgoGraph * agraph)
 				}
 				// transfer configuration from rule to childnode
 				childnode->attr_affinity = attr_affinity;
-				childnode->attr_border_mode;
-				childnode->callback;
+				//childnode->attr_border_mode = attr_border_mode;
+				//childnode->callback = callback;
 				debug_printf("INFO: agoOptimizeDramaRemoveNodeMerge: added node %s\n", childnode->akernel->name);
 				// verify the node
 				if (agoVerifyNode(childnode)) {

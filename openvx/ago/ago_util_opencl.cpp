@@ -455,7 +455,7 @@ int agoGpuOclAllocBuffers(AgoGraph * graph, AgoNode * node)
 		if (data && !data->opencl_buffer) {
 			if (agoIsPartOfDelay(data)) {
 				int siblingTrace[AGO_MAX_DEPTH_FROM_DELAY_OBJECT], siblingTraceCount = 0;
-				data = agoGetSiblingTraceToDelay(data, siblingTrace, siblingTraceCount);
+				data = agoGetSiblingTraceToDelayForUpdate(data, siblingTrace, siblingTraceCount);
 				if (!data) return -1;
 			}
 			if (agoGpuOclAllocBuffer(data) < 0) {
@@ -685,6 +685,7 @@ static int agoGpuOclSetKernelArgs(cl_kernel opencl_kernel, vx_uint32& kernelArgI
 
 static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_uint32& kernelArgIndex, AgoData * data, vx_uint32 dataFlags, vx_uint32 group, bool need_access, bool need_read_access, bool need_atomic_access)
 {
+	cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
 	cl_int err;
 	if (data->ref.type == VX_TYPE_IMAGE) {
 		if (need_access) { // only use image objects that need read access
@@ -713,7 +714,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 					if (dataToSync->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE | AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT)) {
 						int64_t stime = agoGetClockCounter();
 						if (dataToSync->opencl_buffer) {
-							cl_int err = clEnqueueWriteBuffer(graph->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, dataToSync->size, dataToSync->buffer, 0, NULL, NULL);
+							cl_int err = clEnqueueWriteBuffer(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, dataToSync->size, dataToSync->buffer, 0, NULL, NULL);
 							if (err) { 
 								agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d\n", err);
 								return -1; 
@@ -724,7 +725,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 						graph->opencl_perf.buffer_write += etime - stime;
 #if ENABLE_DEBUG_DUMP_CL_BUFFERS
 						char fileName[128]; sprintf(fileName, "input_%%04d_%dx%d.yuv", dataToSync->u.img.width, dataToSync->u.img.height);
-						clDumpBuffer(fileName, graph->opencl_cmdq, dataToSync);
+						clDumpBuffer(fileName, opencl_cmdq, dataToSync);
 #endif
 					}
 				}
@@ -744,7 +745,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 					int64_t stime = agoGetClockCounter();
 					vx_size size = data->u.arr.numitems * data->u.arr.itemsize;
 					if (size > 0 && data->opencl_buffer) {
-						cl_int err = clEnqueueWriteBuffer(graph->opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, size, data->buffer, 0, NULL, NULL);
+						cl_int err = clEnqueueWriteBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, size, data->buffer, 0, NULL, NULL);
 						if (err) { 
 							agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d (array)\n", err);
 							return -1;
@@ -754,7 +755,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 					int64_t etime = agoGetClockCounter();
 					graph->opencl_perf.buffer_write += etime - stime;
 #if ENABLE_DEBUG_DUMP_CL_BUFFERS
-					clDumpBuffer("input_%04d.bin", graph->opencl_cmdq, data);
+					clDumpBuffer("input_%04d.bin", opencl_cmdq, data);
 #endif
 				}
 			}
@@ -833,7 +834,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 						int64_t stime = agoGetClockCounter();
 						size_t origin[3] = { 0, 0, 0 };
 						size_t region[3] = { 256, 1, 1 };
-						err = clEnqueueWriteImage(graph->opencl_cmdq, data->opencl_buffer, CL_TRUE, origin, region, 256, 0, data->buffer, 0, NULL, NULL);
+						err = clEnqueueWriteImage(opencl_cmdq, data->opencl_buffer, CL_TRUE, origin, region, 256, 0, data->buffer, 0, NULL, NULL);
 						if (err) { 
 							agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueWriteImage(lut) => %d\n", err);
 							return -1; 
@@ -858,7 +859,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 				if (!(data->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
 					if (data->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE | AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT)) {
 						int64_t stime = agoGetClockCounter();
-						cl_int err = clEnqueueWriteBuffer(graph->opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, data->size, data->buffer, 0, NULL, NULL);
+						cl_int err = clEnqueueWriteBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, data->size, data->buffer, 0, NULL, NULL);
 						if (err) { 
 							agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d\n", err);
 							return -1; 
@@ -902,9 +903,11 @@ static int agoGpuOclDataOutputMarkDirty(AgoGraph * graph, AgoData * data, bool n
 
 static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 {
+	cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
+
 	if (data->ref.type == VX_TYPE_ARRAY) {
 #if ENABLE_DEBUG_DUMP_CL_BUFFERS
-		clDumpBuffer("output_%04d_array.bin", graph->opencl_cmdq, data);
+		clDumpBuffer("output_%04d_array.bin", opencl_cmdq, data);
 		//printf("Press ENTER to continue... ");  char line[256]; gets(line);
 #endif
 		// update number of items
@@ -912,7 +915,7 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 		int64_t stime = agoGetClockCounter();
 		vx_uint32 * pNumItems = (vx_uint32 *)data->opencl_svm_buffer;
 		if (data->opencl_buffer) {
-			pNumItems = (vx_uint32 *)clEnqueueMapBuffer(graph->opencl_cmdq, data->opencl_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(vx_uint32), 0, NULL, NULL, &err);
+			pNumItems = (vx_uint32 *)clEnqueueMapBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(vx_uint32), 0, NULL, NULL, &err);
 			if (err) { 
 				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueMapBuffer() for numitems => %d\n", err);
 				return -1; 
@@ -926,7 +929,7 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 		if (data->opencl_buffer) {
 			// unmap
 			stime = agoGetClockCounter();
-			err = clEnqueueUnmapMemObject(graph->opencl_cmdq, data->opencl_buffer, pNumItems, 0, NULL, NULL);
+			err = clEnqueueUnmapMemObject(opencl_cmdq, data->opencl_buffer, pNumItems, 0, NULL, NULL);
 			if (err) { 
 				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueUnmapMemObject() for numitems => %d\n", err);
 				return -1; 
@@ -941,7 +944,7 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 		cl_int err = CL_SUCCESS;
 		vx_uint8 * stack = data->opencl_svm_buffer;
 		if (data->opencl_buffer) {
-			stack = (vx_uint8 *)clEnqueueMapBuffer(graph->opencl_cmdq, data->opencl_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(vx_uint32), 0, NULL, NULL, &err);
+			stack = (vx_uint8 *)clEnqueueMapBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(vx_uint32), 0, NULL, NULL, &err);
 			if (err) { 
 				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueMapBuffer() for stacktop => %d\n", err);
 				return -1; 
@@ -953,7 +956,7 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 		*(vx_uint32 *)stack = 0;
 		if (data->opencl_buffer) {
 			stime = agoGetClockCounter();
-			err = clEnqueueUnmapMemObject(graph->opencl_cmdq, data->opencl_buffer, stack, 0, NULL, NULL);
+			err = clEnqueueUnmapMemObject(opencl_cmdq, data->opencl_buffer, stack, 0, NULL, NULL);
 			if (err) { 
 				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueUnmapMemObject() for stacktop => %d\n", err);
 				return -1; 
@@ -963,7 +966,7 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 			// read data
 			if (data->u.cannystack.stackTop > 0) {
 				int64_t stime = agoGetClockCounter();
-				err = clEnqueueReadBuffer(graph->opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, data->u.cannystack.stackTop * sizeof(ago_coord2d_ushort_t), data->buffer, 0, NULL, NULL);
+				err = clEnqueueReadBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, data->u.cannystack.stackTop * sizeof(ago_coord2d_ushort_t), data->buffer, 0, NULL, NULL);
 				if (err) { 
 					agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d (stacktop)\n", err);
 					return -1; 
@@ -1617,7 +1620,8 @@ int agoGpuOclSuperNodeWait(AgoGraph * graph, AgoSuperNode * supernode)
 					if (need_write_access) {
 						auto dataToSync = data->u.img.isROI ? data->u.img.roiMasterImage : data;
 						char fileName[128]; sprintf(fileName, "output_%%04d_%dx%d.yuv", dataToSync->u.img.width, dataToSync->u.img.height);
-						clDumpBuffer(fileName, graph->opencl_cmdq, dataToSync);
+						cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
+						clDumpBuffer(fileName, opencl_cmdq, dataToSync);
 						//printf("Press ENTER to continue... ");  char line[256]; gets(line);
 					}
 				}
@@ -1783,7 +1787,8 @@ int agoGpuOclSingleNodeWait(AgoGraph * graph, AgoNode * node)
 				if (need_write_access) {
 					auto dataToSync = node->paramList[index]->u.img.isROI ? node->paramList[index]->u.img.roiMasterImage : node->paramList[index];
 					char fileName[128]; sprintf(fileName, "input_%%04d_%dx%d.yuv", dataToSync->u.img.width, dataToSync->u.img.height);
-					clDumpBuffer(fileName, graph->opencl_cmdq, node->paramList[index]);
+					cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
+					clDumpBuffer(fileName, opencl_cmdq, node->paramList[index]);
 					//printf("Press ENTER to continue... ");  char line[256]; gets(line);
 				}
 			}

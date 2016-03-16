@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxUtils.h"
 
 #define IS_ALPHA(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
@@ -81,6 +79,7 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "VX_DIRECTIVE_ENABLE_LOGGING", VX_DIRECTIVE_ENABLE_LOGGING },
 	{ "VX_DIRECTIVE_READ_ONLY", VX_DIRECTIVE_AMD_READ_ONLY },
 	// error codes
+	{ "VX_FAILURE", VX_FAILURE },
 	{ "VX_ERROR_REFERENCE_NONZERO", VX_ERROR_REFERENCE_NONZERO },
 	{ "VX_ERROR_MULTIPLE_WRITERS", VX_ERROR_MULTIPLE_WRITERS },
 	{ "VX_ERROR_GRAPH_ABANDONED", VX_ERROR_GRAPH_ABANDONED },
@@ -116,6 +115,7 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "VX_TYPE_ARRAY", VX_TYPE_ARRAY },
 	{ "VX_TYPE_IMAGE", VX_TYPE_IMAGE },
 	{ "VX_TYPE_REMAP", VX_TYPE_REMAP },
+	{ "VX_TYPE_INVALID", VX_TYPE_INVALID },
 	{ "VX_TYPE_STRING", VX_TYPE_STRING_AMD },
 	{ "AGO_TYPE_MEANSTDDEV_DATA", AGO_TYPE_MEANSTDDEV_DATA },
 	{ "AGO_TYPE_MINMAXLOC_DATA", AGO_TYPE_MINMAXLOC_DATA },
@@ -251,6 +251,7 @@ int convert_image_format(string format){
 }
 
 CHasher::CHasher(){
+	memset(m_hash, 0, sizeof(m_hash));
 	for (int i = 0; i < 32; i++)
 		m_checkSum[i] = '0';
 	m_checkSum[32] = '\0';
@@ -262,9 +263,7 @@ CHasher::~CHasher(){
 
 void CHasher::Initialize(){
 #if _WIN32
-	
 	DWORD dwStatus = 0;
-
 	if (!CryptAcquireContext(&m_cryptProv, NULL, MS_DEF_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
 	{
 		dwStatus = GetLastError();
@@ -279,7 +278,7 @@ void CHasher::Initialize(){
 		CryptReleaseContext(m_cryptProv, 0);
 		throw - 1;
 	}
-#else
+#elif HAVE_OpenSSL
 	if (!MD5_Init(&m_handle)) {
 		printf("ERROR: MD5_Init() failed\n");
 	}
@@ -288,7 +287,6 @@ void CHasher::Initialize(){
 
 void CHasher::Process(vx_uint8 * data_ptr, vx_size count){
 #if _WIN32
-
 	DWORD dwStatus = 0;
 	if (!CryptHashData(m_cryptHash, (BYTE*)data_ptr, (DWORD)count, 0))
 	{
@@ -298,7 +296,7 @@ void CHasher::Process(vx_uint8 * data_ptr, vx_size count){
 		CryptDestroyHash(m_cryptHash);
 		throw - 1;
 	}
-#else
+#elif HAVE_OpenSSL
 	if (!MD5_Update(&m_handle, (unsigned char*)data_ptr, count)) {
 		printf("ERROR: MD5_Update(*,*,%d) failed\n", (int)count);
 	}
@@ -317,7 +315,7 @@ const char * CHasher::GetCheckSum(){
 		CryptDestroyHash(m_cryptHash);
 		throw - 1;
 	}
-#else
+#elif HAVE_OpenSSL
 	if (!MD5_Final(m_hash, &m_handle)) {
 		printf("ERROR: MD5_Final() failed\n");
 	}
@@ -450,7 +448,7 @@ size_t CompareImage(vx_image image, vx_rectangle_t * rectRegion, vx_uint8 * refI
 		else if (pixelType == VX_TYPE_FLOAT32) {
 			errorPixelCount = ComparePixels((vx_float32 *)base_ptr, addr.stride_y, (vx_float32 *)pRef, plane_width_in_bytes, region_width, region_height, (vx_float32)errLimitMin, (vx_float32)errLimitMax);
 		}
-		else if (pixelType == VX_DF_IMAGE_U1_AMD) {
+		else if (format == VX_DF_IMAGE_U1_AMD) {
 			errorPixelCount = ComparePixelsU001((vx_uint8 *)base_ptr, addr.stride_y, (vx_uint8 *)pRef, plane_width_in_bytes, region_width, region_height);
 		}
 		else {

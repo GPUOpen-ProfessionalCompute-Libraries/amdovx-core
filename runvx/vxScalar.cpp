@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxScalar.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -104,6 +102,11 @@ int CVxParamScalar::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		io_params = ScanParameters(io_params, "<io-operation>,<parameter>", "s,S", ioType, fileName);
 		if (!_stricmp(ioType, "read"))
 		{ // read request syntax: read,<fileName>
+			// close files if already open
+			if (m_fpRead) {
+				fclose(m_fpRead);
+				m_fpRead = nullptr;
+			}
 			m_fileNameRead.assign(RootDirUpdated(fileName));
 			if (*io_params == ',') {
 				ReportError("ERROR: invalid scalar read option: %s\n", io_params);
@@ -111,6 +114,10 @@ int CVxParamScalar::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		}
 		else if (!_stricmp(ioType, "write"))
 		{ // write request syntax: write,<fileName>
+			if (m_fpWrite) {
+				fclose(m_fpWrite);
+				m_fpWrite = nullptr;
+			}
 			m_fileNameWrite.assign(RootDirUpdated(fileName));
 			if (*io_params == ',') {
 				ReportError("ERROR: invalid scalar read option: %s\n", io_params);
@@ -118,6 +125,10 @@ int CVxParamScalar::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		}
 		else if (!_stricmp(ioType, "compare"))
 		{ // compare syntax: compare,fileName[,range]
+			if (m_fpCompare) {
+				fclose(m_fpCompare);
+				m_fpCompare = nullptr;
+			}
 			m_fileNameCompare.assign(RootDirUpdated(fileName));
 			while (*io_params == ',') {
 				char option[64];
@@ -257,7 +268,7 @@ int CVxParamScalar::CompareFrame(int frameNumber)
 	if (mismatchDetected) {
 		m_compareCountMismatches++;
 		printf("ERROR: scalar COMPARE MISMATCHED for %s with frame#%d: %s in [%s .. %s]\n", GetVxObjectName(), frameNumber, str, strMin, strMax);
-		if (m_abortOnCompareMismatch) return -1;
+		if (!m_discardCompareErrors) return -1;
 	}
 	else {
 		m_compareCountMatches++;

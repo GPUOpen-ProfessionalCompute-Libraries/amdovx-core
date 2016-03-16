@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxImage.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -48,6 +46,7 @@ CVxParamImage::CVxParamImage()
 	m_useSyncOpenCLWriteDirective = false;
 	m_usingDisplay = false;
 	m_usingWriter = false;
+	m_countInitializeIO = 0;
 
 #if USE_OPENCV
 	m_cvCapDev = NULL;
@@ -147,11 +146,27 @@ int CVxParamImage::Initialize(vx_context context, vx_graph graph, const char * d
 		// syntax: image[-virtual]:<width>,<height>,<format>[:<io-params>]
 		ioParams = ScanParameters(ioParams, "<width>,<height>,<format>", "d,d,c", &m_width, &m_height, &m_format);
 		if (!_stricmp(objType, "image-uniform")) {
-			ioParams = ScanParameters(ioParams, "<uniform-pixel-value>", ",D", &m_uniformValue);
+			m_uniformValue = 0;
+			if (*ioParams == ',') {
+				ioParams++;
+				if (*ioParams == '{') {
+					// scan get 8-bit values for RGB/RGBX/YUV formats as {R;G;B}/{R;G;B;X}/{Y;U;V}
+					const char * p = ioParams;
+					for (int index = 0; index < 4 && (*p == '{' || *p == ';');) {
+						int value = 0;
+						p = ScanParameters(&p[1], "<byte>", "d", &value);
+						((vx_uint8 *)&m_uniformValue)[index++] = (vx_uint8)value;
+					}
+					if (*p == '}') p++;
+					ioParams = p;
+				}
+				else ioParams = ScanParameters(ioParams, "<uniform-pixel-value>", "D", &m_uniformValue);
+			}
 			m_image = vxCreateUniformImage(context, m_width, m_height, m_format, &m_uniformValue);
 		}
 		else if (!_stricmp(objType, "image-virtual")) {
 			m_image = vxCreateVirtualImage(graph, m_width, m_height, m_format);
+			m_isVirtualObject = true;
 		}
 		else {
 			m_image = vxCreateImage(context, m_width, m_height, m_format);
@@ -193,20 +208,17 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 	ERROR_CHECK(vxQueryImage(m_image, VX_IMAGE_ATTRIBUTE_FORMAT, &m_format, sizeof(m_format)));
 	ERROR_CHECK(vxQueryImage(m_image, VX_IMAGE_ATTRIBUTE_PLANES, &m_planes, sizeof(m_planes)));
 
-	// initialize compare region to complete image
-	m_rectCompare.start_x = 0;
-	m_rectCompare.start_y = 0;
-	m_rectCompare.end_x = m_width;
-	m_rectCompare.end_y = m_height;
-
-	// reset capture video size
-	m_gotCaptureVideoSize = false;
-	m_captureWidth = 0;
-	m_captureHeight = 0;
+	// first-time initialization
+	if (m_countInitializeIO == 0) {
+		// initialize compare region to complete image
+		m_rectCompare.start_x = 0;
+		m_rectCompare.start_y = 0;
+		m_rectCompare.end_x = m_width;
+		m_rectCompare.end_y = m_height;
+	}
+	m_countInitializeIO++;
 
 	// process I/O requests
-	m_doNotResizeCapturedImages = false;
-	m_repeatFrames = 0;
 	if (*io_params == ':') io_params++;
 	while (*io_params) {
 		char ioType[64], fileName[256];
@@ -295,6 +307,10 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 			}
 			else
 			{ // raw frames reading /////////////////////////
+				if (m_fpRead) {
+					fclose(m_fpRead);
+					m_fpRead = nullptr;
+				}
 				m_fileNameRead.assign(RootDirUpdated(fileName));
 				m_fileNameForReadHasIndex = (m_fileNameRead.find("%") != m_fileNameRead.npos) ? true : false;
 				// mark multi-frame capture enabled
@@ -314,6 +330,10 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					g_numCvUse++;
 				}
 				else {
+					if (m_fpWrite) {
+						fclose(m_fpWrite);
+						m_fpWrite = nullptr;
+					}
 					m_fileNameWrite.assign(RootDirUpdated(fileName));
 					VideoWriter * writer = new VideoWriter(m_fileNameWrite.c_str(), -1, 30, Size(m_width, m_height));
 					m_cvWriter = (void *)writer;
@@ -344,6 +364,10 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 		}
 		else if (!_stricmp(ioType, "compare"))
 		{ // compare syntax: compare,fileName[,rect{<start-x>;<start-y>;<end-x>;<end-y>}][,err{<min>;<max>}][,checksum|checksum-save-instead-of-test]
+			if (m_fpCompare) {
+				fclose(m_fpCompare);
+				m_fpCompare = nullptr;
+			}
 			// save the reference image fileName
 			m_fileNameCompare.assign(RootDirUpdated(fileName));
 			m_fileNameForCompareHasIndex = (m_fileNameCompare.find("%") != m_fileNameCompare.npos) ? true : false;
@@ -417,6 +441,11 @@ int CVxParamImage::Finalize()
 			m_frameSize += width_in_bytes * height;
 			ERROR_CHECK(vxCommitImagePatch(m_image, &m_rectFull, plane, &addr, (void *)dst));
 		}
+	}
+
+	if (m_useSyncOpenCLWriteDirective) {
+		// process user requested directives (required for uniform images)
+		ERROR_CHECK(vxDirective((vx_reference)m_image, VX_DIRECTIVE_AMD_COPY_TO_OPENCL));
 	}
 
 	return 0;
@@ -584,12 +613,29 @@ int CVxParamImage::ViewFrame(int frameNumber)
 			int overlayOffsetX = 10, overlayOffsetY = 10;
 			for (auto it = m_paramList.begin(); it != m_paramList.end(); it++)
 			{
-				if (!m_displayName.compare((*it)->getDisplayName()))
+				if (*it != this && !m_displayName.compare((*it)->getDisplayName()))
 				{ // name of the window matched
-					if ((*it)->GetVxObjectType() == VX_TYPE_ARRAY)
+					vx_delay delay = nullptr;
+					vx_enum delayObjType = VX_TYPE_INVALID;
+					if ((*it)->GetVxObjectType() == VX_TYPE_DELAY)
+					{ // display the slot[0] of delay object
+						delay = (vx_delay)(*it)->GetVxObject();
+						ERROR_CHECK(vxQueryDelay(delay, VX_DELAY_ATTRIBUTE_TYPE, &delayObjType, sizeof(delayObjType)));
+					}
+
+					if ((*it)->GetVxObjectType() == VX_TYPE_ARRAY || (delay && delayObjType == VX_TYPE_ARRAY))
 					{ // view the array data (processed in two steps) //////////////////////////// 
 						// get array and itemtype and numitems
-						vx_array arr = (vx_array)(*it)->GetVxObject();
+						CVxParameter * paramArray = nullptr;
+						vx_array arr = nullptr;
+						if (delay && delayObjType == VX_TYPE_ARRAY) {
+							// view the array from slot[0]
+							arr = (vx_array)vxGetReferenceFromDelay(delay, 0);
+						}
+						else {
+							paramArray = *it;
+							arr = (vx_array)paramArray->GetVxObject();
+						}
 						vx_enum itemtype = VX_TYPE_INVALID;
 						vx_size arrayNumItems = 0;
 						ERROR_CHECK(vxQueryArray(arr, VX_ARRAY_ATTRIBUTE_ITEMTYPE, &itemtype, sizeof(itemtype)));
@@ -597,8 +643,7 @@ int CVxParamImage::ViewFrame(int frameNumber)
 						if (itemtype != VX_TYPE_KEYPOINT && itemtype != VX_TYPE_RECTANGLE && itemtype != VX_TYPE_COORDINATES2D)
 							ReportError("ERROR: doesn't support viewing of specified array type\n");
 						// add data items to the global kpList
-						CVxParameter * paramArray = *it;
-						if (paramArray->GetArrayListForViewCount() > 0)
+						if (paramArray && paramArray->GetArrayListForViewCount() > 0)
 						{ // use data items from the shared list for view, if available
 							size_t count = paramArray->GetArrayListForViewCount();
 							int colorIndexMax = colorIndex;
@@ -631,13 +676,22 @@ int CVxParamImage::ViewFrame(int frameNumber)
 							void *base = NULL;
 							ERROR_CHECK(vxAccessArrayRange(arr, 0, arrayNumItems, &stride, &base, VX_READ_ONLY));
 							if (itemtype == VX_TYPE_KEYPOINT) {
+								size_t arrayNumTracked = 0;
 								for (size_t i = 0; i < arrayNumItems; i++) {
 									vx_keypoint_t * kp = &vxArrayItem(vx_keypoint_t, base, i, stride);
-									kpItem.strength = kp->strength;
-									kpItem.x = kp->x;
-									kpItem.y = kp->y;
-									kpList.push_back(kpItem);
+									if (kp->tracking_status) {
+										kpItem.strength = kp->strength;
+										kpItem.x = kp->x;
+										kpItem.y = kp->y;
+										kpList.push_back(kpItem);
+										arrayNumTracked++;
+									}
 								}
+								char message[128]; sprintf(message, "%s [tracked %d/%d]", (*it)->GetVxObjectName(), (int)arrayNumTracked, (int)arrayNumItems);
+								int H = 20;
+								cv::putText(*pOutputImage, message, Point(overlayOffsetX + 0, overlayOffsetY + H - 6), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255, 0), 2, 8, false);
+								cv::putText(*pOutputImage, message, Point(overlayOffsetX + 2, overlayOffsetY + H - 8), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255, 0), 1, 8, false);
+								overlayOffsetY += H;
 							}
 							else if (itemtype == VX_TYPE_RECTANGLE) {
 								for (size_t i = 0; i < arrayNumItems; i++) {
@@ -872,7 +926,7 @@ int CVxParamImage::CompareFrame(int frameNumber)
 		else {
 			m_compareCountMismatches++;
 			printf("ERROR: image CHECKSUM MISMATCHED for %s with frame#%d of %s [%s instead of %s]\n", GetVxObjectName(), frameNumber, m_fileNameCompareCurrent, checkSumString, checkSumStringRef);
-			if (m_abortOnCompareMismatch) return -1;
+			if (!m_discardCompareErrors) return -1;
 		}
 	}
 	else
@@ -894,7 +948,7 @@ int CVxParamImage::CompareFrame(int frameNumber)
 		}
 		else {
 			m_compareCountMismatches++;
-			if(m_abortOnCompareMismatch) return -1;
+			if (!m_discardCompareErrors) return -1;
 		}
 	}
 

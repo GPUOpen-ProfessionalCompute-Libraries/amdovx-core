@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxConvolution.h"
 
 ///////////////////////////////////////////////////////////////////////
@@ -169,16 +167,22 @@ int CVxParamConvolution::InitializeIO(vx_context context, vx_graph graph, vx_ref
 			ERROR_CHECK(vxSetConvolutionAttribute(m_convolution, VX_CONVOLUTION_ATTRIBUTE_SCALE, &m_scale, sizeof(m_scale)));
 		}
 		else if (!_stricmp(ioType, "init"))
-		{ // write request syntax: init,{<value1>;<value2>;...<valueN>}
-			NULLPTR_CHECK(m_bufForAccess = new vx_int16[m_columns * m_rows]);
-			vx_size index = 0; char fmt[3] = "{d";
-			for (const char * s = fileName; *s && index < (m_columns * m_rows); fmt[0] = ';', index++) {
-				vx_uint32 value;
-				s = ScanParameters(s, "<value>", fmt, &value);
-				m_bufForAccess[index] = value;
+		{ // write request syntax: init,{<value1>;<value2>;...<valueN>}|scale{<scale>}
+			if (!_strnicmp(fileName, "scale{", 6)) {
+				ScanParameters(&fileName[5], "{<scale>}", "{d}", &m_scale);
+				ERROR_CHECK(vxSetConvolutionAttribute(m_convolution, VX_CONVOLUTION_ATTRIBUTE_SCALE, &m_scale, sizeof(m_scale)));
 			}
-			if (index < (m_columns * m_rows)) ReportError("ERROR: convolution init have too few values: %s\n", fileName);
-			ERROR_CHECK(vxWriteConvolutionCoefficients(m_convolution, m_bufForAccess));
+			else {
+				NULLPTR_CHECK(m_bufForAccess = new vx_int16[m_columns * m_rows]);
+				vx_size index = 0; char fmt[3] = "{d";
+				for (const char * s = fileName; *s && index < (m_columns * m_rows); fmt[0] = ';', index++) {
+					vx_uint32 value;
+					s = ScanParameters(s, "<value>", fmt, &value);
+					m_bufForAccess[index] = value;
+				}
+				if (index < (m_columns * m_rows)) ReportError("ERROR: convolution init have too few values: %s\n", fileName);
+				ERROR_CHECK(vxWriteConvolutionCoefficients(m_convolution, m_bufForAccess));
+			}
 		}
 		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "readonly")) {
 			ERROR_CHECK(vxDirective((vx_reference)m_convolution, VX_DIRECTIVE_AMD_READ_ONLY));
@@ -356,7 +360,7 @@ int CVxParamConvolution::CompareFrame(int frameNumber)
 	if (mismatchDetected) {
 		m_compareCountMismatches++;
 		printf("ERROR: convolution COMPARE MISMATCHED for %s with frame#%d of %s\n", GetVxObjectName(), frameNumber, fileName);
-		if (m_abortOnCompareMismatch) return -1;
+		if (!m_discardCompareErrors) return -1;
 	}
 	else {
 		m_compareCountMatches++;

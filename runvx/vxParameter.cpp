@@ -20,9 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-
 #define _CRT_SECURE_NO_WARNINGS
-
 #include "vxParameter.h"
 #include "vxParamHelper.h"
 #include "vxArray.h"
@@ -35,13 +33,6 @@ THE SOFTWARE.
 #include "vxRemap.h"
 #include "vxScalar.h"
 #include "vxThreshold.h"
-
-#include <stdio.h>
-
-#define DEBUG_INFO 0
-#define DEBUG_FRAME 0
-#define DEBUG_COMPARE 0
-#define DEBUG_FILES 0
 
 #define VX_MAX_FILE_NAME 128
 
@@ -62,9 +53,10 @@ CVxParameter::CVxParameter()
 	m_fpWrite = nullptr;
 	m_fpCompare = nullptr;
 	m_verbose = false;
-	m_abortOnCompareMismatch = false;
+	m_discardCompareErrors = false;
 	m_usingMultiFrameCapture = false;
 	m_captureFrameStart = false;
+	m_isVirtualObject = false;
 }
 
 CVxParameter::~CVxParameter()
@@ -109,12 +101,108 @@ void CVxParameter::AddToArrayListForView(int colorIndex, int x, int y)
 
 list<CVxParameter *> CVxParameter::m_paramList;
 
+///////////////////////////////////////////////////////////////////
+// CVxParamDelay for vx_delay object
+// TBD: this needs to be moved to separate file
+CVxParamDelay::CVxParamDelay()
+{
+	// vx configuration
+	m_vxObjType = VX_TYPE_DELAY;
+	m_count = 0;
+	// vx object
+	m_delay = nullptr;
+	m_vxObjRef = nullptr;
+}
+
+CVxParamDelay::~CVxParamDelay()
+{
+	Shutdown();
+}
+
+int CVxParamDelay::Shutdown(void)
+{
+	if (m_delay) {
+		vxReleaseDelay(&m_delay);
+	}
+	return 0;
+}
+
+int CVxParamDelay::Initialize(vx_context context, vx_graph graph, const char * desc)
+{
+	// get object parameters and create object
+	char objType[64], exemplarName[64];
+	const char * ioParams = ScanParameters(desc, "delay:<exemplar>,<count>", "s:s,D", objType, exemplarName, &m_count);
+	if (!_stricmp(objType, "delay")) {
+		// syntax: delay:<exemplar>,<count>[:<io-params>]
+		auto it = m_paramMap->find(exemplarName);
+		if (it == m_paramMap->end())
+			ReportError("ERROR: object [%s] doesn't exist for %s\n", exemplarName, desc);
+		vx_reference exemplar = it->second->GetVxObject();
+		m_delay = vxCreateDelay(context, exemplar, m_count);
+	}
+	else ReportError("ERROR: unsupported delay type: %s\n", desc);
+	vx_status ovxStatus = vxGetStatus((vx_reference)m_delay);
+	if (ovxStatus != VX_SUCCESS){
+		printf("ERROR: delay creation failed => %d (%s)\n", ovxStatus, ovxEnum2Name(ovxStatus));
+		if (m_delay) vxReleaseDelay(&m_delay);
+		throw - 1;
+	}
+	m_vxObjRef = (vx_reference)m_delay;
+
+	// io initialize
+	return InitializeIO(context, graph, m_vxObjRef, ioParams);
+}
+
+int CVxParamDelay::InitializeIO(vx_context context, vx_graph graph, vx_reference ref, const char * io_params)
+{
+	// save reference object and get object attributes
+	m_vxObjRef = ref;
+	m_delay = (vx_delay)m_vxObjRef;
+	ERROR_CHECK(vxQueryDelay(m_delay, VX_DELAY_ATTRIBUTE_SLOTS, &m_count, sizeof(m_count)));
+
+	// process I/O parameters
+	if (*io_params == ':') io_params++;
+	while (*io_params) {
+		char ioType[64], fileName[256];
+		io_params = ScanParameters(io_params, "<io-operation>,<parameter>", "s,S", ioType, fileName);
+		if (!_stricmp(ioType, "view")) {
+			m_displayName.assign(fileName);
+			m_paramList.push_back(this);
+		}
+		else ReportError("ERROR: invalid delay operation: %s\n", ioType);
+		if (*io_params == ':') io_params++;
+		else if (*io_params) ReportError("ERROR: unexpected character sequence in parameter specification: %s\n", io_params);
+	}
+
+	return 0;
+}
+
+int CVxParamDelay::Finalize()
+{
+	return 0;
+}
+
+int CVxParamDelay::ReadFrame(int frameNumber)
+{
+	return 0;
+}
+
+int CVxParamDelay::WriteFrame(int frameNumber)
+{
+	return 0;
+}
+
+int CVxParamDelay::CompareFrame(int frameNumber)
+{
+	return 0;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std::string, CVxParameter *> * m_paramMap, map<string, vx_enum> * m_userStructMap, const char * desc, vx_uint32 captureFrameStart)
 {
 	// create the object based on the description
-	if (!strncmp(desc, "image:", 6) || !strncmp(desc, "image-virtual:", 14) || !strncmp(desc, "image-uniform:", 14) || !strncmp(desc, "image-roi:", 10)) {
+	if (!_strnicmp(desc, "image:", 6) || !_strnicmp(desc, "image-virtual:", 14) || !_strnicmp(desc, "image-uniform:", 14) || !_strnicmp(desc, "image-roi:", 10)) {
 		CVxParamImage *this_image = new CVxParamImage();
 		this_image->SetCaptureFrameStart(captureFrameStart);
 		this_image->SetParamMap(m_paramMap);
@@ -123,7 +211,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_image;
 	}
-	else if (!strncmp(desc, "array:", 6) || !strncmp(desc, "array-virtual:", 14)){
+	else if (!_strnicmp(desc, "array:", 6) || !_strnicmp(desc, "array-virtual:", 14)){
 		CVxParamArray *this_array = new CVxParamArray();
 		this_array->SetCaptureFrameStart(captureFrameStart);
 		this_array->SetUserStructMap(m_userStructMap);
@@ -132,7 +220,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_array;
 	}
-	else if (!strncmp(desc, "pyramid:", 8) || !strncmp(desc, "pyramid-virtual:", 16)) {
+	else if (!_strnicmp(desc, "pyramid:", 8) || !_strnicmp(desc, "pyramid-virtual:", 16)) {
 		CVxParamPyramid *this_pyramid = new CVxParamPyramid();
 		this_pyramid->SetCaptureFrameStart(captureFrameStart);
 		int status = this_pyramid->Initialize(context, graph, desc);
@@ -140,7 +228,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_pyramid;
 	}
-	else if (!strncmp(desc, "distribution:", 13)){
+	else if (!_strnicmp(desc, "distribution:", 13)){
 		CVxParamDistribution *this_distribution = new CVxParamDistribution();
 		this_distribution->SetCaptureFrameStart(captureFrameStart);
 		int status = this_distribution->Initialize(context, graph, desc);
@@ -148,7 +236,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_distribution;
 	}
-	else if (!strncmp(desc, "convolution:", 12)){
+	else if (!_strnicmp(desc, "convolution:", 12)){
 		CVxParamConvolution *this_convolution = new CVxParamConvolution();
 		this_convolution->SetCaptureFrameStart(captureFrameStart);
 		int status = this_convolution->Initialize(context, graph, desc);
@@ -156,7 +244,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_convolution;
 	}
-	else if (!strncmp(desc, "lut:", 4)){
+	else if (!_strnicmp(desc, "lut:", 4)){
 		CVxParamLUT *this_LUT = new CVxParamLUT();
 		this_LUT->SetCaptureFrameStart(captureFrameStart);
 		int status = this_LUT->Initialize(context, graph, desc);
@@ -164,7 +252,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_LUT;
 	}
-	else if (!strncmp(desc, "matrix:", 7)){
+	else if (!_strnicmp(desc, "matrix:", 7)){
 		CVxParamMatrix *this_matrix = new CVxParamMatrix();
 		this_matrix->SetCaptureFrameStart(captureFrameStart);
 		int status = this_matrix->Initialize(context, graph, desc);
@@ -172,7 +260,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_matrix;
 	}
-	else if (!strncmp(desc, "remap:", 6)){
+	else if (!_strnicmp(desc, "remap:", 6)){
 		CVxParamRemap *this_remap = new CVxParamRemap();
 		this_remap->SetCaptureFrameStart(captureFrameStart);
 		int status = this_remap->Initialize(context, graph, desc);
@@ -180,7 +268,7 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_remap;
 	}
-	else if (!strncmp(desc, "scalar:", 7) || !strncmp(desc, "!", 1)){
+	else if (!_strnicmp(desc, "scalar:", 7) || !strncmp(desc, "!", 1)){
 		if (!strncmp(desc, "!", 1)){
 			char enum_name[2048];
 			char description[2048];
@@ -195,7 +283,6 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			enum_name[j] = '\0';
 			strcpy(description, "scalar:enum,%s");
 			sprintf(desc2, description, enum_name);
-			//printf("DEBUG: %s\n", desc3);
 			CVxParamScalar *this_scalar = new CVxParamScalar();
 			this_scalar->SetCaptureFrameStart(captureFrameStart);
 			int status = this_scalar->Initialize(context, graph, desc2);
@@ -212,13 +299,22 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return this_scalar;
 		}
 	}
-	else if (!strncmp(desc, "threshold:", 10)){
+	else if (!_strnicmp(desc, "threshold:", 10)){
 		CVxParamThreshold *this_threshold = new CVxParamThreshold();
 		this_threshold->SetCaptureFrameStart(captureFrameStart);
 		int status = this_threshold->Initialize(context, graph, desc);
 		if (status)
 			return NULL;
 		return this_threshold;
+	}
+	else if (!_strnicmp(desc, "delay:", 5)){
+		CVxParamDelay *this_delay = new CVxParamDelay();
+		this_delay->SetParamMap(m_paramMap);
+		this_delay->SetCaptureFrameStart(captureFrameStart);
+		int status = this_delay->Initialize(context, graph, desc);
+		if (status)
+			return NULL;
+		return this_delay;
 	}
 	else return nullptr;
 }
@@ -301,6 +397,13 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, vx_reference
 		if (this_threshold->InitializeIO(context, graph, ref, params))
 			return NULL;
 		return this_threshold;
+	}
+	else if (type == VX_TYPE_DELAY) {
+		CVxParamDelay *this_delay = new CVxParamDelay();
+		this_delay->SetCaptureFrameStart(captureFrameStart);
+		if (this_delay->InitializeIO(context, graph, ref, params))
+			return NULL;
+		return this_delay;
 	}
 	else return nullptr;
 }

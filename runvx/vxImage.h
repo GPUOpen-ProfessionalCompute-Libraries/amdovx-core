@@ -91,6 +91,7 @@ private:
 	bool m_doNotResizeCapturedImages;
 	vx_uint32 m_captureWidth;
 	vx_uint32 m_captureHeight;
+	int m_countInitializeIO;
 };
 
 

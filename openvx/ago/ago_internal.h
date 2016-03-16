@@ -34,7 +34,7 @@ THE SOFTWARE.
 //
 
 // version
-#define AGO_VERSION "0.9.0"
+#define AGO_VERSION "0.9.1"
 
 // debug configuration
 #define ENABLE_DEBUG_MESSAGES                 0 // 0:disable 1:enable
@@ -561,6 +561,8 @@ struct ModuleData {
 	char module_name[256];
 	char module_path[1024];
 	ago_module hmodule;
+	vx_uint8 * module_internal_data_ptr;
+	vx_size module_internal_data_size;
 };
 struct MacroData {
 	char name[256];
@@ -659,8 +661,9 @@ AgoKernel * agoFindKernelByName(AgoContext * acontext, const vx_char * name);
 AgoData * agoFindDataByName(AgoContext * acontext, AgoGraph * agraph, vx_char * name);
 void agoMarkChildrenAsPartOfDelay(AgoData * adata);
 bool agoIsPartOfDelay(AgoData * adata);
-AgoData * agoGetSiblingTraceToDelay(AgoData * data, int trace[], int& traceCount);
-AgoData * agoGetDataFromSiblingTrace(AgoData * data, int trace[], int traceCount);
+AgoData * agoGetSiblingTraceToDelayForInit(AgoData * data, int trace[], int& traceCount);
+AgoData * agoGetSiblingTraceToDelayForUpdate(AgoData * data, int trace[], int& traceCount);
+AgoData * agoGetDataFromTrace(AgoData * data, int trace[], int traceCount);
 void agoGetDescriptionFromData(AgoContext * acontext, char * desc, AgoData * data);
 int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData * data, const char * desc);
 AgoData * agoCreateDataFromDescription(AgoContext * acontext, AgoGraph * agraph, const char * desc, bool isForExternalUse);
