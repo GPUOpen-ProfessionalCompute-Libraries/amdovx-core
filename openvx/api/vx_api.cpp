@@ -1781,10 +1781,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 			case VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_LAST:
 				if (size == sizeof(AgoGraphPerfInternalInfo)) {
 #if ENABLE_OPENCL
-					((AgoGraphPerfInternalInfo *)ptr)->kernel_enqueue = graph->opencl_perf.kernel_enqueue;
-					((AgoGraphPerfInternalInfo *)ptr)->kernel_wait = graph->opencl_perf.kernel_wait;
-					((AgoGraphPerfInternalInfo *)ptr)->buffer_read = graph->opencl_perf.buffer_read;
-					((AgoGraphPerfInternalInfo *)ptr)->buffer_write = graph->opencl_perf.buffer_write;
+					// normalize all time units into nanoseconds
+					uint64_t num = 1000000000, denom = (uint64_t)agoGetClockFrequency();
+					((AgoGraphPerfInternalInfo *)ptr)->kernel_enqueue = graph->opencl_perf.kernel_enqueue * num / denom;
+					((AgoGraphPerfInternalInfo *)ptr)->kernel_wait = graph->opencl_perf.kernel_wait * num / denom;
+					((AgoGraphPerfInternalInfo *)ptr)->buffer_read = graph->opencl_perf.buffer_read * num / denom;
+					((AgoGraphPerfInternalInfo *)ptr)->buffer_write = graph->opencl_perf.buffer_write * num / denom;
 #else
 					memset(ptr, 0, size);
 #endif
@@ -1795,10 +1797,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 				if (size == sizeof(AgoGraphPerfInternalInfo)) {
 #if ENABLE_OPENCL
 					if (graph->perf.num > 0) {
-						((AgoGraphPerfInternalInfo *)ptr)->kernel_enqueue = graph->opencl_perf_total.kernel_enqueue / graph->perf.num;
-						((AgoGraphPerfInternalInfo *)ptr)->kernel_wait = graph->opencl_perf_total.kernel_wait / graph->perf.num;
-						((AgoGraphPerfInternalInfo *)ptr)->buffer_read = graph->opencl_perf_total.buffer_read / graph->perf.num;
-						((AgoGraphPerfInternalInfo *)ptr)->buffer_write = graph->opencl_perf_total.buffer_write / graph->perf.num;
+						// normalize all time units into nanoseconds
+						uint64_t num = 1000000000, denom = (uint64_t)agoGetClockFrequency();
+						((AgoGraphPerfInternalInfo *)ptr)->kernel_enqueue = (graph->opencl_perf_total.kernel_enqueue / graph->perf.num) * num / denom;
+						((AgoGraphPerfInternalInfo *)ptr)->kernel_wait = (graph->opencl_perf_total.kernel_wait / graph->perf.num) * num / denom;
+						((AgoGraphPerfInternalInfo *)ptr)->buffer_read = (graph->opencl_perf_total.buffer_read / graph->perf.num) * num / denom;
+						((AgoGraphPerfInternalInfo *)ptr)->buffer_write = (graph->opencl_perf_total.buffer_write / graph->perf.num) * num / denom;
 					}
 					else
 #endif

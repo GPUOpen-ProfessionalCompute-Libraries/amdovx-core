@@ -46,8 +46,9 @@ protected:
 	void viewParameters();
 	int BuildAndProcessGraphFromLine(int level, char * line);
 	int ProcessGraph(std::vector<const char *> * graphNameList = nullptr, size_t beginIndex = 0);
+	int DumpInternalGDF();
+	int DumpGraphInfo(const char * graphName = nullptr);
 	int ReadFrame(int frameNumber);
-	int ExecuteFrame(int frameNumber);
 	int WriteFrame(int frameNumber);
 	int CompareFrame(int frameNumber);
 	void MeasureFrame(int frameNumber, int status, std::vector<vx_graph>& graphList);
@@ -65,7 +66,6 @@ private:
 	int m_paramCount;
 	vx_context m_context;
 	vx_graph m_graph;
-	float m_perfMultiplicationFactor; // to convert vx_perf_t to milli-seconds
 	bool m_enableScheduleGraph;
 	std::vector<float> m_timeMeasurements;
 	std::vector<std::string> m_graphAutoAgeList;

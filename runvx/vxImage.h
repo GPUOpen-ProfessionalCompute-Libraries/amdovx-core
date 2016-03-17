@@ -63,6 +63,7 @@ private:
 	void * m_cvWriter;
 	cv::Mat * m_cvDispMat;
 	cv::Mat * m_cvImage;
+	bool m_cvReadEofOccured;
 #endif
 	// vx object
 	vx_image m_image;

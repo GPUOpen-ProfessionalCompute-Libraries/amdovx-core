@@ -26,6 +26,7 @@ THE SOFTWARE.
 #include "vxParamHelper.h"
 
 #define MAX_GDF_LEVELS  4
+#define NANO2MILLISECONDS(t) (((float)t)*0.000001f)
 
 enum {
 	BUILD_GRAPH_SUCCESS = 0,
@@ -51,8 +52,6 @@ static void VX_CALLBACK log_callback(vx_context context, vx_reference ref, vx_st
 CVxEngine::CVxEngine()
 {
 	m_paramCount = 0;
-	int64_t freq = utilGetClockFrequency();
-	m_perfMultiplicationFactor = 1000.0f / freq; // to convert clock counter to ms
 	m_usingMultiFrameCapture = false;
 	m_disableVirtual = false;
 	m_verbose = false;
@@ -191,6 +190,73 @@ void CVxEngine::ReleaseAllVirtualObjects()
 	}
 }
 
+int CVxEngine::DumpInternalGDF()
+{
+	vx_reference ref[64] = { 0 };
+	int num_ref = 0;
+	for (int i = 0; i < 64; i++) {
+		char name[16]; sprintf(name, "$%d", i + 1);
+		if (m_paramMap.find(name) == m_paramMap.end())
+			break;
+		ref[num_ref++] = m_paramMap[name]->GetVxObject();
+	}
+	AgoGraphExportInfo info = { 0 };
+	strcpy(info.fileName, "stdout");
+	info.ref = ref;
+	info.num_ref = num_ref;
+	strcpy(info.comment, "internal");
+	vx_status status = vxSetGraphAttribute(m_graph, VX_GRAPH_ATTRIBUTE_AMD_EXPORT_TO_TEXT, &info, sizeof(info));
+	if (status != VX_SUCCESS)
+		ReportError("ERROR: vxSetGraphAttribute(...,VX_GRAPH_ATTRIBUTE_AMD_EXPORT_TO_TEXT,...) failed (%d)\n", status);
+	fflush(stdout);
+	return 0;
+}
+
+int CVxEngine::DumpGraphInfo(const char * graphName)
+{
+	vx_graph graph = m_graph;
+	if (!graphName) {
+		printf("graph info: %s\n", !m_graphVerified ? "current (not verified)" : "current");
+		for (auto it = m_paramMap.begin(); it != m_paramMap.end(); ++it) {
+			if (it->second->IsVirtualObject()) {
+				printf("  active virtual object : %s\n", it->first.c_str());
+			}
+		}
+		for (auto it = m_graphAutoAgeList.begin(); it != m_graphAutoAgeList.end(); ++it) {
+			printf("  auto-age delay object : %s\n", it->c_str());
+		}
+	}
+	else {
+		graph = m_graphNameListForObj[graphName];
+		printf("graph info: %s\n", graphName);
+		for (auto it = m_graphNameListForAge[graphName].begin(); it != m_graphNameListForAge[graphName].end(); ++it) {
+			printf("  auto-age delay object : %s\n", it->c_str());
+		}
+	}
+	if (graph) {
+		// device affinity
+		AgoTargetAffinityInfo attr_affinity = { 0 };
+		vx_status status = vxQueryGraph(graph, VX_GRAPH_ATTRIBUTE_AMD_AFFINITY, &attr_affinity, sizeof(attr_affinity));
+		if (status != VX_SUCCESS)
+			ReportError("ERROR: vxQueryGraph(graph, VX_GRAPH_ATTRIBUTE_AMD_AFFINITY) failed (%d:%s)\n", status, ovxEnum2Name(status));
+		printf("  graph device affinity :");
+		if (!attr_affinity.device_type) printf(" unspecified");
+		else if (attr_affinity.device_type == AGO_TARGET_AFFINITY_CPU) printf(" cpu");
+		else if (attr_affinity.device_type == AGO_TARGET_AFFINITY_GPU) printf(" gpu");
+		else printf(" unknown");
+		if (attr_affinity.device_info > 0) printf(" %d", attr_affinity.device_info);
+		printf("\n");
+		// optimizer flags
+		vx_uint32 graph_optimizer_flags = 0;
+		status = vxQueryGraph(graph, VX_GRAPH_ATTRIBUTE_AMD_OPTIMIZER_FLAGS, &graph_optimizer_flags, sizeof(graph_optimizer_flags));
+		if (status)
+			ReportError("ERROR: vxQueryGraph(*,VX_GRAPH_ATTRIBUTE_AMD_OPTIMIZER_FLAGS) failed (%d:%s)\n", status, ovxEnum2Name(status));
+		if (graph_optimizer_flags)
+			printf("  graph optimizer_flags : %d (0x%08d)\n", graph_optimizer_flags, graph_optimizer_flags);
+	}
+	return 0;
+}
+
 int CVxEngine::ProcessGraph(std::vector<const char *> * graphNameList, size_t beginIndex)
 {
 	// update graph process count
@@ -207,23 +273,7 @@ int CVxEngine::ProcessGraph(std::vector<const char *> * graphNameList, size_t be
 
 		// dump optimized graph (if requested)
 		if (m_enableDumpGDF) {
-			vx_reference ref[64] = { 0 };
-			int num_ref = 0;
-			for (int i = 0; i < 64; i++) {
-				char name[16]; sprintf(name, "$%d", i + 1);
-				if (m_paramMap.find(name) == m_paramMap.end())
-					break;
-				ref[num_ref++] = m_paramMap[name]->GetVxObject();
-			}
-			AgoGraphExportInfo info = { 0 };
-			strcpy(info.fileName, "stdout");
-			info.ref = ref;
-			info.num_ref = num_ref;
-			strcpy(info.comment, "drama");
-			vx_status status = vxSetGraphAttribute(m_graph, VX_GRAPH_ATTRIBUTE_AMD_EXPORT_TO_TEXT, &info, sizeof(info));
-			if (status != VX_SUCCESS)
-				ReportError("ERROR: vxSetGraphAttribute(...,VX_GRAPH_ATTRIBUTE_AMD_EXPORT_TO_TEXT,...) failed (%d)\n", status);
-			fflush(stdout);
+			DumpInternalGDF();
 		}
 	}
 
@@ -308,8 +358,10 @@ int CVxEngine::ProcessGraph(std::vector<const char *> * graphNameList, size_t be
 			else break;
 		}
 		// execute graph for current frame
-		if (graphObjList.size() < 2) {
-			status = ExecuteFrame(frameNumber);
+		if (graphObjList.size() < 2 && !m_enableScheduleGraph) {
+			status = vxProcessGraph(graphObjList[0]);
+			if (status)
+				ReportError("ERROR: vxScheduleGraph(%s) failed (%d:%s)\n", !graphNameList ? "" : (*graphNameList)[beginIndex], status, ovxEnum2Name(status));
 		}
 		else {
 			// schedule all graph
@@ -597,6 +649,9 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 			vx_status status = vxVerifyGraph(m_graph); fflush(stdout);
 			if (status != VX_SUCCESS)
 				ReportError("ERROR: vxVerifyGraph(graph) failed (%d:%s)\n", status, ovxEnum2Name(status));
+			if (m_enableDumpGDF) {
+				DumpInternalGDF();
+			}
 			m_graphNameListForObj.insert(pair<string, vx_graph>(wordList[2], m_graph));
 			m_graphNameListForAge.insert(pair<string, std::vector<std::string> >(wordList[2], m_graphAutoAgeList));
 			// open a new graph with empty virtual object list and delay age-list
@@ -669,6 +724,27 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 					ReportError("ERROR: vxQueryGraph(*,VX_GRAPH_ATTRIBUTE_AMD_OPTIMIZER_FLAGS) failed (%d:%s)\n", status, ovxEnum2Name(status));
 				printf("> current graph optimizer flags: %d (0x%08d)\n", graph_optimizer_flags, graph_optimizer_flags);
 			}
+		}
+		else if (!_stricmp(wordList[1], "info"))
+		{ // syntax: graph info [<graphName(s)>]
+			if (m_verbose) {
+				if (wordList.size() > 2) {
+					printf("> graph info:");
+					for (size_t i = 2; i < wordList.size(); i++) printf(" %s", wordList[i]);
+					printf("\n");
+				}
+				else printf("> graph info: current\n");
+			}
+			for (auto it = m_paramMap.begin(); it != m_paramMap.end(); ++it) {
+				if (!it->second->IsVirtualObject()) {
+					printf("active data object      : %s\n", it->first.c_str());
+				}
+			}
+			if (wordList.size() > 2) {
+				for (size_t i = 2; i < wordList.size(); i++)
+					DumpGraphInfo(wordList[i]);
+			}
+			else DumpGraphInfo();
 		}
 		else ReportError("ERROR: syntax error: %s\n" "See help for details.\n", originalText);
 	}
@@ -959,40 +1035,6 @@ int CVxEngine::Shell(int level, FILE * fp)
 	return 0;
 }
 
-int CVxEngine::ExecuteFrame(int frameNumber)
-{
-	if (m_enableScheduleGraph) {
-		vx_status status;
-		if ((status = vxScheduleGraph(m_graph)) != VX_SUCCESS){
-			if (status == VX_ERROR_GRAPH_ABANDONED) {
-				printf("WARNING: graph execution abandoned by a kernel or application\n");
-			}
-			else printf("ERROR: vxScheduleGraph(graph) failed (%d:%s)\n", status, ovxEnum2Name(status));
-			return status;
-	    }
-
-		if ((status = vxWaitGraph(m_graph)) != VX_SUCCESS) {
-			if (status == VX_ERROR_GRAPH_ABANDONED) {
-				printf("WARNING: graph execution abandoned by a kernel or application\n");
-			}
-			else printf("ERROR: vxWaitGraph(graph) failed (%d:%s)\n", status, ovxEnum2Name(status));
-			return status;
-		}
-	}
-	else {
-		vx_status status = vxProcessGraph(m_graph);
-		if (status) {
-			if (status == VX_ERROR_GRAPH_ABANDONED) {
-				printf("WARNING: graph execution abandoned by a kernel or application\n");
-			}
-			else printf("ERROR: vxProcessGraph(graph) failed (%d:%s)\n", status, ovxEnum2Name(status));
-			return status;
-		}
-	}
-	
-	return 0;
-}
-
 int CVxEngine::ReadFrame(int frameNumber)
 {
 	for (auto it = m_paramMap.begin(); it != m_paramMap.end(); ++it){
@@ -1048,27 +1090,27 @@ void CVxEngine::MeasureFrame(int frameNumber, int status, std::vector<vx_graph>&
 	if (m_verbose) printf("csv,FRAME  ,  %s,%6d", (status == 0 ? "PASS" : "FAIL"), frameNumber);
 	if (graphList.size() < 2) {
 		vx_perf_t perf = { 0 };
-		ERROR_CHECK(vxQueryGraph(m_graph, VX_GRAPH_ATTRIBUTE_PERFORMANCE, &perf, sizeof(perf)));
-		m_timeMeasurements.push_back((float)perf.tmp * m_perfMultiplicationFactor);
+		ERROR_CHECK(vxQueryGraph(graphList[0], VX_GRAPH_ATTRIBUTE_PERFORMANCE, &perf, sizeof(perf)));
+		m_timeMeasurements.push_back(NANO2MILLISECONDS(perf.tmp));
 		if (m_verbose) {
 			AgoGraphPerfInternalInfo iperf = { 0 };
-			ERROR_CHECK(vxQueryGraph(m_graph, VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_LAST, &iperf, sizeof(iperf)));
+			ERROR_CHECK(vxQueryGraph(graphList[0], VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_LAST, &iperf, sizeof(iperf)));
 			printf(",%6.2f,%6.2f,%6.2f,%6.2f,%6.2f,%6.2f,%6.2f",
-				(float)perf.tmp * m_perfMultiplicationFactor,
-				(float)perf.avg * m_perfMultiplicationFactor,
-				(float)perf.min * m_perfMultiplicationFactor,
-				(float)iperf.kernel_enqueue * m_perfMultiplicationFactor,
-				(float)iperf.kernel_wait * m_perfMultiplicationFactor,
-				(float)iperf.buffer_write * m_perfMultiplicationFactor,
-				(float)iperf.buffer_read * m_perfMultiplicationFactor);
+				NANO2MILLISECONDS(perf.tmp),
+				NANO2MILLISECONDS(perf.avg),
+				NANO2MILLISECONDS(perf.min),
+				NANO2MILLISECONDS(iperf.kernel_enqueue),
+				NANO2MILLISECONDS(iperf.kernel_wait),
+				NANO2MILLISECONDS(iperf.buffer_write),
+				NANO2MILLISECONDS(iperf.buffer_read));
 		}
 	}
 	else {
 		for (size_t i = 0; i < graphList.size(); i++) {
 			vx_perf_t perf = { 0 };
 			ERROR_CHECK(vxQueryGraph(graphList[i], VX_GRAPH_ATTRIBUTE_PERFORMANCE, &perf, sizeof(perf)));
-			m_timeMeasurements.push_back((float)perf.tmp * m_perfMultiplicationFactor); // TBD: need to track median separately for each graph
-			if (m_verbose) printf(",%6.2f", (float)perf.tmp * m_perfMultiplicationFactor);
+			m_timeMeasurements.push_back(NANO2MILLISECONDS(perf.tmp)); // TBD: need to track median separately for each graph
+			if (m_verbose) printf(",%6.2f", NANO2MILLISECONDS(perf.tmp));
 		}
 	}
 	if (m_verbose) { printf("\n"); fflush(stdout); }
@@ -1091,15 +1133,15 @@ void CVxEngine::PerformanceStatistics(int status, std::vector<vx_graph>& graphLi
 	if (graphList.size() < 2) {
 		printf("csv,OVERALL,  %s,", (status >= 0 ? "PASS" : "FAIL"));
 		vx_perf_t perf = { 0 };
-		ERROR_CHECK(vxQueryGraph(m_graph, VX_GRAPH_ATTRIBUTE_PERFORMANCE, &perf, sizeof(perf)));
-		printf("%6d,      ,%6.2f,%6.2f", (int)perf.num, (float)perf.avg * m_perfMultiplicationFactor, (float)perf.min * m_perfMultiplicationFactor);
+		ERROR_CHECK(vxQueryGraph(graphList[0], VX_GRAPH_ATTRIBUTE_PERFORMANCE, &perf, sizeof(perf)));
+		printf("%6d,      ,%6.2f,%6.2f", (int)perf.num, NANO2MILLISECONDS(perf.avg), NANO2MILLISECONDS(perf.min));
 		AgoGraphPerfInternalInfo iperf = { 0 };
-		ERROR_CHECK(vxQueryGraph(m_graph, VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_AVG, &iperf, sizeof(iperf)));
+		ERROR_CHECK(vxQueryGraph(graphList[0], VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_AVG, &iperf, sizeof(iperf)));
 		printf(",%6.2f,%6.2f,%6.2f,%6.2f (median %.3f)\n",
-			(float)iperf.kernel_enqueue * m_perfMultiplicationFactor,
-			(float)iperf.kernel_wait * m_perfMultiplicationFactor,
-			(float)iperf.buffer_write * m_perfMultiplicationFactor,
-			(float)iperf.buffer_read * m_perfMultiplicationFactor,
+			NANO2MILLISECONDS(iperf.kernel_enqueue),
+			NANO2MILLISECONDS(iperf.kernel_wait),
+			NANO2MILLISECONDS(iperf.buffer_write),
+			NANO2MILLISECONDS(iperf.buffer_read),
 			GetMedianRunTime());
 	}
 	else {
@@ -1108,7 +1150,7 @@ void CVxEngine::PerformanceStatistics(int status, std::vector<vx_graph>& graphLi
 			vx_perf_t perf = { 0 };
 			ERROR_CHECK(vxQueryGraph(graphList[i], VX_GRAPH_ATTRIBUTE_PERFORMANCE, &perf, sizeof(perf)));
 			if (i == 0) printf(",%6d", (int)perf.num);
-			printf(",%6.2f", (float)perf.avg * m_perfMultiplicationFactor);
+			printf(",%6.2f", NANO2MILLISECONDS(perf.avg));
 		}
 		printf(" (median %.3f)\n", GetMedianRunTime());
 	}
@@ -1258,6 +1300,8 @@ void PrintHelpGDF(const char * command)
 		"              virtual data object won't be available after graph reset.\n"
 		"          graph launch [<graphName(s)>]\n"
 		"              Launch the default or specified graph(s).\n"
+		"          graph info [<graphName(s)>]\n"
+		"              Show graph details for debug.\n"
 		"\n"
 		);
 	if (strstr("init", command)) printf(

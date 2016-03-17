@@ -29,6 +29,8 @@ Build this project to generate AMD OpenVX library and RUNVX executable.
 
 #### Build using Visual Studio Professional 2013 on 64-bit Windows 10/8.1/7
 * Use amdovx-core/amdovx.sln to build for x64 platform
+* If AMD GPU (or OpenCL 2.0) is not available, set build flag ENABLE_OPENCL=0 in amdovx-core/openvx/openvx.vcxproj.
 
 #### Build using CMake
 * Use CMake to configure and generate Makefile
+* If AMD GPU (or OpenCL 2.0) is not available, use build flag -DCMAKE_DISABLE_FIND_PACKAGE_OpenCL=TRUE.

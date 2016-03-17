@@ -54,6 +54,7 @@ CVxParamImage::CVxParamImage()
 	m_cvDispMat = NULL;
 	m_cvImage = NULL;
 	m_cvWriter = NULL;
+	m_cvReadEofOccured = false;
 #endif
 	m_cameraName[0] = 0;
 	m_comparePixelErrorMin = 0;
@@ -288,6 +289,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 						throw - 1;
 					}
 #endif
+					m_cvReadEofOccured = false;
 					int cvMatType = CV_8UC3;
 					m_cvCapMat = new Mat(m_width, m_height, cvMatType);
 					strcpy(m_cameraName, fileName);
@@ -296,7 +298,13 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					if (m_captureFrameStart > 0) {
 						printf("OK: skipping %d frames from %s\n", m_captureFrameStart, fileName); fflush(stdout);
 						for (vx_uint32 i = 0; i < m_captureFrameStart; i++) {
-							*(VideoCapture *)m_cvCapDev >> *(Mat *)m_cvCapMat;
+							if (!m_cvReadEofOccured) {
+								*(VideoCapture *)m_cvCapDev >> *(Mat *)m_cvCapMat;
+								if (!((Mat *)m_cvCapMat)->data) {
+									m_cvReadEofOccured = true;
+									break;
+								}
+							}
 						}
 					}
 				}
@@ -456,12 +464,17 @@ int CVxParamImage::ReadFrame(int frameNumber)
 #if USE_OPENCV
 	if (m_cvCapMat && m_cvCapDev) {
 		// read image from camera
+		if (m_cvReadEofOccured) {
+			// no data available, report that no more frames available
+			return 1;
+		}
 		VideoCapture * pCap = (VideoCapture *)m_cvCapDev;
 		Mat * pMat = (Mat *)m_cvCapMat;
 		int timeout = 0;
 		*pCap >> *pMat;
 		if (!pMat->data){
 			// no data available, report that no more frames available
+			m_cvReadEofOccured = true;
 			return 1;
 		}
 		else if (!m_gotCaptureVideoSize) {

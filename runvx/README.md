@@ -167,6 +167,8 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
                   virtual data object won't be available after graph reset.
               graph launch [<graphName(s)>]
                   Launch the default or specified graph(s).
+              graph info [<graphName(s)>]
+                  Show graph details for debug.
     
       init <dataName> <initial-value>
           Initialize data object with specified value.
@@ -361,3 +363,82 @@ File **skintonedetect.gdf**:
     node org.khronos.openvx.and and1  B20   and2            # compute B20 & and1
     node org.khronos.openvx.and RmG15 RmB0  and3            # compute RmG15 & RmB0
     node org.khronos.openvx.and and2 and3 output            # compute and2 & and3 as output
+
+### Feature Tracker
+The feature tracker example demonstrates building an application with two 
+separate graphs that uses Harris Corners and Optical Flow kernels.
+This example requires use of delay data objects that contain 
+multiple pyramid and array objects.
+Use [PETS09-S1-L1-View001.avi](http://ewh.ieee.org/r6/scv/sps/openvx-material/PETS09-S1-L1-View001.avi) as input video sequence.
+
+    % runvx[.exe] file feature_tracker.gdf
+
+File **feature_tracker.gdf**:
+
+    # create image object for the input video sequence.
+    data input = image:768,576,RGB2
+    read input PETS09-S1-L1-View001.avi
+    
+    # create output keypoint array objects inside a delay object with two slots.
+    # two slots are needed to keep track current keypoints from previous time.
+    data exemplarArr = array:KEYPOINT,10000   # max trackable keypoints are 10,000
+    data delayArr = delay:exemplarArr,2       # two slots inside the delay object
+    
+    # request for displaying input with keypoints from delay slot[0].
+    view input    feature_tracker
+    view delayArr feature_tracker
+    
+    # create pyramid objects inside a delay object with two slots.
+    # two slots of pyramids are needed for optical flow kernel.
+    data exemplarPyr = pyramid:6,half,768,576,U008
+    data delayPyr = delay:exemplarPyr,2
+
+    # create first graph to initialize keypoints using Harris Corners and
+    # compute pyramid for by Optical Flow later using another graph
+    data iyuv = image-virtual:0,0,IYUV
+    data luma = image-virtual:0,0,U008
+    data strength_thresh = scalar:FLOAT32,0.0005
+    data min_distance = scalar:FLOAT32,5.0
+    data sensitivity = scalar:FLOAT32,0.04
+    data grad_size = scalar:INT32,3
+    data block_size = scalar:INT32,3
+    node org.khronos.openvx.color_convert    input  iyuv
+    node org.khronos.openvx.channel_extract  iyuv !CHANNEL_Y luma
+    node org.khronos.openvx.harris_corners   luma strength_thresh min_distance sensitivity \
+                                             grad_size block_size delayArr[0] null
+    node org.khronos.openvx.gaussian_pyramid luma delayPyr[0]
+
+    # request vxAgeDelay call for delay objects after each frame with
+    # current graph and save current graph with the name "harris"
+    graph auto-age delayPyr delayArr
+    graph save-and-reset harris
+
+    # create second graph to track keypoints using Optical Flow assuming that
+    # pyramid/keypoints in delay objects have been initialized with previous frame
+    data iyuv = image-virtual:0,0,IYUV
+    data luma = image-virtual:0,0,U008
+    data termination = scalar:ENUM,CRITERIA_BOTH
+    data epsilon = scalar:FLOAT32,0.01
+    data num_iterations = scalar:UINT32,5
+    data use_initial_estimate = scalar:BOOL,0
+    data window_dimension = scalar:SIZE,6
+    node org.khronos.openvx.color_convert       input  iyuv
+    node org.khronos.openvx.channel_extract     iyuv !CHANNEL_Y luma
+    node org.khronos.openvx.gaussian_pyramid    luma delayPyr[0]
+    node org.khronos.openvx.optical_flow_pyr_lk delayPyr[-1] delayPyr[0] \
+                                                delayArr[-1] delayArr[-1] delayArr[0] \
+                                                termination epsilon num_iterations \
+                                                use_initial_estimate window_dimension
+
+    # request vxAgeDelay call for delay objects after each frame with
+    # current graph and save current graph with the name "opticalflow"
+    graph auto-age delayPyr delayArr
+    graph save-and-reset opticalflow
+
+    # launch "harris" graph to process first frame in the video sequence
+    set frames 1
+    graph launch harris
+
+    # launch "opticalflow" graph to process remaining frames in the video sequence
+    set frames default
+    graph launch opticalflow

@@ -2526,14 +2526,16 @@ void agoPerfCaptureStop(vx_perf_t * perf)
 void agoPerfCopyNormalize(AgoContext * context, vx_perf_t * perfDst, vx_perf_t * perfSrc)
 {
 	agoPerfCaptureReset(perfDst);
+	// normalize all time units into nanoseconds
+	uint64_t num = 1000000000, denom = (uint64_t)agoGetClockFrequency();
 	perfDst->num = perfSrc->num;
-	perfDst->beg = perfSrc->beg;
-	perfDst->end = perfSrc->end;
-	perfDst->tmp = perfSrc->tmp;
-	perfDst->sum = perfSrc->sum;
-	perfDst->avg = perfSrc->avg;
-	perfDst->min = perfSrc->min;
-	perfDst->max = perfSrc->max;
+	perfDst->beg = perfSrc->beg * num / denom;
+	perfDst->end = perfSrc->end * num / denom;
+	perfDst->tmp = perfSrc->tmp * num / denom;
+	perfDst->sum = perfSrc->sum * num / denom;
+	perfDst->avg = perfSrc->avg * num / denom;
+	perfDst->min = perfSrc->min * num / denom;
+	perfDst->max = perfSrc->max * num / denom;
 }
 
 void agoAddLogEntry(vx_reference ref, vx_status status, const char *message, ...)
