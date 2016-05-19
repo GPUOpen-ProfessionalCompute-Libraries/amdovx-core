@@ -1,6 +1,8 @@
 ﻿# AMD OpenVX (AMDOVX)
 AMD OpenVX (beta preview) is a highly optimized open source implementation of the [Khronos OpenVX](https://www.khronos.org/registry/vx/) computer vision specification. It allows for rapid prototyping as well as fast execution on a wide range of computer hardware, including small embedded x86 CPUs and large workstation discrete GPUs.
 
+This software is provided under a MIT-style license,  see the file COPYRIGHT.txt for details.
+
 #### Features
 * The code is highly optimized for both x86 CPU and OpenCL for GPU
 * Supported hardware spans the range from low power embedded APUs (like the new G series) to laptop, desktop and workstation graphics
