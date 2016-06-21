@@ -122,6 +122,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					*(vx_uint32 *)ptr = (vx_uint32)context->num_active_modules;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_CONTEXT_ATTRIBUTE_REFERENCES:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = (vx_uint32)context->num_active_references;
@@ -169,6 +170,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					*(vx_uint32 *)ptr = (vx_uint32)context->kernelList.count;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_CONTEXT_ATTRIBUTE_UNIQUE_KERNEL_TABLE:
 				if (size == (context->kernelList.count * sizeof(vx_kernel_info_t))) {
 					vx_kernel_info_t * table = (vx_kernel_info_t *)ptr;
@@ -672,6 +674,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 					*(vx_df_image *)ptr = image->u.img.format;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_IMAGE_ATTRIBUTE_PLANES:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = image->u.img.planes;
@@ -1260,6 +1263,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryKernel(vx_kernel kernel, vx_enum attri
 					*(vx_enum *)ptr = kernel->id;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_KERNEL_ATTRIBUTE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = kernel->localDataSize;
@@ -1760,6 +1764,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 					agoPerfCopyNormalize(graph->ref.context, (vx_perf_t *)ptr, &graph->perf);
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_GRAPH_ATTRIBUTE_NUMPARAMETERS:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = (vx_uint32)graph->parameters.size();
@@ -2120,6 +2125,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetNodeAttribute(vx_node node, vx_enum attr
 					node->attr_border_mode = *(vx_border_mode_t *)ptr;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_NODE_ATTRIBUTE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					node->localDataSize = *(vx_size *)ptr;
