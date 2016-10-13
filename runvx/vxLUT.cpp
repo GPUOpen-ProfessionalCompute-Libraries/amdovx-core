@@ -38,7 +38,6 @@ CVxParamLUT::CVxParamLUT()
 	m_compareFileIsBinary = false;
 	m_compareCountMatches = 0;
 	m_compareCountMismatches = 0;
-	m_useSyncOpenCLWriteDirective = false;
 	// vx object
 	m_lut = nullptr;
 	m_vxObjRef = nullptr;
@@ -149,6 +148,9 @@ int CVxParamLUT::InitializeIO(vx_context context, vx_graph graph, vx_reference r
 			m_displayName.assign(fileName);
 			m_paramList.push_back(this);
 		}
+		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "sync-cl-write")) {
+			m_useSyncOpenCLWriteDirective = true;
+		}
 		else ReportError("ERROR: invalid lut operation: %s\n", ioType);
 		if (*io_params == ':') io_params++;
 		else if (*io_params) ReportError("ERROR: unexpected character sequence in parameter specification: %s\n", io_params);
@@ -159,6 +161,11 @@ int CVxParamLUT::InitializeIO(vx_context context, vx_graph graph, vx_reference r
 
 int CVxParamLUT::Finalize()
 {
+	// process user requested directives
+	if (m_useSyncOpenCLWriteDirective) {
+		ERROR_CHECK_AND_WARN(vxDirective((vx_reference)m_lut, VX_DIRECTIVE_AMD_COPY_TO_OPENCL), VX_ERROR_NOT_ALLOCATED);
+	}
+
 	return 0;
 }
 
@@ -209,7 +216,7 @@ int CVxParamLUT::ReadFrame(int frameNumber)
 
 	// process user requested directives
 	if (m_useSyncOpenCLWriteDirective) {
-		ERROR_CHECK(vxDirective((vx_reference)m_lut, VX_DIRECTIVE_AMD_COPY_TO_OPENCL));
+		ERROR_CHECK_AND_WARN(vxDirective((vx_reference)m_lut, VX_DIRECTIVE_AMD_COPY_TO_OPENCL), VX_ERROR_NOT_ALLOCATED);
 	}
 
 	return status;

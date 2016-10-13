@@ -179,6 +179,9 @@ int CVxParamMatrix::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "readonly")) {
 			ERROR_CHECK(vxDirective((vx_reference)m_matrix, VX_DIRECTIVE_AMD_READ_ONLY));
 		}
+		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "sync-cl-write")) {
+			m_useSyncOpenCLWriteDirective = true;
+		}
 		else if (!_stricmp(ioType, "ui") && !_strnicmp(fileName, "f", 1) && m_data_type == VX_TYPE_FLOAT32 && m_columns == 3 && m_rows == 3) {
 			int id = 0;
 			float valueR = 200.0f, valueInc = 0.5f;
@@ -200,6 +203,9 @@ int CVxParamMatrix::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 
 int CVxParamMatrix::Finalize()
 {
+	if (m_useSyncOpenCLWriteDirective) {
+		ERROR_CHECK_AND_WARN(vxDirective((vx_reference)m_matrix, VX_DIRECTIVE_AMD_COPY_TO_OPENCL), VX_ERROR_NOT_ALLOCATED);
+	}
 	return 0;
 }
 
@@ -257,6 +263,10 @@ int CVxParamMatrix::ReadFrame(int frameNumber)
 	fclose(fp);
 	if (status < 0)
 		ReportError("ERROR: detected EOF on matrix input file: %s\n", fileName);
+
+	if (m_useSyncOpenCLWriteDirective) {
+		ERROR_CHECK_AND_WARN(vxDirective((vx_reference)m_matrix, VX_DIRECTIVE_AMD_COPY_TO_OPENCL), VX_ERROR_NOT_ALLOCATED);
+	}
 
 	return status;
 }

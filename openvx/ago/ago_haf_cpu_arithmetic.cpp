@@ -35,6 +35,79 @@ int HafCpu_Add_U8_U8U8_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+	__m256i pixels1, pixels2;
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_add_epi8(pixels1, pixels2);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int16 temp = (vx_int16)(*pLocalSrc1++) + (vx_int16)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)temp;
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_add_epi8(pixels1, pixels2);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int16 temp = (vx_int16)(*pLocalSrc1++) + (vx_int16)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)temp;
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -106,8 +179,7 @@ int HafCpu_Add_U8_U8U8_Wrap
 			pDstImage += dstImageStrideInBytes;
 		}
 	}
-
-	
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -123,6 +195,82 @@ int HafCpu_Add_U8_U8U8_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+	__m256i pixels1, pixels2;
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_adds_epu8(pixels1, pixels2);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				int temp = (int)(*pLocalSrc1++) + (int)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)min(temp, UINT8_MAX);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+	else
+	{
+		{
+			for (int height = 0; height < (int)dstHeight; height++)
+			{
+				pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+				pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+				pLocalDst_ymm = (__m256i*) pDstImage;
+
+				for (int width = 0; width < alignedWidth; width += 32)
+				{
+					pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+					pixels2 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+					pixels1 = _mm256_adds_epu8(pixels1, pixels2);
+					_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+				}
+
+				pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+				pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+				pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+				for (int width = 0; width < postfixWidth; width++)
+				{
+					int temp = (int)(*pLocalSrc1++) + (int)(*pLocalSrc2++);
+					*pLocalDst++ = (vx_uint8)min(temp, UINT8_MAX);
+				}
+
+				pSrcImage1 += srcImage1StrideInBytes;
+				pSrcImage2 += srcImage2StrideInBytes;
+				pDstImage += dstImageStrideInBytes;
+			}
+		}
+	}
+
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -196,7 +344,7 @@ int HafCpu_Add_U8_U8U8_Sat
 			}
 		}
 	}
-
+#endif
 	
 	return AGO_SUCCESS;
 }
@@ -213,6 +361,79 @@ int HafCpu_Sub_U8_U8U8_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+	__m256i pixels1, pixels2;
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_sub_epi8(pixels1, pixels2);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int16 temp = (vx_int16)(*pLocalSrc1++) - (vx_int16)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)temp;
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_sub_epi8(pixels1, pixels2);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				int temp = (int)(*pLocalSrc1++) - (int)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)temp;
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -284,6 +505,7 @@ int HafCpu_Sub_U8_U8U8_Wrap
 			pDstImage += dstImageStrideInBytes;
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -299,6 +521,79 @@ int HafCpu_Sub_U8_U8U8_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+	__m256i pixels1, pixels2;
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_subs_epu8(pixels1, pixels2);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				int temp = (int)(*pLocalSrc1++) - (int)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)max(min(temp, UINT8_MAX), 0);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels1 = _mm256_subs_epu8(pixels1, pixels2);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				int temp = (int)(*pLocalSrc1++) - (int)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_uint8)max(min(temp, UINT8_MAX), 0);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -370,7 +665,7 @@ int HafCpu_Sub_U8_U8U8_Sat
 			pDstImage += dstImageStrideInBytes;
 		}
 	}
-	
+#endif	
 	return AGO_SUCCESS;
 }
 
@@ -386,6 +681,95 @@ int HafCpu_Add_S16_U8U8
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2;
+	vx_int16 *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_add_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_add_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (int)(*pLocalSrc1++) + (int)(*pLocalSrc2++);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		{
+			for (int height = 0; height < (int)dstHeight; height++)
+			{
+				pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+				pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+				pLocalDst_ymm = (__m256i*) pDstImage;
+
+				for (int width = 0; width < alignedWidth; width += 32)
+				{
+					pixels1L = _mm256_loadu_si256(pLocalSrc1_ymm++);
+					pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+					pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+					pixels2L = _mm256_loadu_si256(pLocalSrc2_ymm++);
+					pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+					pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+					pixels1L = _mm256_add_epi16(pixels1L, pixels2L);
+					pixels1H = _mm256_add_epi16(pixels1H, pixels2H);
+					_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+					_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+				}
+
+				pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+				pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+				pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+				for (int width = 0; width < postfixWidth; width++)
+				{
+					*pLocalDst++ = (int)(*pLocalSrc1++) + (int)(*pLocalSrc2++);
+				}
+
+				pSrcImage1 += srcImage1StrideInBytes;
+				pSrcImage2 += srcImage2StrideInBytes;
+				pDstImage += (dstImageStrideInBytes >> 1);
+			}
+		}
+	}
+
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -472,7 +856,7 @@ int HafCpu_Add_S16_U8U8
 			}
 		}
 	}
-	
+#endif	
 	return AGO_SUCCESS;
 }
 
@@ -488,6 +872,93 @@ int HafCpu_Sub_S16_U8U8
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2;
+	vx_int16 *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (vx_int16)(*pLocalSrc1++) - (vx_int16)(*pLocalSrc2++);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (int)(*pLocalSrc1++) - (int)(*pLocalSrc2++);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -572,6 +1043,7 @@ int HafCpu_Sub_S16_U8U8
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -587,6 +1059,90 @@ int HafCpu_Add_S16_S16U8_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc16_ymm, *pLocalSrc8_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc8;
+	vx_int16 *pLocalSrc16, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (alignedWidth)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_load_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_load_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_add_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_add_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = *pLocalSrc16++ + (vx_int16)(*pLocalSrc8++);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_loadu_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_loadu_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_add_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_add_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = *pLocalSrc16++ + (vx_int16)(*pLocalSrc8++);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else	
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc16_xmm, *pLocalSrc8_xmm, *pLocalDst_xmm;
@@ -669,6 +1225,7 @@ int HafCpu_Add_S16_S16U8_Wrap
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -684,6 +1241,92 @@ int HafCpu_Add_S16_S16U8_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc16_ymm, *pLocalSrc8_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc8;
+	vx_int16 *pLocalSrc16, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_load_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_load_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_adds_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_adds_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc16++) + (vx_int32)(*pLocalSrc8++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_loadu_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_loadu_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_adds_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_adds_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc16++) + (vx_int32)(*pLocalSrc8++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc16_xmm, *pLocalSrc8_xmm, *pLocalDst_xmm;
@@ -768,6 +1411,7 @@ int HafCpu_Add_S16_S16U8_Sat
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -783,6 +1427,92 @@ int HafCpu_Sub_S16_S16U8_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc16_ymm, *pLocalSrc8_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc8;
+	vx_int16 *pLocalSrc16, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_load_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_load_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = *pLocalSrc16++ - (vx_int16)(*pLocalSrc8++);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_loadu_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_loadu_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = *pLocalSrc16++ - (vx_int16)(*pLocalSrc8++);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc16_xmm, *pLocalSrc8_xmm, *pLocalDst_xmm;
@@ -867,6 +1597,7 @@ int HafCpu_Sub_S16_S16U8_Wrap
 
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -882,6 +1613,92 @@ int HafCpu_Sub_S16_S16U8_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc16_ymm, *pLocalSrc8_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc8;
+	vx_int16 *pLocalSrc16, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_load_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_load_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_subs_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_subs_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc16++) - (vx_int32)(*pLocalSrc8++);
+				*pLocalDst++ = max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc16_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc8_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc16_ymm++);
+				pixels1H = _mm256_loadu_si256(pLocalSrc16_ymm++);;
+				pixels2L = _mm256_loadu_si256(pLocalSrc8_ymm++);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_subs_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_subs_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc16++) - (vx_int32)(*pLocalSrc8++);
+				*pLocalDst++ = max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc16_xmm, *pLocalSrc8_xmm, *pLocalDst_xmm;
@@ -966,6 +1783,7 @@ int HafCpu_Sub_S16_S16U8_Sat
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -981,6 +1799,90 @@ int HafCpu_Sub_S16_U8S16_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc16_ymm, *pLocalSrc8_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc8;
+	vx_int16 *pLocalSrc16, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc8_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc16_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc8_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_load_si256(pLocalSrc16_ymm++);
+				pixels2H = _mm256_load_si256(pLocalSrc16_ymm++);;
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (vx_int16)(*pLocalSrc8++) - *pLocalSrc16++;
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc8_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc16_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc8_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi16(pixels1L, zeromask);
+				pixels2L = _mm256_loadu_si256(pLocalSrc16_ymm++);
+				pixels2H = _mm256_loadu_si256(pLocalSrc16_ymm++);;
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (vx_int16)(*pLocalSrc8++) - *pLocalSrc16++;
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc16_xmm, *pLocalSrc8_xmm, *pLocalDst_xmm;
@@ -1063,6 +1965,7 @@ int HafCpu_Sub_S16_U8S16_Wrap
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -1078,6 +1981,92 @@ int HafCpu_Sub_S16_U8S16_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc16_ymm, *pLocalSrc8_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc8;
+	vx_int16 *pLocalSrc16, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc8_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc16_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc8_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_load_si256(pLocalSrc16_ymm++);
+				pixels2H = _mm256_load_si256(pLocalSrc16_ymm++);;
+				pixels1L = _mm256_subs_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_subs_epi16(pixels1H, pixels2H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc8++) - (vx_int32)(*pLocalSrc16++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc8_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc16_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc8_ymm++);
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_loadu_si256(pLocalSrc16_ymm++);
+				pixels2H = _mm256_loadu_si256(pLocalSrc16_ymm++);;
+				pixels1L = _mm256_subs_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_subs_epi16(pixels1H, pixels2H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1H);
+			}
+
+			pLocalSrc16 = (vx_int16 *)pLocalSrc16_ymm;
+			pLocalSrc8 = (vx_uint8 *)pLocalSrc8_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc8++) - (vx_int32)(*pLocalSrc16++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc16_xmm, *pLocalSrc8_xmm, *pLocalDst_xmm;
@@ -1162,6 +2151,7 @@ int HafCpu_Sub_S16_U8S16_Sat
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -1177,6 +2167,93 @@ int HafCpu_Add_S16_S16S16_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_int16 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+
+	__m256i pixels1, pixels2, pixels3, pixels4;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_load_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_add_epi16(pixels1, pixels3);
+				pixels2 = _mm256_add_epi16(pixels2, pixels4);
+
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+				_mm256_store_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) + (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)temp;
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_add_epi16(pixels1, pixels3);
+				pixels2 = _mm256_add_epi16(pixels2, pixels4);
+
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) + (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)temp;
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -1262,7 +2339,7 @@ int HafCpu_Add_S16_S16S16_Wrap
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
-
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -1278,6 +2355,93 @@ int HafCpu_Add_S16_S16S16_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_int16 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+
+	__m256i pixels1, pixels2, pixels3, pixels4;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_load_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_adds_epi16(pixels1, pixels3);
+				pixels2 = _mm256_adds_epi16(pixels2, pixels4);
+
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+				_mm256_store_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) + (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_adds_epi16(pixels1, pixels3);
+				pixels2 = _mm256_adds_epi16(pixels2, pixels4);
+
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) + (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -1363,7 +2527,7 @@ int HafCpu_Add_S16_S16S16_Sat
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
-	
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -1379,6 +2543,93 @@ int HafCpu_Sub_S16_S16S16_Wrap
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_int16 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+
+	__m256i pixels1, pixels2, pixels3, pixels4;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_load_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_sub_epi16(pixels1, pixels3);
+				pixels2 = _mm256_sub_epi16(pixels2, pixels4);
+
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+				_mm256_store_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) - (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)temp;
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 16)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_sub_epi16(pixels1, pixels3);
+				pixels2 = _mm256_sub_epi16(pixels2, pixels4);
+
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) - (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)temp;
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -1464,6 +2715,7 @@ int HafCpu_Sub_S16_S16S16_Wrap
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -1479,6 +2731,93 @@ int HafCpu_Sub_S16_S16S16_Sat
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_int16 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+
+	__m256i pixels1, pixels2, pixels3, pixels4;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_load_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_load_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_subs_epi16(pixels1, pixels3);
+				pixels2 = _mm256_subs_epi16(pixels2, pixels4);
+
+				_mm256_store_si256(pLocalDst_ymm++, pixels1);
+				_mm256_store_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) - (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2 = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels3 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+				pixels4 = _mm256_loadu_si256(pLocalSrc2_ymm++);
+
+				pixels1 = _mm256_subs_epi16(pixels1, pixels3);
+				pixels2 = _mm256_subs_epi16(pixels2, pixels4);
+
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels2);
+			}
+
+			pLocalSrc1 = (vx_int16 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_int16 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_int16 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				vx_int32 temp = (vx_int32)(*pLocalSrc1++) - (vx_int32)(*pLocalSrc2++);
+				*pLocalDst++ = (vx_int16)max(min(temp, INT16_MAX), INT16_MIN);
+			}
+
+			pSrcImage1 += (srcImage1StrideInBytes >> 1);
+			pSrcImage2 += (srcImage2StrideInBytes >> 1);
+			pDstImage += (dstImageStrideInBytes >> 1);
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -1564,6 +2903,7 @@ int HafCpu_Sub_S16_S16S16_Sat
 			pDstImage += (dstImageStrideInBytes >> 1);
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -1579,6 +2919,101 @@ int HafCpu_AbsDiff_U8_U8U8
 		vx_uint32     srcImage2StrideInBytes
 	)
 {
+#if USE_AVX
+	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0x1F) == 0) ? true : false;
+
+	__m256i *pLocalSrc1_ymm, *pLocalSrc2_ymm, *pLocalDst_ymm;
+	vx_uint8 *pLocalSrc1, *pLocalSrc2, *pLocalDst;
+
+	__m256i pixels1H, pixels1L, pixels2H, pixels2L;
+	__m256i zeromask = _mm256_setzero_si256();
+
+	int alignedWidth = dstWidth & ~31;
+	int postfixWidth = dstWidth - alignedWidth;
+
+	if (useAligned)
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_load_si256(pLocalSrc1_ymm++);
+				pixels2L = _mm256_load_si256(pLocalSrc2_ymm++);
+
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_abs_epi16(pixels1H);
+				pixels1L = _mm256_abs_epi16(pixels1L);
+
+				pixels1L = _mm256_packus_epi16(pixels1L, pixels1H);
+				_mm256_store_si256(pLocalDst_ymm++, pixels1L);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (vx_uint8)abs((vx_int16)(*pLocalSrc1++) - (vx_int16)(*pLocalSrc2++));
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+	else
+	{
+		for (int height = 0; height < (int)dstHeight; height++)
+		{
+			pLocalSrc1_ymm = (__m256i*) pSrcImage1;
+			pLocalSrc2_ymm = (__m256i*) pSrcImage2;
+			pLocalDst_ymm = (__m256i*) pDstImage;
+
+			for (int width = 0; width < alignedWidth; width += 32)
+			{
+				pixels1L = _mm256_loadu_si256(pLocalSrc1_ymm++);
+				pixels2L = _mm256_loadu_si256(pLocalSrc2_ymm++);
+
+				pixels1H = _mm256_unpackhi_epi8(pixels1L, zeromask);
+				pixels2H = _mm256_unpackhi_epi8(pixels2L, zeromask);
+				pixels1L = _mm256_unpacklo_epi8(pixels1L, zeromask);
+				pixels2L = _mm256_unpacklo_epi8(pixels2L, zeromask);
+
+				pixels1H = _mm256_sub_epi16(pixels1H, pixels2H);
+				pixels1L = _mm256_sub_epi16(pixels1L, pixels2L);
+				pixels1H = _mm256_abs_epi16(pixels1H);
+				pixels1L = _mm256_abs_epi16(pixels1L);
+
+				pixels1L = _mm256_packus_epi16(pixels1L, pixels1H);
+				_mm256_storeu_si256(pLocalDst_ymm++, pixels1L);
+			}
+
+			pLocalSrc1 = (vx_uint8 *)pLocalSrc1_ymm;
+			pLocalSrc2 = (vx_uint8 *)pLocalSrc2_ymm;
+			pLocalDst = (vx_uint8 *)pLocalDst_ymm;
+
+			for (int width = 0; width < postfixWidth; width++)
+			{
+				*pLocalDst++ = (vx_uint8)abs((vx_int16)(*pLocalSrc1++) - (vx_int16)(*pLocalSrc2++));
+			}
+
+			pSrcImage1 += srcImage1StrideInBytes;
+			pSrcImage2 += srcImage2StrideInBytes;
+			pDstImage += dstImageStrideInBytes;
+		}
+	}
+#else
 	bool useAligned = ((((intptr_t)pSrcImage1 | (intptr_t)pSrcImage2 | (intptr_t)pDstImage) & 0xF) == 0) ? true : false;
 
 	__m128i *pLocalSrc1_xmm, *pLocalSrc2_xmm, *pLocalDst_xmm;
@@ -1672,6 +3107,7 @@ int HafCpu_AbsDiff_U8_U8U8
 			pDstImage += dstImageStrideInBytes;
 		}
 	}
+#endif
 	return AGO_SUCCESS;
 }
 
@@ -3746,7 +5182,6 @@ int HafCpu_Mul_U8_U8U8_Sat_Round
 	return AGO_SUCCESS;
 }
 
-// the following primitive is tested and working
 int HafCpu_Mul_S16_U8U8_Wrap_Trunc
 (
 	vx_uint32     dstWidth,

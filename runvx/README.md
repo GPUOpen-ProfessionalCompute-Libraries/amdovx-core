@@ -7,13 +7,13 @@ This guide provides an overview of the content and usage of the RunVX tool. This
 RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX takes a GDF (Graph Description Format) file, a simple and intuitive syntax to describe the various data, nodes, and their dependencies. This guide describes the elements of RunVX tool and the syntax used to run various OpenVX graphs. The tool has other useful features, such as, file read/write, data compares, image and keypoint data visualization, etc.
 
 ### RunVX Usage and GDF Syntax
-    runvx.exe [options] file <file.gdf> [argument(s)]
+    runvx.exe [options] <file.gdf> [argument(s)]
     runvx.exe [options] node <kernelName> [argument(s)]
     runvx.exe [options] shell [argument(s)]
         
     The argument(s) are data objects created using <data-description> syntax.
     These arguments can be accessed from inside GDF as $1, $2, etc.
-    
+
     The available command-line options are:
       -h
           Show full help.
@@ -81,11 +81,11 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
     The available GDF commands are:
       import <libraryName>
           Import kernels in a library using vxLoadKernel API.
-    
+
       type <typeName> userstruct:<size-in-bytes>
           Create an OpenVX user defined structure using vxRegisterUserStruct API.
           The <typeName> can be used as a type in array object.
-    
+
       data <dataName> = <data-description>
           Create an OpenVX data object in context using the below syntax for
           <data-description>:
@@ -93,9 +93,11 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
               convolution:<columns>,<rows>
               distribution:<numBins>,<offset>,<range>
               delay:<exemplar>,<slots>
-              image:<width>,<height>,<image-format>
-              image-uniform:<width>,<height>,<image-format>,<uniform-pixel-value>
-              image-roi:<master-image>,rect{<start-x>;<start-y>;<end-x>;<end-y>}
+              image:<width>,<height>,<image-format>[,<range>][,<space>]
+              uniform-image:<width>,<height>,<image-format>,<uniform-pixel-value>
+              image-from-roi:<master-image>,rect{<start-x>;<start-y>;<end-x>;<end-y>}
+              image-from-handle:<image-format>,{<dim-x>;<dim-y>;<stride-x>;<stride-y>}[+...],<memory-type>
+              image-from-channel:<master-image>,<channel>
               lut:<data-type>,<count>
               matrix:<data-type>,<columns>,<rows>
               pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
@@ -104,10 +106,10 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
               threshold:<thresh-type>,<data-type>
           For virtual object in default graph use the below syntax for
           <data-description>:
-              array-virtual:<data-type>,<capacity>
-              image-virtual:<width>,<height>,<image-format>
-              pyramid-virtual:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
-    
+              virtual-array:<data-type>,<capacity>
+              virtual-image:<width>,<height>,<image-format>
+              virtual-pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
+
           where:
               <master-image> can be name of a image data object (including $1, $2, ...)
               <exemplar> can be name of a data object (including $1, $2, ...)
@@ -116,20 +118,22 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
               <image-format> can be RGB2,RGBX,IYUV,NV12,U008,S016,U001,F032,...
               <data-type> can be UINT8,INT16,INT32,UINT32,FLOAT32,ENUM,BOOL,SIZE,
                                  KEYPOINT,COORDINATES2D,RECTANGLE,<typeName>,...
-    
+              <range> can be vx_channel_range_e enums FULL or RESTRICTED
+              <space> can be vx_color_space_e enums BT709 or BT601_525 or BT601_625
+
       node <kernelName> [<argument(s)>]
           Create a node of specified kernel in the default graph with specified
           node arguments. Node arguments have to be OpenVX data objects created
           earlier in GDF or data objects specified on command-line accessible as
           $1, $2, etc. For scalar enumerations as node arguments, use !<enumName>
           syntax (e.g., !VX_CHANNEL_Y for channel_extract node).
-    
+
       include <file.gdf>
           Specify inclusion of another GDF file.
-    
+
       shell
           Start a shell command session.
-    
+
       set <option> [<value>]
           Specify or query the following global options:
               set verbose [on|off]
@@ -150,7 +154,7 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
                   Turn on/off data compares or just discard data compare errors.
               set use-schedule-graph [on|off]
                   Turn on/off use of vxScheduleGraph instead of vxProcessGraph.
-    
+
       graph <command> [<arguments> ...]
           Specify below graph specific commands:
               graph auto-age [<delayName> [<delayName> ...]]
@@ -169,7 +173,7 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
                   Launch the default or specified graph(s).
               graph info [<graphName(s)>]
                   Show graph details for debug.
-    
+
       init <dataName> <initial-value>
           Initialize data object with specified value.
           - convolution object initial values can be:
@@ -187,7 +191,10 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
           - threshold object initial values can be:
               For VX_THRESHOLD_TYPE_BINARY: <value>
               For VX_THRESHOLD_TYPE_RANGE: {<lower>;<upper>}
-    
+          - image object initial values can be:
+              Binary file with image data. For images created from handle,
+              the vxSwapHandles API will be invoked before executing the graph.
+
       read <dataName> <fileName> [ascii|binary] [<option(s)>]
           Read frame-level data from the specified <fileName>.
           - images can be read from containers (such as, .jpg, .avi, .mp4, etc.)
@@ -202,7 +209,7 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
             pyramid objects expect all frames of each level in separate files.
           - convolution objects support the option: scale
             This will read scale value as the first 32-bit integer in file(s).
-    
+
       write <dataName> <fileName> [ascii|binary] [<option(s)>]
           Write frame-level data to the specified <fileName>.
           - certain raw data formats support writing data for all frames into a
@@ -215,7 +222,7 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
             pyramid objects expect all frames of each level in separate files.
           - convolution objects support the option: scale
             This will write scale value as the first 32-bit integer in file(s).
-    
+
       compare <dataName> <fileName> [ascii|binary] [<option(s)>]
           Compare frame-level data from the specified <fileName>.
           - certain raw data formats support comparing data for all frames from a
@@ -244,7 +251,7 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
               specify tolerance: err{<x>;<y>}
           - scalar objects support the option:
               specify that file specifies inclusive range of valid values: range
-    
+
       view <dataName> <windowName>
           Display frame-level data in a window with title <windowName>. Each window
           can display an image data object and optionally additional other data
@@ -254,7 +261,7 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
           - display of array, distribution, lut, and scalar objects are
             overlaid on top of an image with the same <windowName>.
           - delay object displays reference in the slot#0 of current time.
-    
+
       directive <dataName> <directive>
           Specify a directive to data object. Only a few directives are supported:
           - Use sync-cl-write directive to issue VX_DIRECTIVE_AMD_COPY_TO_OPENCL
@@ -263,16 +270,16 @@ RunVX is a command line tool used to execute OpenVX graphs. As input, RUNVX take
           - Use readonly directive to issue VX_DIRECTIVE_AMD_READ_ONLY directive
             that informs the OpenVX framework that object won't be updated after
             init command. Supported for convolution and matrix data objects only.
-    
+
       pause
           Wait until a key is pressed before processing next GDF command.
-    
+
       help [command]
           Show the GDF command help.
-    
+
       exit
           Exit from shell or included GDF file.
-    
+
       quit
           Abort the application.
 

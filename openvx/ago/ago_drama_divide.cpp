@@ -581,7 +581,7 @@ int agoDramaDivideScaleImageNode(AgoNodeList * nodeList, AgoNode * anode)
 				new_kernel_id = VX_KERNEL_AMD_SCALE_IMAGE_U8_U8_BILINEAR_CONSTANT;
 				// create scalar object for border mode
 				AgoGraph * agraph = (AgoGraph *)anode->ref.scope;
-				char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value);
+				char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value.U8);
 				AgoData * dataBorder = agoCreateDataFromDescription(anode->ref.context, agraph, desc, false);
 				if (!dataBorder) return -1;
 				agoGenerateVirtualDataName(agraph, "scalar", dataBorder->name);
@@ -1387,7 +1387,7 @@ int agoDramaDivideRemapNode(AgoNodeList * nodeList, AgoNode * anode)
 			if (new_kernel_id != VX_KERNEL_AMD_INVALID) {
 				// create scalar object for border mode
 				AgoGraph * agraph = (AgoGraph *)anode->ref.scope;
-				char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value);
+				char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value.U8);
 				AgoData * dataBorder = agoCreateDataFromDescription(anode->ref.context, agraph, desc, false);
 				if (!dataBorder) return -1;
 				agoGenerateVirtualDataName(agraph, "scalar", dataBorder->name);
@@ -1438,7 +1438,7 @@ int agoDramaDivideWarpAffineNode(AgoNodeList * nodeList, AgoNode * anode)
 		if (new_kernel_id != VX_KERNEL_AMD_INVALID) {
 			// create scalar object for border mode
 			AgoGraph * agraph = (AgoGraph *)anode->ref.scope;
-			char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value);
+			char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value.U8);
 			AgoData * dataBorder = agoCreateDataFromDescription(anode->ref.context, agraph, desc, false);
 			if (!dataBorder) return -1;
 			agoGenerateVirtualDataName(agraph, "scalar", dataBorder->name);
@@ -1476,7 +1476,7 @@ int agoDramaDivideWarpPerspectiveNode(AgoNodeList * nodeList, AgoNode * anode)
 		if (new_kernel_id != VX_KERNEL_AMD_INVALID) {
 			// create scalar object for border mode
 			AgoGraph * agraph = (AgoGraph *)anode->ref.scope;
-			char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value);
+			char desc[64]; sprintf(desc, "scalar-virtual:UINT8,%d", anode->attr_border_mode.constant_value.U8);
 			AgoData * dataBorder = agoCreateDataFromDescription(anode->ref.context, agraph, desc, false);
 			if (!dataBorder) return -1;
 			agoGenerateVirtualDataName(agraph, "scalar", dataBorder->name);
@@ -1923,14 +1923,9 @@ int agoOptimizeDramaDivide(AgoGraph * agraph)
 				anode = next;
 			}
 			else {
-				if (anode->akernel->id == VX_KERNEL_INVALID) {
-					agraph->detectedInvalidNode = true;
-				}
-				else {
-					// TBD: error handling
-					agoAddLogEntry(&anode->akernel->ref, VX_FAILURE, "ERROR: agoOptimizeDramaDivide: failed for node %s\n", anode->akernel->name);
-					astatus = -1;
-				}
+				// TBD: error handling
+				agoAddLogEntry(&anode->akernel->ref, VX_FAILURE, "ERROR: agoOptimizeDramaDivide: failed for node %s\n", anode->akernel->name);
+				astatus = -1;
 				// advance to next node, since node divide failed
 				aprev = anode;
 				anode = anode->next;

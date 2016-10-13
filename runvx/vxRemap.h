@@ -52,7 +52,6 @@ private:
 	int m_compareCountMatches;
 	int m_compareCountMismatches;
 	float m_xyErr[2];
-	bool m_useSyncOpenCLWriteDirective;
 	// vx object
 	vx_remap m_remap;
 };

@@ -25,17 +25,21 @@ THE SOFTWARE.
 #include "vxEngineUtil.h"
 #include "vxEngine.h"
 
-// version
-#define RUNVX_VERSION "0.9.1"
+// program and version
+#define RUNVX_VERSION "0.9.2"
+#if _WIN32
+#define RUNVX_PROGRAM "runvx.exe"
+#else
+#define RUNVX_PROGRAM "runvx"
+#endif
 
 void show_usage(const char * program, bool detail)
 {
-	printf("RUNVX.EXE %s\n", RUNVX_VERSION);
 	printf("\n");
 	printf("Usage:\n");
-	printf("  runvx.exe [options] file <file.gdf> [argument(s)]\n");
-	printf("  runvx.exe [options] node <kernelName> [argument(s)]\n");
-	printf("  runvx.exe [options] shell [argument(s)]\n");
+	printf("  %s [options] [file] <file.gdf> [argument(s)]\n", RUNVX_PROGRAM);
+	printf("  %s [options] node <kernelName> [argument(s)]\n", RUNVX_PROGRAM);
+	printf("  %s [options] shell [argument(s)]\n", RUNVX_PROGRAM);
 	printf("\n");
 	printf("The argument(s) are data objects created using <data-description> syntax.\n");
 	printf("These arguments can be accessed from inside GDF as $1, $2, etc.\n");
@@ -68,13 +72,14 @@ void show_usage(const char * program, bool detail)
 
 int main(int argc, char * argv[])
 {	
+	printf("%s %s\n", RUNVX_PROGRAM, RUNVX_VERSION);
 	// process command-line options
-	const char * program = "runvx.exe";
+	const char * program = RUNVX_PROGRAM;
 	bool verbose = false;
 	bool enableMultiFrameProcessing = false;
 	bool framesEofRequested = true;
 	bool enableDumpGDF = false, enableScheduleGraph = false;
-	bool pauseBeforeExit = false;
+	bool pauseBeforeExit = false, noPauseBeforeExit = false;
 	bool enableDumpProfile = false;
 	bool disableVirtual = false;
 	bool discardCompareErrors = false;
@@ -105,13 +110,17 @@ int main(int argc, char * argv[])
 				while (argv[arg][spos]) {
 					if (argv[arg][spos] == ',')
 						spos++;
-					else if (!_strnicmp(argv[arg], "live", 4)) {
+					else if (!_strnicmp(&argv[arg][spos], "live", 4)) {
 						enableMultiFrameProcessing = true;
 						spos += 4;
 					}
-					else if (!_strnicmp(argv[arg], "eof", 3)) {
+					else if (!_strnicmp(&argv[arg][spos], "eof", 3)) {
 						framesEofRequested = true;
 						spos += 3;
+					}
+					else if (!_strnicmp(&argv[arg][spos], "ignore-eof", 10)) {
+						framesEofRequested = false;
+						spos += 10;
 					}
 					else {
 						int k = sscanf(&argv[arg][spos], "%d:%d", &frameStart, &frameEnd);
@@ -157,6 +166,9 @@ int main(int argc, char * argv[])
 			else if (!_stricmp(argv[arg], "-pause")) {
 				pauseBeforeExit = true;
 			}
+			else if (!_stricmp(argv[arg], "-no-pause")) {
+				noPauseBeforeExit = true;
+			}
 			else { printf("ERROR: invalid option: %s\n", argv[arg]); return -1; }
 		}
 		else break;
@@ -186,16 +198,7 @@ int main(int argc, char * argv[])
 		fflush(stdout);
 		// get full GDF text
 		char * fullText = nullptr;
-		if (!_stricmp(argv[arg], "file")) {
-			if ((arg+1) == argc)
-				ReportError("ERROR: missing file name on command-line (see help for details)\n");
-			arg++;
-			const char * fileName = RootDirUpdated(argv[arg]);
-			size_t size = strlen("include") + 1 + strlen(fileName) + 1;
-			fullText = new char[size];
-			sprintf(fullText, "include %s", fileName);
-		}
-		else if (!_stricmp(argv[arg], "node")) {
+		if (!_stricmp(argv[arg], "node")) {
 			if ((arg + 1) == argc)
 				ReportError("ERROR: missing kernel name on command-line (see help for details)\n");
 			int paramCount = argc - arg - 2;
@@ -210,8 +213,15 @@ int main(int argc, char * argv[])
 			// nothing to do
 		}
 		else {
-			printf("ERROR: invalid command: %s (see help for details)\n", argv[arg]);
-			throw -1;
+			if (!_stricmp(argv[arg], "file")) {
+				if ((arg + 1) == argc)
+					ReportError("ERROR: missing file name on command-line (see help for details)\n");
+				arg++;
+			}
+			const char * fileName = RootDirUpdated(argv[arg]);
+			size_t size = strlen("include") + 1 + strlen(fileName) + 1;
+			fullText = new char[size];
+			sprintf(fullText, "include %s", fileName);
 		}
 
 		if (fullText) {
@@ -240,6 +250,10 @@ int main(int argc, char * argv[])
 		printf("Press ENTER to exit ...\n");
 		while (getchar() != '\n')
 			;
+		engine.DisableWaitForKeyPress();
+	}
+	else if (noPauseBeforeExit) {
+		engine.DisableWaitForKeyPress();
 	}
 	return errorCode;
 }

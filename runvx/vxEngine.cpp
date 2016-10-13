@@ -42,11 +42,20 @@ void RemoveVirtualKeywordFromParamDescription(std::string& paramDesc)
 	if (pos != std::string::npos) {
 		paramDesc.erase(pos, 8);
 	}
+	else if ((pos = paramDesc.find("virtual-")) != std::string::npos) {
+		paramDesc.erase(pos, 8);
+	}
 }
 
 static void VX_CALLBACK log_callback(vx_context context, vx_reference ref, vx_status status, const vx_char string[])
 {
-	printf("%s", string); fflush(stdout);
+	size_t len = strlen(string);
+	if (len > 0) {
+		printf("%s", string);
+		if (string[len - 1] != '\n')
+			printf("\n");
+		fflush(stdout);
+	}
 }
 
 CVxEngine::CVxEngine()
@@ -84,6 +93,7 @@ int CVxEngine::Initialize(int argCount, int defaultTargetAffinity, int defaultTa
 	m_disableVirtual = disableVirtual;
 
 	// create OpenVX context, register log_callback, and show implementation
+	vxRegisterLogCallback(nullptr, log_callback, vx_false_e); // to receive log messages from vxCreateContext (if any)
 	m_context = vxCreateContext();
 	if (vxGetStatus((vx_reference)m_context)) { printf("ERROR: vxCreateContext failed\n"); throw - 1; }
 	vxRegisterLogCallback(m_context, log_callback, vx_false_e);
@@ -360,7 +370,7 @@ int CVxEngine::ProcessGraph(std::vector<const char *> * graphNameList, size_t be
 		// execute graph for current frame
 		if (graphObjList.size() < 2 && !m_enableScheduleGraph) {
 			status = vxProcessGraph(graphObjList[0]);
-			if (status)
+			if (status != VX_SUCCESS && status != VX_ERROR_GRAPH_ABANDONED)
 				ReportError("ERROR: vxScheduleGraph(%s) failed (%d:%s)\n", !graphNameList ? "" : (*graphNameList)[beginIndex], status, ovxEnum2Name(status));
 		}
 		else {
@@ -379,11 +389,15 @@ int CVxEngine::ProcessGraph(std::vector<const char *> * graphNameList, size_t be
 				else if (status)
 					ReportError("ERROR: vxScheduleGraph(%s) failed (%d:%s)\n", !graphNameList ? "" : (*graphNameList)[beginIndex + i], status, ovxEnum2Name(status));
 			}
-			if (!status && abandoned)
+			if (abandoned)
 				status = VX_ERROR_GRAPH_ABANDONED;
 		}
-		if (status == VX_ERROR_GRAPH_ABANDONED)
+		if (status == VX_ERROR_GRAPH_ABANDONED) {
+#if _DEBUG
+			printf("WARNING: graph aborted with VX_ERROR_GRAPH_ABANDONED\n");
+#endif
 			break; // don't report graph abandoned as an error
+		}
 		if (status < 0) throw - 1;
 		// get frame level performance measurements
 		MeasureFrame(frameNumber, status, graphObjList);
@@ -854,10 +868,10 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 						for (int index = 0; index < 4 && (*p == '{' || *p == ';');) {
 							int value = 0;
 							p = ScanParameters(&p[1], "<byte>", "d", &value);
-							((vx_uint8 *)&border_mode.constant_value)[index++] = (vx_uint8)value;
+							border_mode.constant_value.reserved[index++] = (vx_uint8)value;
 						}
 					}
-					else (void)sscanf(p + 1, "%i", &border_mode.constant_value);
+					else (void)sscanf(p + 1, "%i", &border_mode.constant_value.U32);
 				}
 				status = vxSetNodeAttribute(node, VX_NODE_ATTRIBUTE_BORDER_MODE, &border_mode, sizeof(border_mode));
 				if (status != VX_SUCCESS)
@@ -1216,9 +1230,11 @@ void PrintHelpGDF(const char * command)
 		"          convolution:<columns>,<rows>\n"
 		"          distribution:<numBins>,<offset>,<range>\n"
 		"          delay:<exemplar>,<slots>\n"
-		"          image:<width>,<height>,<image-format>\n"
-		"          image-uniform:<width>,<height>,<image-format>,<uniform-pixel-value>\n"
-		"          image-roi:<master-image>,rect{<start-x>;<start-y>;<end-x>;<end-y>}\n"
+		"          image:<width>,<height>,<image-format>[,<range>][,<space>]\n"
+		"          uniform-image:<width>,<height>,<image-format>,<uniform-pixel-value>\n"
+		"          image-from-roi:<master-image>,rect{<start-x>;<start-y>;<end-x>;<end-y>}\n"
+		"          image-from-handle:<image-format>,{<dim-x>;<dim-y>;<stride-x>;<stride-y>}[+...],<memory-type>\n"
+		"          image-from-channel:<master-image>,<channel>\n"
 		"          lut:<data-type>,<count>\n"
 		"          matrix:<data-type>,<columns>,<rows>\n"
 		"          pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>\n"
@@ -1227,9 +1243,9 @@ void PrintHelpGDF(const char * command)
 		"          threshold:<thresh-type>,<data-type>\n"
 		"      For virtual object in default graph use the below syntax for\n"
 		"      <data-description>:\n"
-		"          array-virtual:<data-type>,<capacity>\n"
-		"          image-virtual:<width>,<height>,<image-format>\n"
-		"          pyramid-virtual:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>\n"
+		"          virtual-array:<data-type>,<capacity>\n"
+		"          virtual-image:<width>,<height>,<image-format>\n"
+		"          virtual-pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>\n"
 		"\n"
 		"      where:\n"
 		"          <master-image> can be name of a image data object (including $1, $2, ...)\n"
@@ -1239,6 +1255,8 @@ void PrintHelpGDF(const char * command)
 		"          <image-format> can be RGB2,RGBX,IYUV,NV12,U008,S016,U001,F032,...\n"
 		"          <data-type> can be UINT8,INT16,INT32,UINT32,FLOAT32,ENUM,BOOL,SIZE,\n"
 		"                             KEYPOINT,COORDINATES2D,RECTANGLE,<typeName>,...\n"
+		"          <range> can be vx_channel_range_e enums FULL or RESTRICTED\n"
+		"          <space> can be vx_color_space_e enums BT709 or BT601_525 or BT601_625\n"
 		"\n"
 		);
 	if (strstr("node", command)) printf(
@@ -1322,6 +1340,9 @@ void PrintHelpGDF(const char * command)
 		"      - threshold object initial values can be:\n"
 		"          For VX_THRESHOLD_TYPE_BINARY: <value>\n"
 		"          For VX_THRESHOLD_TYPE_RANGE: {<lower>;<upper>}\n"
+		"      - image object initial values can be:\n"
+		"          Binary file with image data. For images created from handle,\n"
+		"          the vxSwapHandles API will be invoked before executing the graph.\n"
 		"\n"
 		);
 	if (strstr("read", command)) printf(

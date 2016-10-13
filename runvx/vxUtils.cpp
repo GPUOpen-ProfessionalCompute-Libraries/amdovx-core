@@ -26,6 +26,10 @@ THE SOFTWARE.
 #define IS_ALPHA(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
 #define TO_UPPER(c) ((c) & 0xDF)
 
+#if _WIN32 && ENABLE_OPENCL
+#pragma comment(lib, "OpenCL.lib")
+#endif
+
 // enumeration constants
 static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "CHANNEL_0|VX_CHANNEL_0", VX_CHANNEL_0 },
@@ -78,6 +82,14 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "VX_DIRECTIVE_DISABLE_LOGGING", VX_DIRECTIVE_DISABLE_LOGGING },
 	{ "VX_DIRECTIVE_ENABLE_LOGGING", VX_DIRECTIVE_ENABLE_LOGGING },
 	{ "VX_DIRECTIVE_READ_ONLY", VX_DIRECTIVE_AMD_READ_ONLY },
+	{ "VX_MEMORY_TYPE_NONE", VX_MEMORY_TYPE_NONE },
+	{ "VX_MEMORY_TYPE_HOST", VX_MEMORY_TYPE_HOST },
+	{ "VX_MEMORY_TYPE_OPENCL", VX_MEMORY_TYPE_OPENCL },
+	{ "FULL|VX_CHANNEL_RANGE_FULL", VX_CHANNEL_RANGE_FULL },
+	{ "RESTRICTED|VX_CHANNEL_RANGE_RESTRICTED", VX_CHANNEL_RANGE_RESTRICTED },
+	{ "BT601_525|VX_COLOR_SPACE_BT601_525", VX_COLOR_SPACE_BT601_525 },
+	{ "BT601_625|VX_COLOR_SPACE_BT601_625", VX_COLOR_SPACE_BT601_625 },
+	{ "BT709|VX_COLOR_SPACE_BT709", VX_COLOR_SPACE_BT709 },
 	// error codes
 	{ "VX_FAILURE", VX_FAILURE },
 	{ "VX_ERROR_REFERENCE_NONZERO", VX_ERROR_REFERENCE_NONZERO },

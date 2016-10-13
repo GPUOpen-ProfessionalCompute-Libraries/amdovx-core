@@ -114,6 +114,7 @@ protected:
 	bool m_verbose;
 	bool m_discardCompareErrors;
 	bool m_isVirtualObject;
+	bool m_useSyncOpenCLWriteDirective;
 	// for multi-frame capture support
 	bool m_usingMultiFrameCapture;
 	vx_uint32 m_captureFrameStart;

@@ -131,6 +131,7 @@
     <ClInclude Include="ago\ago_kernels.h" />
     <ClInclude Include="ago\ago_kernel_api.h" />
     <ClInclude Include="ago\ago_platform.h" />
+    <ClInclude Include="include\VX\vx_compatibility.h" />
     <ClInclude Include="include\vx_ext_amd.h" />
     <ClInclude Include="include\VX\vx.h" />
     <ClInclude Include="include\VX\vxu.h" />

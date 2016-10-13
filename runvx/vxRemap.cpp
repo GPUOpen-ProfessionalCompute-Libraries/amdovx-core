@@ -38,7 +38,6 @@ CVxParamRemap::CVxParamRemap()
 	m_readFileIsBinary = false;
 	m_compareCountMatches = 0;
 	m_compareCountMismatches = 0;
-	m_useSyncOpenCLWriteDirective = false;
 	m_xyErr[0] = m_xyErr[1] = 0.0f;
 	// vx object
 	m_remap = nullptr;
@@ -236,7 +235,7 @@ int CVxParamRemap::InitializeIO(vx_context context, vx_graph graph, vx_reference
 int CVxParamRemap::Finalize()
 {
 	if (m_useSyncOpenCLWriteDirective) {
-		vxDirective((vx_reference)m_remap, VX_DIRECTIVE_AMD_COPY_TO_OPENCL);
+		ERROR_CHECK_AND_WARN(vxDirective((vx_reference)m_remap, VX_DIRECTIVE_AMD_COPY_TO_OPENCL), VX_ERROR_NOT_ALLOCATED);
 	}
 	return 0;
 }
@@ -272,7 +271,7 @@ int CVxParamRemap::ReadFrame(int frameNumber)
 	fclose(fp);
 
 	if (m_useSyncOpenCLWriteDirective) {
-		vxDirective((vx_reference)m_remap, VX_DIRECTIVE_AMD_COPY_TO_OPENCL);
+		ERROR_CHECK_AND_WARN(vxDirective((vx_reference)m_remap, VX_DIRECTIVE_AMD_COPY_TO_OPENCL), VX_ERROR_NOT_ALLOCATED);
 	}
 
 	return 0;

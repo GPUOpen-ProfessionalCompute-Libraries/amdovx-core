@@ -81,6 +81,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /DVX_API_ENTRY=__declspec(dllexport)")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -std=c++11")
-	target_link_libraries(openvx dl)
+	target_link_libraries(openvx dl m)
 endif()
 

@@ -32,6 +32,7 @@ THE SOFTWARE.
 #define _CRT_SECURE_NO_WARNINGS
 #define _USE_MATH_DEFINES
 #include <VX/vx.h>
+#include <VX/vx_compatibility.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdarg.h>

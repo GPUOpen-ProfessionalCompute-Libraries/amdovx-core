@@ -11,8 +11,6 @@ This software is provided under a MIT-style license,  see the file COPYRIGHT.txt
 * Scripting support allows for rapid prototyping, without re-compiling at production performance levels
 * Interoperates with the popular (open source library) OpenCV
 
-The current release verion is 0.9 (beta preview).
-
 Build this project to generate AMD OpenVX library and RUNVX executable. 
 * Refer to openvx/include/vx_ext_amd.h for extensions in AMD OpenVX library.
 * Refer to runvx/README.md for RUNVX details. 

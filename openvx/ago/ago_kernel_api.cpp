@@ -14235,61 +14235,61 @@ int agoKernel_Remap_U32_U32_Bilinear(AgoNode * node, AgoKernelCommand cmd)
 			"  float4 f; uint map, sx, sy, offset; uint2 px0, px1; __global uchar * pt; float4 mf;\n"
 			"  uint QFB = (1 << QF) - 1; float QFM = 1.0f / (1 << QF);\n"
 			"  // pixel[0]\n"
-			"  map = remap[0]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[0]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s0 = amd_pack(f);\n"
+			"  rv.s0 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[1]\n"
-			"  map = remap[1]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[1]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s1 = amd_pack(f);\n"
+			"  rv.s1 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[2]\n"
-			"  map = remap[2]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[2]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s2 = amd_pack(f);\n"
+			"  rv.s2 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[3]\n"
-			"  map = remap[3]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[3]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s3 = amd_pack(f);\n"
+			"  rv.s3 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[4]\n"
-			"  map = remap[4]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[4]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s4 = amd_pack(f);\n"
+			"  rv.s4 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[5]\n"
-			"  map = remap[5]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[5]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s5 = amd_pack(f);\n"
+			"  rv.s5 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[6]\n"
-			"  map = remap[6]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[6]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s6 = amd_pack(f);\n"
+			"  rv.s6 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  // pixel[7]\n"
-			"  map = remap[7]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[7]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
-			"  rv.s7 = amd_pack(f);\n"
+			"  rv.s7 = select(amd_pack(f), (uint) 0, map == 0xFFFFFFFF);\n"
 			"  *r = rv;\n"
 			"}\n"
 			);
@@ -14368,6 +14368,7 @@ int agoKernel_WarpAffine_U8_U8_Nearest(AgoNode * node, AgoKernelCommand cmd)
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14462,6 +14463,7 @@ int agoKernel_WarpAffine_U8_U8_Nearest_Constant(AgoNode * node, AgoKernelCommand
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14541,6 +14543,7 @@ int agoKernel_WarpAffine_U8_U8_Bilinear(AgoNode * node, AgoKernelCommand cmd)
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14624,6 +14627,7 @@ int agoKernel_WarpAffine_U8_U8_Bilinear_Constant(AgoNode * node, AgoKernelComman
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14700,6 +14704,7 @@ int agoKernel_WarpPerspective_U8_U8_Nearest(AgoNode * node, AgoKernelCommand cmd
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14795,6 +14800,7 @@ int agoKernel_WarpPerspective_U8_U8_Nearest_Constant(AgoNode * node, AgoKernelCo
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14875,6 +14881,7 @@ int agoKernel_WarpPerspective_U8_U8_Bilinear(AgoNode * node, AgoKernelCommand cm
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14959,6 +14966,7 @@ int agoKernel_WarpPerspective_U8_U8_Bilinear_Constant(AgoNode * node, AgoKernelC
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {

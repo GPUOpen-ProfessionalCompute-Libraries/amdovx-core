@@ -170,5 +170,8 @@
     <ClInclude Include="ago\ago_platform.h">
       <Filter>Header Files\ago</Filter>
     </ClInclude>
+    <ClInclude Include="include\VX\vx_compatibility.h">
+      <Filter>Header Files\VX</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

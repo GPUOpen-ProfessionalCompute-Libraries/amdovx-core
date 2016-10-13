@@ -168,8 +168,6 @@ static struct {
 		AGO_KERNEL_FLAG_GROUP_AMDLL | (cpu_avail ? AGO_KERNEL_FLAG_DEVICE_CPU : 0) | (gpu_avail ? AGO_KERNEL_FLAG_DEVICE_GPU : 0), argCfg, argType, kernOp \
 	}
 	// OpenVX 1.0 built-in kernels
-
-	OVX_KERNEL_ENTRY( VX_KERNEL_INVALID               , Invalid, "invalid",                        { },                  { }                ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_COLOR_CONVERT         , ColorConvert, "color_convert",             AIN_AOUT,             ATYPE_II           ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_CHANNEL_EXTRACT       , ChannelExtract, "channel_extract",         AINx2_AOUT,           ATYPE_ISI          ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_CHANNEL_COMBINE       , ChannelCombine, "channel_combine",         AINx2_AOPTINx2_AOUT,  ATYPE_IIIII        ),
