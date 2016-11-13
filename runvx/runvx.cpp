@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "vxEngine.h"
 
 // program and version
-#define RUNVX_VERSION "0.9.2"
+#define RUNVX_VERSION "0.9.3"
 #if _WIN32
 #define RUNVX_PROGRAM "runvx.exe"
 #else

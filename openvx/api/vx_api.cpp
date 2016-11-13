@@ -152,6 +152,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					*(vx_uint32 *)ptr = (vx_uint32)context->num_active_modules;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_CONTEXT_ATTRIBUTE_REFERENCES:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = (vx_uint32)context->num_active_references;
@@ -199,6 +200,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					*(vx_uint32 *)ptr = (vx_uint32)context->kernelList.count;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_CONTEXT_ATTRIBUTE_UNIQUE_KERNEL_TABLE:
 				if (size == (context->kernelList.count * sizeof(vx_kernel_info_t))) {
 					vx_kernel_info_t * table = (vx_kernel_info_t *)ptr;
@@ -917,6 +919,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 					*(vx_df_image *)ptr = image->u.img.format;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_IMAGE_ATTRIBUTE_PLANES:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = image->u.img.planes;
@@ -1534,16 +1537,6 @@ VX_API_ENTRY vx_status VX_API_CALL vxMapImagePatch(vx_image image_, const vx_rec
 					return VX_FAILURE;
 				}
 			}
-			if (!*ptr) {
-				addr->dim_x = rect->end_x - rect->start_x;
-				addr->dim_y = rect->end_y - rect->start_y;
-				addr->scale_x = VX_SCALE_UNITY >> img->u.img.x_scale_factor_is_2;
-				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
-				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
-				addr->step_y = 1 << img->u.img.y_scale_factor_is_2;
-				addr->stride_x = ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3;
-				addr->stride_y = img->u.img.stride_in_bytes;
-			}
 			vx_uint8 * ptr_returned = img->buffer +
 				(rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes +
 				(((rect->start_x >> img->u.img.x_scale_factor_is_2) * img->u.img.pixel_size_in_bits) >> 3);
@@ -1579,6 +1572,14 @@ VX_API_ENTRY vx_status VX_API_CALL vxMapImagePatch(vx_image image_, const vx_rec
 				img->mapped.push_back(item);
 				*map_id = item.map_id;
 				*ptr = ptr_returned;
+				addr->dim_x = rect->end_x - rect->start_x;
+				addr->dim_y = rect->end_y - rect->start_y;
+				addr->scale_x = VX_SCALE_UNITY >> img->u.img.x_scale_factor_is_2;
+				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
+				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
+				addr->step_y = 1 << img->u.img.y_scale_factor_is_2;
+				addr->stride_x = ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3;
+				addr->stride_y = img->u.img.stride_in_bytes;
 			}
 		}
 	}
@@ -1839,6 +1840,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryKernel(vx_kernel kernel, vx_enum attri
 					*(vx_enum *)ptr = kernel->id;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_KERNEL_ATTRIBUTE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = kernel->localDataSize;
@@ -2437,6 +2439,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 					agoPerfCopyNormalize(graph->ref.context, (vx_perf_t *)ptr, &graph->perf);
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_GRAPH_ATTRIBUTE_NUMPARAMETERS:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = (vx_uint32)graph->parameters.size();
@@ -2490,9 +2493,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 				}
 				break;
 			case VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_PROFILE:
-				if (graph->perf.num > 0) {
-					status = agoGraphDumpPerformanceProfile(graph, (const char *)ptr);
-				}
+				status = agoGraphDumpPerformanceProfile(graph, (const char *)ptr);
 				break;
 #if ENABLE_OPENCL
 			case VX_GRAPH_ATTRIBUTE_AMD_OPENCL_COMMAND_QUEUE:
@@ -2754,6 +2755,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryNode(vx_node node, vx_enum attribute, 
 					status = VX_SUCCESS;
 				}
 				break;
+			case VX_NODE_PARAMETERS:
+				if (size == sizeof(vx_uint32)) {
+					*(vx_uint32 *)ptr = node->paramCount;
+					status = VX_SUCCESS;
+				}
+				break;
 			case VX_NODE_ATTRIBUTE_AMD_AFFINITY:
 				if (size == sizeof(AgoTargetAffinityInfo_)) {
 					*(AgoTargetAffinityInfo_ *)ptr = node->attr_affinity;
@@ -2797,6 +2804,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetNodeAttribute(vx_node node, vx_enum attr
 					node->attr_border_mode = *(vx_border_mode_t *)ptr;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_NODE_ATTRIBUTE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					node->localDataSize = *(vx_size *)ptr;

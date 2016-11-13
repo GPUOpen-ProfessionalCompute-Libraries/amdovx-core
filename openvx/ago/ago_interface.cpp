@@ -623,6 +623,7 @@ static void agoReadGraphFromStringInternal(AgoGraph * agraph, AgoReference * * r
 				AgoKernel * akernel = NULL;
 				AgoNode * node = NULL;
 				char * str_subgraph = NULL;
+				bool str_subgraph_allocated = false;
 				AgoReference * ref_subgraph[AGO_MAX_PARAMS] = { 0 };
 				if (!strcmp(arg[0], "node")) {
 					if (!(akernel = agoFindKernelByName(context, arg[1]))) {
@@ -655,11 +656,12 @@ static void agoReadGraphFromStringInternal(AgoGraph * agraph, AgoReference * * r
 						break;
 					}
 					fseek(fp, 0L, SEEK_END); long size = ftell(fp); fseek(fp, 0L, SEEK_SET);
-					if (!(str_subgraph = (char *)calloc(1, size + 1)) || (fread(str_subgraph, sizeof(char), size, fp) != size)) {
+					if (!(str_subgraph = new char[size + 1]()) || (fread(str_subgraph, sizeof(char), size, fp) != size)) {
 						agoAddLogEntry(&agraph->ref, VX_FAILURE, "FATAL: calloc/fread(%d) failed\n", (int)size + 1);
 						agraph->status = -1; 
 						break; 
 					}
+					str_subgraph_allocated = true;
 					fclose(fp);
 					// update suffix
 					const char * name = arg[1];
@@ -809,8 +811,8 @@ static void agoReadGraphFromStringInternal(AgoGraph * agraph, AgoReference * * r
 				if (str_subgraph && !agraph->status) {
 					agoReadGraphFromStringInternal(agraph, ref_subgraph, narg - 2, callback_f, callback_obj, str_subgraph, (dumpToConsole > 0) ? dumpToConsole - 1 : vx_false_e, vars, localPrefix + localSuffix);
 				}
-				if (str_subgraph && !strcmp(arg[0], "file"))
-					free(str_subgraph);
+				if (str_subgraph_allocated)
+					delete[] str_subgraph;
 				if (agraph->status)
 					break;
 			}
@@ -1061,14 +1063,14 @@ int agoReadGraph(AgoGraph * agraph, AgoReference * * ref, int num_ref, ago_data_
 	long cur = ftell(fp); fseek(fp,  0L, SEEK_END);
 	long end = ftell(fp); fseek(fp, cur, SEEK_SET);
 	long size = end - cur; if (size < 1) return agraph->status;
-	char * str = (char *)calloc(1, size + 1);
+	char * str = new char [size + 1]();
 	if (!str || (fread(str, sizeof(char), size, fp) != size))
 		return -1;
 
 	// read the graph from file
 	std::vector< std::pair< std::string, std::string > > vars;
 	agoReadGraphFromStringInternal(agraph, ref, num_ref, callback_f, callback_obj, str, dumpToConsole, vars, "L");
-	free(str);
+	delete[] str;
 
 	// mark the scope of all virtual data to graph
 	for (AgoData * data = agraph->dataList.head; data; data = data->next) {
