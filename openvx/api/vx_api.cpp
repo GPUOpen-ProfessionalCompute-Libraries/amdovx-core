@@ -494,6 +494,42 @@ VX_API_ENTRY vx_status VX_API_CALL vxAllocateUserKernelLibraryId(vx_context cont
 	return status;
 }
 
+/*! \brief Sets the default target of the immediate mode. Upon successful execution of this
+* function any future execution of immediate mode function is attempted on the new default
+* target of the context.
+* \param [in] context  The reference to the implementation context.
+* \param [in] target_enum  The default immediate mode target enum to be set
+* to the <tt>\ref vx_context</tt> object. Use a <tt>\ref vx_target_e</tt>.
+* \param [in] target_string  The target name ASCII string. This contains a valid value
+* when target_enum is set to <tt>\ref VX_TARGET_STRING</tt>, otherwise it is ignored.
+* \ingroup group_context
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS Default target set.
+* \retval VX_ERROR_INVALID_REFERENCE If the context is not a <tt>\ref vx_context</tt>.
+* \retval VX_ERROR_NOT_SUPPORTED If the specified target is not supported in this context.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetImmediateModeTarget(vx_context context, vx_enum target_enum, const char* target_string)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context))
+	{
+		status = VX_ERROR_NOT_SUPPORTED;
+		if (target_enum == VX_TARGET_ANY) {
+			status = VX_SUCCESS;
+		}
+		else if (target_enum == VX_TARGET_STRING) {
+			if (!target_string) {
+				status = VX_ERROR_INVALID_REFERENCE;
+			}
+			else if (!_stricmp(target_string, "any") || !_stricmp(target_string, "cpu")) {
+				// only cpu mode is supported as immediate mode target
+				status = VX_SUCCESS;
+			}
+		}
+	}
+	return status;
+}
+
 /*==============================================================================
 IMAGE
 =============================================================================*/
@@ -902,43 +938,49 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_IMAGE_ATTRIBUTE_WIDTH:
+			case VX_IMAGE_WIDTH:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = image->u.img.width;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_HEIGHT:
+			case VX_IMAGE_HEIGHT:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = image->u.img.height;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_FORMAT:
+			case VX_IMAGE_FORMAT:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_df_image *)ptr = image->u.img.format;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_PLANES:
+			case VX_IMAGE_PLANES:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = image->u.img.planes;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_SPACE:
+			case VX_IMAGE_SPACE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = image->u.img.color_space;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_RANGE:
+			case VX_IMAGE_RANGE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = image->u.img.channel_range;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_SIZE:
+			case VX_IMAGE_MEMORY_TYPE:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = image->import_type;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_IMAGE_SIZE:
 				if (size == sizeof(vx_size)) {
 					status = VX_SUCCESS;
 					if (image->numChildren) {
@@ -1167,8 +1209,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 				}
 			}
 			if (!*ptr) {
-				addr->dim_x = rect->end_x - rect->start_x;
-				addr->dim_y = rect->end_y - rect->start_y;
+				addr->dim_x = (rect->end_x - rect->start_x);
+				addr->dim_y = (rect->end_y - rect->start_y);
 				addr->scale_x = VX_SCALE_UNITY >> img->u.img.x_scale_factor_is_2;
 				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
 				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
@@ -1212,10 +1254,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 					if (item.used_external_ptr) {
 						// copy if read is requested with explicit external buffer
 						if (addr->stride_x == ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3)
-							HafCpu_ChannelCopy_U8_U8((addr->dim_x >> img->u.img.x_scale_factor_is_2) * addr->stride_x, (addr->dim_y >> img->u.img.y_scale_factor_is_2),
+							HafCpu_ChannelCopy_U8_U8(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2) * addr->stride_x, ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
 							ptr_returned, addr->stride_y, ptr_internal, img->u.img.stride_in_bytes);
 						else
-							HafCpu_BufferCopyDisperseInDst((addr->dim_x >> img->u.img.x_scale_factor_is_2), (addr->dim_y >> img->u.img.y_scale_factor_is_2),
+							HafCpu_BufferCopyDisperseInDst(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2), ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
 							((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3, ptr_returned, addr->stride_y, addr->stride_x, ptr_internal, img->u.img.stride_in_bytes);
 					}
 				}
@@ -1291,11 +1333,6 @@ VX_API_ENTRY vx_status VX_API_CALL vxCommitImagePatch(vx_image image_,
 					}
 				}
 				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
-					// mark valid region
-					img->u.img.rect_valid.start_x = rect->start_x >> img->u.img.x_scale_factor_is_2;
-					img->u.img.rect_valid.start_y = rect->start_y >> img->u.img.y_scale_factor_is_2;
-					img->u.img.rect_valid.end_x = rect->end_x >> img->u.img.x_scale_factor_is_2;
-					img->u.img.rect_valid.end_y = rect->end_y >> img->u.img.y_scale_factor_is_2;
 					if (used_external_ptr) {
 						// copy from external buffer
 						vx_uint8 * buffer = img->buffer + (rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes + 
@@ -1568,8 +1605,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxMapImagePatch(vx_image image_, const vx_rec
 				}
 #endif
 				// get map id and set returned pointer
-				MappedData item = { img->nextMapId++, ptr_returned, usage, false };
-				img->mapped.push_back(item);
+				MappedData item = { img->nextMapId++, ptr_returned, usage, false, 0, plane_index };
+				image->mapped.push_back(item);
 				*map_id = item.map_id;
 				*ptr = ptr_returned;
 				addr->dim_x = rect->end_x - rect->start_x;
@@ -1607,12 +1644,17 @@ VX_API_ENTRY vx_status VX_API_CALL vxUnmapImagePatch(vx_image image_, vx_map_id 
 		for (auto i = image->mapped.begin(); i != image->mapped.end(); i++) {
 			if (i->map_id == map_id) {
 				vx_enum usage = i->usage;
+				vx_uint32 plane = i->plane;
 				image->mapped.erase(i);
 				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
 					// update sync flags
 					auto dataToSync = image->u.img.isROI ? image->u.img.roiMasterImage : image;
 					dataToSync->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 					dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+					if (dataToSync->numChildren > 0 && plane < dataToSync->numChildren && dataToSync->children[plane]) {
+						dataToSync->children[plane]->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+						dataToSync->children[plane]->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+					}
 				}
 				status = VX_SUCCESS;
 				break;
@@ -1684,7 +1726,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetImageValidRectangle(vx_image image_, con
 {
 	AgoData * image = (AgoData *)image_;
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
-	if (agoIsValidData(image, VX_TYPE_IMAGE))
+	if (agoIsValidData(image, VX_TYPE_IMAGE) && !image->isVirtual)
 	{
 		status = VX_ERROR_INVALID_PARAMETERS;
 		if (!rect) {
@@ -1697,6 +1739,9 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetImageValidRectangle(vx_image image_, con
 		else if (rect->start_x < rect->end_x && rect->start_y < rect->end_y && rect->end_x <= image->u.img.width && rect->end_y <= image->u.img.height) {
 			image->u.img.rect_valid = *rect;
 			status = VX_SUCCESS;
+		}
+		if (status == VX_SUCCESS) {
+			// TBD: inform graphs for take this image as input, to re-computed output valid regions
 		}
 	}
 	return status;
@@ -1923,7 +1968,7 @@ VX_API_ENTRY vx_kernel VX_API_CALL vxAddKernel(vx_context context,
 			kernel->ref.internal_count = 1;
 			kernel->ref.external_count = 1;
 			kernel->id = enumeration;
-			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU;
+			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU | AGO_KERNEL_FLAG_VALID_RECT_RESET;
 			strcpy(kernel->name, name);
 			kernel->argCount = numParams;
 			kernel->kernel_f = func_ptr;
@@ -1984,7 +2029,7 @@ VX_API_ENTRY vx_kernel VX_API_CALL vxAddUserKernel(vx_context context,
 			kernel->ref.internal_count = 1;
 			kernel->ref.external_count = 1;
 			kernel->id = enumeration;
-			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU;
+			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU | AGO_KERNEL_FLAG_VALID_RECT_RESET;
 			strcpy(kernel->name, name);
 			kernel->argCount = numParams;
 			kernel->kernel_f = func_ptr;
@@ -2717,13 +2762,13 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryNode(vx_node node, vx_enum attribute, 
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_NODE_ATTRIBUTE_STATUS:
+			case VX_NODE_STATUS:
 				if (size == sizeof(vx_status)) {
 					*(vx_status *)ptr = node->status;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_PERFORMANCE:
+			case VX_NODE_PERFORMANCE:
 				if (size == sizeof(vx_perf_t)) {
 					vx_perf_t * perf = &node->perf;
 					if (node->perf.num == 0) {
@@ -2737,19 +2782,19 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryNode(vx_node node, vx_enum attribute, 
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_BORDER_MODE:
+			case VX_NODE_BORDER:
 				if (size == sizeof(vx_border_mode_t) || size == sizeof(vx_border_t)) {
 					*(vx_border_mode_t *)ptr = node->attr_border_mode;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_LOCAL_DATA_SIZE:
+			case VX_NODE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = node->localDataSize;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_LOCAL_DATA_PTR:
+			case VX_NODE_LOCAL_DATA_PTR:
 				if (size == sizeof(void *)) {
 					*(void **)ptr = node->localDataPtr;
 					status = VX_SUCCESS;
@@ -2758,6 +2803,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryNode(vx_node node, vx_enum attribute, 
 			case VX_NODE_PARAMETERS:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = node->paramCount;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_NODE_VALID_RECT_RESET:
+				if (size == sizeof(vx_bool)) {
+					*(vx_bool *)ptr = node->valid_rect_reset;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -2919,6 +2970,51 @@ VX_API_ENTRY vx_nodecomplete_f VX_API_CALL vxRetrieveNodeCallback(vx_node node)
 	return callback;
 }
 
+/*! \brief Sets the node target to the provided value. A success invalidates the graph
+* that the node belongs to (<tt>\ref vxVerifyGraph</tt> must be called before the next execution)
+* \param [in] node  The reference to the <tt>\ref vx_node</tt> object.
+* \param [in] target_enum  The target enum to be set to the <tt>\ref vx_node</tt> object.
+* Use a <tt>\ref vx_target_e</tt>.
+* \param [in] target_string  The target name ASCII string. This contains a valid value
+* when target_enum is set to <tt>\ref VX_TARGET_STRING</tt>, otherwise it is ignored.
+* \ingroup group_node
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS Node target set.
+* \retval VX_ERROR_INVALID_REFERENCE If node is not a <tt>\ref vx_node</tt>.
+* \retval VX_ERROR_NOT_SUPPORTED If the node kernel is not supported by the specified target.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetNodeTarget(vx_node node, vx_enum target_enum, const char* target_string)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidNode(node)) {
+		status = VX_ERROR_NOT_SUPPORTED;
+		if (target_enum == VX_TARGET_ANY) {
+			status = VX_SUCCESS;
+		}
+		else if (target_enum == VX_TARGET_STRING) {
+			if (!target_string) {
+				status = VX_ERROR_INVALID_REFERENCE;
+			}
+			else if (!_stricmp(target_string, "any")) {
+				status = VX_SUCCESS;
+			}
+			else if (!_stricmp(target_string, "cpu")) {
+				if (node->attr_affinity.device_type == 0) {
+					node->attr_affinity.device_type = AGO_TARGET_AFFINITY_CPU;
+					status = VX_SUCCESS;
+				}
+			}
+			else if (!_stricmp(target_string, "gpu")) {
+				if (node->attr_affinity.device_type == 0) {
+					node->attr_affinity.device_type = AGO_TARGET_AFFINITY_GPU;
+					status = VX_SUCCESS;
+				}
+			}
+		}
+	}
+	return status;
+}
+
 /*! \brief Creates replicas of the same node first_node to process a set of objects
 * stored in <tt>\ref vx_pyramid</tt> or <tt>\ref vx_object_array</tt>.
 * first_node needs to have as parameter levels 0 of a <tt>\ref vx_pyramid</tt> or the index 0 of a <tt>\ref vx_object_array</tt>.
@@ -3053,7 +3149,13 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetParameterByIndex(vx_node node, vx_uint32
 	if (agoIsValidNode(node)) {
 		status = VX_ERROR_INVALID_PARAMETERS;
 		vx_graph graph = (AgoGraph *)node->ref.scope;
-		if (!graph->verified && (index < node->paramCount) && (!node->parameters[index].type || node->parameters[index].type == value->type)) {
+		if (graph->verified) {
+			status = VX_ERROR_NOT_SUPPORTED;
+		}
+		else if (node->parameters[index].state == VX_PARAMETER_STATE_REQUIRED && !value) {
+			status = VX_ERROR_INVALID_REFERENCE;
+		}
+		else if ((index < node->paramCount) && (!node->parameters[index].type || !value || node->parameters[index].type == value->type)) {
 			if (node->paramList[index]) {
 				agoReleaseData(node->paramList[index], false);
 			}
@@ -3947,20 +4049,23 @@ VX_API_ENTRY void VX_API_CALL vxRegisterLogCallback(vx_context context, vx_log_c
 LUT
 =============================================================================*/
 
-/*! \brief Creates LUT object of a given type.
+/*! \brief Creates LUT object of a given type. The value of <tt>\ref VX_LUT_OFFSET</tt> is equal to 0
+* for data_type = <tt>\ref VX_TYPE_UINT8</tt>, and (vx_uint32)(count/2) for <tt>\ref VX_TYPE_INT16</tt>.
 * \param [in] context The reference to the context.
 * \param [in] data_type The type of data stored in the LUT.
 * \param [in] count The number of entries desired.
 * \if OPENVX_STRICT_1_0
-* \note For OpenVX 1.0, count must be equal to 256 and data_type can only be \ref VX_TYPE_UINT8.
+* \note For OpenVX 1.0, data_type can only be \ref VX_TYPE_UINT8 or \ref VX_TYPE_INT16. If data_type
+* is \ref VX_TYPE_UINT8, count should be not greater than 256. If data_type is \ref VX_TYPE_INT16,
+* count should not be greater than 65536.
 * \endif
-* \return <tt>\ref vx_lut</tt>
+* \returns An LUT reference <tt>\ref vx_lut</tt>. Any possible errors preventing a successful creation should be checked using <tt>\ref vxGetStatus</tt>.
 * \ingroup group_lut
 */
 VX_API_ENTRY vx_lut VX_API_CALL vxCreateLUT(vx_context context, vx_enum data_type, vx_size count)
 {
 	AgoData * data = NULL;
-	if (agoIsValidContext(context) && data_type == VX_TYPE_UINT8 && count == 256) {
+	if (agoIsValidContext(context)) {
 		CAgoLock lock(context->cs);
 		char desc[512]; sprintf(desc, "lut:%s," VX_FMT_SIZE "", agoEnum2Name(data_type), count);
 		data = agoCreateDataFromDescription(context, NULL, desc, true);
@@ -4010,21 +4115,27 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryLUT(vx_lut lut, vx_enum attribute, voi
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_LUT_ATTRIBUTE_TYPE:
+			case VX_LUT_TYPE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = data->u.lut.type;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_LUT_ATTRIBUTE_COUNT:
+			case VX_LUT_COUNT:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->u.lut.count;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_LUT_ATTRIBUTE_SIZE:
+			case VX_LUT_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->size;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_LUT_OFFSET:
+				if (size == sizeof(vx_uint32)) {
+					*(vx_uint32 *)ptr = data->u.lut.offset;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -4869,16 +4980,17 @@ MATRIX
 
 /*! \brief Creates a reference to a matrix object.
 * \param [in] c The reference to the overall context.
-* \param [in] data_type The unit format of the matrix. <tt>\ref VX_TYPE_INT32</tt> or <tt>\ref VX_TYPE_FLOAT32</tt>.
+* \param [in] data_type The unit format of the matrix. <tt>\ref VX_TYPE_UINT8</tt> or <tt>\ref VX_TYPE_INT32</tt> or <tt>\ref VX_TYPE_FLOAT32</tt>.
 * \param [in] columns The first dimensionality.
 * \param [in] rows The second dimensionality.
-* \return <tt>\ref vx_matrix</tt>
+* \returns An matrix reference <tt>\ref vx_matrix</tt>. Any possible errors preventing a
+* successful creation should be checked using <tt>\ref vxGetStatus</tt>.
 * \ingroup group_matrix
 */
 VX_API_ENTRY vx_matrix VX_API_CALL vxCreateMatrix(vx_context context, vx_enum data_type, vx_size columns, vx_size rows)
 {
 	AgoData * data = NULL;
-	if (agoIsValidContext(context) && (data_type == VX_TYPE_INT32 || data_type == VX_TYPE_FLOAT32) && columns > 0 && rows > 0) {
+	if (agoIsValidContext(context) && (data_type == VX_TYPE_INT32 || data_type == VX_TYPE_FLOAT32 || data_type == VX_TYPE_UINT8) && columns > 0 && rows > 0) {
 		CAgoLock lock(context->cs);
 		char desc[512]; sprintf(desc, "matrix:%s," VX_FMT_SIZE "," VX_FMT_SIZE "", agoEnum2Name(data_type), columns, rows);
 		data = agoCreateDataFromDescription(context, NULL, desc, true);
@@ -4928,27 +5040,39 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryMatrix(vx_matrix mat, vx_enum attribut
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_MATRIX_ATTRIBUTE_TYPE:
+			case VX_MATRIX_TYPE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = data->u.mat.type;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_ROWS:
+			case VX_MATRIX_ROWS:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->u.mat.rows;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_COLUMNS:
+			case VX_MATRIX_COLUMNS:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->u.mat.columns;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_SIZE:
+			case VX_MATRIX_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->size;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_PATTERN:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = data->u.mat.pattern ? data->u.mat.pattern : VX_PATTERN_OTHER;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_ORIGIN:
+				if (size == sizeof(vx_coordinates2d_t)) {
+					*(vx_coordinates2d_t *)ptr = data->u.mat.origin;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -5094,6 +5218,88 @@ VX_API_ENTRY vx_status VX_API_CALL vxCopyMatrix(vx_matrix matrix, void *user_ptr
 		}
 	}
 	return status;
+}
+
+/*! \brief Creates a reference to a matrix object from a boolean pattern.
+*
+* The matrix created by this function is of type <tt>\ref vx_uint8</tt>, with the value 0 representing False,
+* and the value 255 representing True. It supports patterns described below. See <tt>\ref vx_pattern_e</tt>.
+* - VX_PATTERN_BOX is a matrix with dimensions equal to the given number of rows and columns, and all cells equal to 255.
+*   Dimensions of 3x3 and 5x5 must be supported.
+* - VX_PATTERN_CROSS is a matrix with dimensions equal to the given number of rows and columns, which both must be odd numbers.
+*   All cells in the center row and center column are equal to 255, and the rest are equal to zero.
+*   Dimensions of 3x3 and 5x5 must be supported.
+* - VX_PATTERN_DISK is an RxC matrix, where R and C are odd and cell (c, r) is 255 if: \n
+*   (r-R/2 + 0.5)^2 / (R/2)^2 + (c-C/2 + 0.5)^2/(C/2)^2 is less than or equal to 1,\n and 0 otherwise.
+* - VX_PATTERN_OTHER is any other pattern than the above (matrix created is still binary, with a value of 0 or 255).
+*
+* If the matrix was created via <tt>\ref vxCreateMatrixFromPattern</tt>, this attribute must be set to the
+* appropriate pattern enum. Otherwise the attribute must be set to VX_PATTERN_OTHER.
+* The vx_matrix objects returned by this function are read-only. The behavior when attempting to modify such a matrix is undefined.
+*
+* \param [in] context The reference to the overall context.
+* \param [in] pattern The pattern of the matrix. See <tt>\ref VX_MATRIX_PATTERN</tt>.
+* \param [in] columns The first dimensionality.
+* \param [in] rows The second dimensionality.
+* \returns An matrix reference <tt>\ref vx_matrix</tt> of type <tt>\ref vx_uint8</tt>. Any possible errors preventing a
+* successful creation should be checked using <tt>\ref vxGetStatus</tt>.
+* \ingroup group_matrix
+*/
+VX_API_ENTRY vx_matrix VX_API_CALL vxCreateMatrixFromPattern(vx_context context, vx_enum pattern, vx_size columns, vx_size rows)
+{
+	vx_matrix mat = nullptr;
+	// check for supported patterns
+	if (pattern == VX_PATTERN_BOX || pattern == VX_PATTERN_CROSS || pattern == VX_PATTERN_DISK || pattern == VX_PATTERN_OTHER)
+	{
+		// create a matrix object
+		mat = vxCreateMatrix(context, VX_TYPE_UINT8, columns, rows);
+		vx_status status = vxGetStatus((vx_reference)mat);
+		if (status == VX_SUCCESS) {
+			// initialize with the pattern and mark it
+			AgoData * data = (AgoData *)mat;
+			data->u.mat.pattern = pattern;
+			if (pattern != VX_PATTERN_OTHER) {
+				vx_uint8 * buf = new vx_uint8[columns * rows];
+				if (!buf) {
+					vxReleaseMatrix(&mat);
+					return mat;
+				}
+				if (pattern == VX_PATTERN_CROSS) {
+					// cross pattern
+					memset(buf, 0, columns * rows);
+					for (vx_size x = 0; x < columns; x++)
+						buf[columns * (rows / 2) + x] = 255;
+					for (vx_size y = 0; y < rows; y++)
+						buf[(columns / 2) + y * columns] = 255;
+				}
+				else if (pattern == VX_PATTERN_DISK) {
+					// disk pattern
+					for (vx_size r = 0; r < rows; r++) {
+						float y = ((r - rows*0.5f + 0.5f) / (rows*0.5f));
+						float y2 = y * y;
+						for (vx_size c = 0; c < columns; c++) {
+							float x = ((c - columns*0.5f + 0.5f) / (columns*0.5f));
+							float x2 = x * x;
+							buf[c + r * columns] = ((x2 + y2) <= 1.0f) ? 255 : 0;
+						}
+					}
+				}
+				else {
+					// box pattern
+					memset(buf, 255, columns * rows);
+				}
+				status = vxCopyMatrix(mat, buf, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+				if (status) {
+					vxReleaseMatrix(&mat);
+					return mat;
+				}
+				delete[] buf;
+			}
+			// mark the matrix read-only
+			data->ref.read_only = true;
+		}
+	}
+	return mat;
 }
 
 /*==============================================================================
@@ -6390,122 +6596,146 @@ VX_API_ENTRY vx_status VX_API_CALL vxUnmapArrayRange(vx_array array, vx_map_id m
 META FORMAT
 =============================================================================*/
 
-/*! \brief Allows a user to set the attributes of a <tt>\ref vx_meta_format</tt> object in a kernel output validator.
-* \param [in] meta The reference to the <tt>\ref vx_meta_format</tt> object to set.
-* \param [in] attribute Use attributes from other objects that match the parameter type or from <tt>\ref vx_meta_format_attribute_e</tt>.
-* \param [in] ptr The input pointer of the value to set on the meta format object.
-* \param [in] size The size of the object to which \a ptr points.
-* \ingroup group_user_kernels
-* \return A <tt>\ref vx_status_e</tt> enumeration.
-* \retval VX_SUCCESS The attribute was set.
-* \retval VX_ERROR_INVALID_REFERENCE meta was not a <tt>\ref vx_meta_format</tt>.
-* \retval VX_ERROR_INVALID_PARAMETER size was not correct for the type needed.
-* \retval VX_ERROR_NOT_SUPPORTED the object attribute was not supported on the meta format object.
-* \retval VX_ERROR_INVALID_TYPE attribute type did not match known meta format type.
-*/
+/*! \brief This function allows a user to set the attributes of a <tt>\ref vx_meta_format</tt> object in a kernel output validator.
+ * 
+ * The \ref vx_meta_format object contains two types of information : data object meta data and 
+ * some specific information that defines how the valid region of an image changes
+ *
+ * The meta data attributes that can be set are identified by this list:
+ * - \ref vx_image : \ref VX_IMAGE_FORMAT, \ref VX_IMAGE_HEIGHT, \ref VX_IMAGE_WIDTH
+ * - \ref vx_array : \ref VX_ARRAY_CAPACITY, \ref VX_ARRAY_ITEMTYPE
+ * - \ref vx_pyramid : \ref VX_PYRAMID_FORMAT, \ref VX_PYRAMID_HEIGHT, \ref VX_PYRAMID_WIDTH, \ref VX_PYRAMID_LEVELS, \ref VX_PYRAMID_SCALE
+ * - \ref vx_scalar : \ref VX_SCALAR_TYPE
+ * - \ref vx_matrix : \ref VX_MATRIX_TYPE, \ref VX_MATRIX_ROWS, \ref VX_MATRIX_COLUMNS
+ * - \ref vx_distribution : \ref VX_DISTRIBUTION_BINS, \ref VX_DISTRIBUTION_OFFSET, \ref VX_DISTRIBUTION_RANGE
+ * - \ref vx_remap : \ref VX_REMAP_SOURCE_WIDTH, \ref VX_REMAP_SOURCE_HEIGHT, \ref VX_REMAP_DESTINATION_WIDTH, \ref VX_REMAP_DESTINATION_HEIGHT
+ * - \ref vx_lut : \ref VX_LUT_TYPE, \ref VX_LUT_COUNT
+ * - \ref vx_threshold : \ref VX_THRESHOLD_TYPE
+ * - \ref VX_VALID_RECT_CALLBACK
+ * \note For vx_image, a specific attribute can be used to specify the valid region evolution. This information is not a meta data.
+ *
+ * \param [in] meta The reference to the \ref vx_meta_format struct to set 
+ * \param [in] attribute Use the subset of data object attributes that define the meta data of this object or attributes from <tt>\ref vx_meta_format</tt>.
+ * \param [in] ptr The input pointer of the value to set on the meta format object.
+ * \param [in] size The size in bytes of the object to which \a ptr points.
+ * \ingroup group_user_kernels
+ * \return A <tt>\ref vx_status_e</tt> enumeration.
+ * \retval VX_SUCCESS The attribute was set.
+ * \retval VX_ERROR_INVALID_REFERENCE meta was not a <tt>\ref vx_meta_format</tt>.
+ * \retval VX_ERROR_INVALID_PARAMETER size was not correct for the type needed.
+ * \retval VX_ERROR_NOT_SUPPORTED the object attribute was not supported on the meta format object.
+ * \retval VX_ERROR_INVALID_TYPE attribute type did not match known meta format type.
+ */
 VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatAttribute(vx_meta_format meta, vx_enum attribute, const void *ptr, vx_size size)
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (meta && agoIsValidReference(&meta->data.ref)) {
-		AgoData * data = &meta->data;
 		status = VX_ERROR_INVALID_PARAMETERS;
 		if (ptr) {
 			switch (attribute)
 			{
 			/**********************************************************************/
-			case VX_IMAGE_ATTRIBUTE_FORMAT:
-				if (size == sizeof(vx_df_image) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.format = *(vx_df_image *)ptr;
+			case VX_VALID_RECT_CALLBACK:
+				if (size == sizeof(vx_kernel_image_valid_rectangle_f)) {
+					meta->data.u.img.format = *(vx_df_image *)ptr;
+					status = VX_SUCCESS;
+					meta->set_valid_rectangle_callback = *(vx_kernel_image_valid_rectangle_f)ptr;
+				}
+				break;
+			/**********************************************************************/
+			case VX_IMAGE_FORMAT:
+				if (size == sizeof(vx_df_image) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.format = *(vx_df_image *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_HEIGHT:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.height = *(vx_uint32 *)ptr;
+			case VX_IMAGE_HEIGHT:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.height = *(vx_uint32 *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_WIDTH:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.width = *(vx_uint32 *)ptr;
+			case VX_IMAGE_WIDTH:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.width = *(vx_uint32 *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 #if ENABLE_OPENCL
 			case VX_IMAGE_ATTRIBUTE_AMD_ENABLE_USER_BUFFER_OPENCL:
-				if (size == sizeof(vx_bool) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.enableUserBufferOpenCL = *(vx_bool *)ptr;
+				if (size == sizeof(vx_bool) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.enableUserBufferOpenCL = *(vx_bool *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 #endif
 			/**********************************************************************/
-			case VX_ARRAY_ATTRIBUTE_CAPACITY:
-				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_ARRAY) {
-					data->u.arr.capacity = *(vx_size *)ptr;
+			case VX_ARRAY_CAPACITY:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_ARRAY) {
+					meta->data.u.arr.capacity = *(vx_size *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_ARRAY_ATTRIBUTE_ITEMTYPE:
-				if (size == sizeof(vx_enum) && data->ref.type == VX_TYPE_ARRAY) {
-					data->u.arr.itemtype = *(vx_enum *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			/**********************************************************************/
-			case VX_PYRAMID_ATTRIBUTE_FORMAT:
-				if (size == sizeof(vx_df_image) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.format = *(vx_df_image *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_HEIGHT:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.height = *(vx_uint32 *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_WIDTH:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.width = *(vx_uint32 *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_LEVELS:
-				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.levels = *(vx_size *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_SCALE:
-				if (size == sizeof(vx_float32) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.scale = *(vx_float32 *)ptr;
+			case VX_ARRAY_ITEMTYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_ARRAY) {
+					meta->data.u.arr.itemtype = *(vx_enum *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 			/**********************************************************************/
-			case VX_SCALAR_ATTRIBUTE_TYPE:
-				if (size == sizeof(vx_enum) && data->ref.type == VX_TYPE_SCALAR) {
-					data->u.scalar.type = *(vx_enum *)ptr;
+			case VX_PYRAMID_FORMAT:
+				if (size == sizeof(vx_df_image) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.format = *(vx_df_image *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_HEIGHT:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.height = *(vx_uint32 *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_WIDTH:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.width = *(vx_uint32 *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_LEVELS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.levels = *(vx_size *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_SCALE:
+				if (size == sizeof(vx_float32) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.scale = *(vx_float32 *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 			/**********************************************************************/
-			case VX_MATRIX_ATTRIBUTE_TYPE:
-				if (size == sizeof(vx_enum) && data->ref.type == VX_TYPE_MATRIX) {
-					data->u.mat.type = *(vx_enum *)ptr;
+			case VX_SCALAR_TYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_SCALAR) {
+					meta->data.u.scalar.type = *(vx_enum *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_COLUMNS:
-				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_MATRIX) {
-					data->u.mat.columns = *(vx_size *)ptr;
+			/**********************************************************************/
+			case VX_MATRIX_TYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_MATRIX) {
+					meta->data.u.mat.type = *(vx_enum *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_ROWS:
-				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_MATRIX) {
-					data->u.mat.rows = *(vx_size *)ptr;
+			case VX_MATRIX_COLUMNS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_MATRIX) {
+					meta->data.u.mat.columns = *(vx_size *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_ROWS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_MATRIX) {
+					meta->data.u.mat.rows = *(vx_size *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -6534,29 +6764,28 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatFromReference(vx_meta_format m
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (meta && agoIsValidReference(&meta->data.ref) && agoIsValidReference(exemplar)) {
-		AgoData * data = &meta->data;
 		AgoData * ref = (AgoData *)exemplar;
 		status = VX_SUCCESS;
 		switch (exemplar->type)
 		{
 		case VX_TYPE_IMAGE:
-			data->u.img.width = ref->u.img.width;
-			data->u.img.height = ref->u.img.height;
-			data->u.img.format = ref->u.img.format;
+			meta->data.u.img.width = ref->u.img.width;
+			meta->data.u.img.height = ref->u.img.height;
+			meta->data.u.img.format = ref->u.img.format;
 			break;
 		case VX_TYPE_ARRAY:
-			data->u.arr.capacity = ref->u.arr.capacity;
-			data->u.arr.itemtype = ref->u.arr.itemtype;
+			meta->data.u.arr.capacity = ref->u.arr.capacity;
+			meta->data.u.arr.itemtype = ref->u.arr.itemtype;
 			break;
 		case VX_TYPE_PYRAMID:
-			data->u.pyr.levels = ref->u.pyr.levels;
-			data->u.pyr.scale = ref->u.pyr.scale;
-			data->u.pyr.width = ref->u.pyr.width;
-			data->u.pyr.height = ref->u.pyr.height;
-			data->u.pyr.format = ref->u.pyr.format;
+			meta->data.u.pyr.levels = ref->u.pyr.levels;
+			meta->data.u.pyr.scale = ref->u.pyr.scale;
+			meta->data.u.pyr.width = ref->u.pyr.width;
+			meta->data.u.pyr.height = ref->u.pyr.height;
+			meta->data.u.pyr.format = ref->u.pyr.format;
 			break;
 		case VX_TYPE_SCALAR:
-			data->u.scalar.type = ref->u.scalar.type;
+			meta->data.u.scalar.type = ref->u.scalar.type;
 			break;
 		default:
 			status = VX_ERROR_INVALID_REFERENCE;

@@ -34,7 +34,7 @@ THE SOFTWARE.
 //
 
 // version
-#define AGO_VERSION "0.9.3"
+#define AGO_VERSION "0.9.4"
 
 // debug configuration
 #define ENABLE_DEBUG_MESSAGES                 0 // 0:disable 1:enable
@@ -77,6 +77,7 @@ THE SOFTWARE.
 #define AGO_KERNEL_FLAG_GPU_INTEG_M2R    0x0200 // kernel GPU integration: need OpenCL kernel generation (MEM2REG)
 #define AGO_KERNEL_FLAG_GPU_INTEG_R2R    0x0400 // kernel GPU integration: need OpenCL kernel generation (REG2REG)
 #define AGO_KERNEL_FLAG_SUBGRAPH         0x1000 // kernel is a subgraph
+#define AGO_KERNEL_FLAG_VALID_RECT_RESET 0x2000 // kernel valid_rect_reset is true
 
 // AGO default target priority
 #if ENABLE_OPENCL
@@ -164,7 +165,11 @@ THE SOFTWARE.
 #define debug_printf(fmt, ...)
 #endif
 //   ALIGN16 - aligns data to 16 multiple
+//   ALIGN32 - aligns data to 32 multiple
+//   ALIGN32PTR - aligns pointer to 32 multiple
 #define ALIGN16(x)		((((size_t)(x))+15)&~15)
+#define ALIGN32(x)		((((size_t)(x))+31)&~31)
+#define ALIGN32PTR(x)	((((uintptr_t)(x))+31)&~31)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ago data types
@@ -177,15 +182,16 @@ THE SOFTWARE.
 #define AgoParameter  _vx_parameter
 #define AgoMetaFormat _vx_meta_format
 typedef enum {
-	ago_kernel_cmd_execute,
-	ago_kernel_cmd_validate,
-	ago_kernel_cmd_get_image_plane_nonusage,
-	ago_kernel_cmd_initialize,
-	ago_kernel_cmd_shutdown,
-	ago_kernel_cmd_query_target_support,
+	ago_kernel_cmd_execute                    =  0,
+	ago_kernel_cmd_validate                   =  1,
+	ago_kernel_cmd_get_image_plane_nonusage   =  2,
+	ago_kernel_cmd_initialize                 =  3,
+	ago_kernel_cmd_shutdown                   =  4,
+	ago_kernel_cmd_query_target_support       =  5,
 #if ENABLE_OPENCL
-	ago_kernel_cmd_opencl_codegen,
+	ago_kernel_cmd_opencl_codegen             =  6,
 #endif
+	ago_kernel_cmd_valid_rect_callback        =  7,
 } AgoKernelCommand;
 typedef enum {
 	ago_profile_type_launch_begin,
@@ -273,6 +279,7 @@ struct AgoConfigImage {
 };
 struct AgoConfigLut {
 	vx_enum type;
+	vx_uint32 offset;
 	vx_size count;
 };
 struct AgoConfigMatrix {
@@ -280,6 +287,8 @@ struct AgoConfigMatrix {
 	vx_size columns;
 	vx_size rows;
 	vx_size itemsize;
+	vx_enum pattern;
+	vx_coordinates2d_t origin;
 };
 struct AgoConfigPyramid {
 	vx_uint32 width;
@@ -340,6 +349,7 @@ struct MappedData {
 	vx_enum usage;
 	bool used_external_ptr;
 	vx_size stride;
+	vx_uint32 plane;
 };
 struct AgoData {
 	AgoReference ref;
@@ -400,7 +410,11 @@ struct AgoDataList {
 	AgoData * trash;
 };
 struct AgoMetaFormat {
+	// TBD: this data struct needs some cleanup -- just keep only required fields
 	AgoData data;
+	vx_kernel_image_valid_rectangle_f set_valid_rectangle_callback;
+public:
+	AgoMetaFormat();
 };
 struct AgoParameter {
 	AgoReference ref;
@@ -485,6 +499,7 @@ struct AgoNode {
 	AgoKernel * akernel;
 	vx_uint32 flags;
 	vx_border_mode_t attr_border_mode;
+	vx_bool valid_rect_reset;
 	AgoTargetAffinityInfo_ attr_affinity;
 	vx_size localDataSize;
 	vx_uint8 * localDataPtr;
@@ -498,7 +513,10 @@ struct AgoNode {
 	vx_nodecomplete_f callback;
 	AgoSuperNode * supernode;
 	bool initialized;
-	vx_rectangle_t rect_valid;
+	vx_uint32 valid_rect_num_inputs;
+	vx_uint32 valid_rect_num_outputs;
+	vx_rectangle_t ** valid_rect_inputs;
+	vx_rectangle_t ** valid_rect_outputs;
 	vx_uint32 target_support_flags;
 	vx_uint32 hierarchical_level;
 	vx_status status;
@@ -787,6 +805,8 @@ AgoGraph * agoCreateGraph(AgoContext * acontext);
 int agoReleaseGraph(AgoGraph * agraph);
 int agoReleaseContext(AgoContext * acontext);
 int agoVerifyGraph(AgoGraph * agraph);
+vx_status agoPrepareImageValidRectangleBuffers(AgoGraph * graph);
+vx_status agoComputeImageValidRectangleOutputs(AgoGraph * graph);
 int agoOptimizeGraph(AgoGraph * agraph);
 int agoInitializeGraph(AgoGraph * agraph);
 int agoShutdownGraph(AgoGraph * graph);

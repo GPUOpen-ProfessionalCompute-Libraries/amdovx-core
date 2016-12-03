@@ -77,6 +77,7 @@ static struct { const char * name; vx_enum value; vx_size size; } s_table_consta
 		{ "INT16", VX_TYPE_INT16, sizeof(vx_int16) },
 		{ "UINT8", VX_TYPE_UINT8, sizeof(vx_uint8) },
 		{ "INT8", VX_TYPE_INT8, sizeof(vx_int8) },
+		{ "CHAR", VX_TYPE_CHAR, sizeof(vx_int8) },
 		{ "FLOAT32", VX_TYPE_FLOAT32, sizeof(vx_float32) },
 		{ "FLOAT64", VX_TYPE_FLOAT64, sizeof(vx_float64) },
 		{ "SIZE", VX_TYPE_SIZE, sizeof(vx_size) },
@@ -178,14 +179,10 @@ void * agoAllocMemory(vx_size size)
 	// to keep track of allocations
 	static vx_int32 s_ago_alloc_id_count = 0;
 	// make the buffer allocation 256-bit aligned and add header for debug
-	vx_size size_alloc = size;
-	if (size_alloc & 31) size_alloc += 32 - (size_alloc & 31);
-	size_alloc += sizeof(vx_uint32) + sizeof(AgoAllocInfo) + 32 + AGO_MEMORY_ALLOC_EXTRA_PADDING + AGO_MEMORY_ALLOC_EXTRA_PADDING;
-	if (size_alloc & 31) size_alloc += 32 - (size_alloc & 31);
+	vx_size size_alloc = ALIGN32(ALIGN32(size) + sizeof(vx_uint32) + sizeof(AgoAllocInfo) + 32 + 2*AGO_MEMORY_ALLOC_EXTRA_PADDING);
 	vx_uint8 * mem = (vx_uint8 *)calloc(1, size_alloc); if (!mem) return nullptr;
 	((vx_uint32 *)mem)[0] = 0xfadedcab; // marker for debug
-	vx_uint8 * mem_aligned = mem + sizeof(vx_uint32) + sizeof(AgoAllocInfo) + AGO_MEMORY_ALLOC_EXTRA_PADDING;
-	mem_aligned += ((((size_t)mem_aligned) & 31) ? (32 - (((size_t)mem_aligned) & 31)) : 0);
+	vx_uint8 * mem_aligned = (vx_uint8 *)ALIGN32PTR(mem + sizeof(vx_uint32) + sizeof(AgoAllocInfo) + AGO_MEMORY_ALLOC_EXTRA_PADDING);
 	AgoAllocInfo * mem_info = &((AgoAllocInfo *)(mem_aligned - AGO_MEMORY_ALLOC_EXTRA_PADDING))[-1];
 	mem_info->allocated = mem;
 	mem_info->requested_size = size;
@@ -1278,7 +1275,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		char data_type[64];
 		memcpy(data_type, desc, s - desc); data_type[s - desc] = 0;
 		data->u.lut.type = agoName2Enum(data_type);
-		if (!data->u.lut.type) 
+		if (data->u.lut.type != VX_TYPE_UINT8 && data->u.lut.type != VX_TYPE_INT16) 
 			return -1;
 		if (sscanf(++s, "" VX_FMT_SIZE "", &data->u.lut.count) != 1) return -1;
 		// sanity check and update
@@ -1363,12 +1360,15 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		char data_type[64];
 		memcpy(data_type, desc, s - desc); data_type[s - desc] = 0;
 		data->u.mat.type = agoName2Enum(data_type);
-		if (data->u.mat.type != VX_TYPE_INT32 && data->u.mat.type != VX_TYPE_FLOAT32) {
+		if (data->u.mat.type != VX_TYPE_INT32 && data->u.mat.type != VX_TYPE_FLOAT32 && data->u.mat.type != VX_TYPE_UINT8) {
 			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: invalid matrix type %s\n", data_type);
 			return -1;
 		}
 		if (sscanf(++s, "" VX_FMT_SIZE "," VX_FMT_SIZE "", &data->u.mat.columns, &data->u.mat.rows) != 2)
 			return -1;
+		data->u.mat.pattern = 0;
+		data->u.mat.origin.x = (vx_uint32)data->u.mat.columns / 2;
+		data->u.mat.origin.y = (vx_uint32)data->u.mat.rows / 2;
 		// sanity check and update
 		if (agoDataSanityCheckAndUpdate(data)) {
 			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: agoDataSanityCheckAndUpdate failed for matrix\n");
@@ -1944,6 +1944,19 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: detected U1 ROI that doesn't start on 8-bit boundary: %s at (%d,%d)\n", data->name.length() ? data->name.c_str() : "<?>", data->u.img.rect_roi.start_x, data->u.img.rect_roi.start_y);
 				return -1;
 			}
+			// set valid region to overlap of parent and ROI
+			int sx = (int)data->u.img.roiMasterImage->u.img.rect_valid.start_x - (int)data->u.img.roiMasterImage->u.img.rect_roi.start_x;
+			int sy = (int)data->u.img.roiMasterImage->u.img.rect_valid.start_y - (int)data->u.img.roiMasterImage->u.img.rect_roi.start_y;
+			int ex = (int)data->u.img.roiMasterImage->u.img.rect_valid.end_x - (int)data->u.img.roiMasterImage->u.img.rect_roi.start_x;
+			int ey = (int)data->u.img.roiMasterImage->u.img.rect_valid.end_y - (int)data->u.img.roiMasterImage->u.img.rect_roi.start_y;
+			sx = (sx < 0) ? 0u : ((sx >(int)data->u.img.width) ? data->u.img.width : (vx_uint32)sx);
+			sy = (sy < 0) ? 0u : ((sy >(int)data->u.img.height) ? data->u.img.height : (vx_uint32)sy);
+			ex = (ex < 0) ? 0u : ((ex >(int)data->u.img.width) ? data->u.img.width : (vx_uint32)ex);
+			ey = (ey < 0) ? 0u : ((ey >(int)data->u.img.height) ? data->u.img.height : (vx_uint32)ey);
+			data->u.img.rect_valid.start_x = (vx_uint32)sx;
+			data->u.img.rect_valid.start_y = (vx_uint32)sy;
+			data->u.img.rect_valid.end_x = (vx_uint32)ex;
+			data->u.img.rect_valid.end_y = (vx_uint32)ey;
 		}
 		else {
 			// re-compute image parameters to deal with parameter changes
@@ -1994,9 +2007,20 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 	}
 	else if (data->ref.type == VX_TYPE_LUT) {
 		// calculate other attributes and buffer size
-		if (data->u.lut.type != VX_TYPE_UINT8 || data->u.lut.count != 256) return -1;
-		data->size = sizeof(vx_uint8) * 256;
-		if (!data->size) 
+		data->size = 0;
+		if (data->u.lut.type == VX_TYPE_UINT8) {
+			if (data->u.lut.count == 0 || data->u.lut.count > 256)
+				return -1;
+			data->u.lut.offset = 0;
+			data->size = sizeof(vx_uint8) * 256;
+		}
+		else if (data->u.lut.type == VX_TYPE_INT16) {
+			if (data->u.lut.count == 0 || data->u.lut.count >= 65536)
+				return -1;
+			data->u.lut.offset = (vx_uint32)(data->u.lut.count / 2);
+			data->size = sizeof(vx_int16) * data->u.lut.count;
+		}
+		if (!data->size)
 			return -1;
 	}
 	else if (data->ref.type == VX_TYPE_THRESHOLD) {
@@ -2023,6 +2047,8 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 			data->u.mat.itemsize = sizeof(vx_int32);
 		else if (data->u.mat.type == VX_TYPE_FLOAT32) 
 			data->u.mat.itemsize = sizeof(vx_float32);
+		else if (data->u.mat.type == VX_TYPE_UINT8)
+			data->u.mat.itemsize = sizeof(vx_uint8);
 		else
 			return -1;
 		data->size = data->u.mat.columns * data->u.mat.rows * data->u.mat.itemsize;
@@ -2423,6 +2449,7 @@ AgoNode * agoCreateNode(AgoGraph * graph, AgoKernel * kernel)
 	node->localDataSize = kernel->localDataSize;
 	node->localDataPtr = NULL;
 	node->paramCount = kernel->argCount;
+	node->valid_rect_reset = (kernel->flags & AGO_KERNEL_FLAG_VALID_RECT_RESET) ? vx_true_e : vx_false_e;
 	memcpy(node->parameters, kernel->parameters, sizeof(node->parameters));
 	for (vx_uint32 i = 0; i < node->paramCount; i++) {
 		agoResetReference(&node->parameters[i].ref, VX_TYPE_PARAMETER, graph->ref.context, &graph->ref);
@@ -2701,6 +2728,10 @@ AgoData::~AgoData()
 		reserved_allocated = nullptr;
 	}
 }
+AgoMetaFormat::AgoMetaFormat()
+	: set_valid_rectangle_callback{ nullptr }
+{
+}
 AgoParameter::AgoParameter()
 	: scope{ nullptr }, index{ 0 }, direction{ VX_INPUT }, type{ VX_TYPE_REFERENCE }, state{ VX_PARAMETER_STATE_REQUIRED }
 {
@@ -2739,7 +2770,8 @@ AgoSuperNode::~AgoSuperNode()
 {
 }
 AgoNode::AgoNode()
-	: next{ nullptr }, akernel{ nullptr }, flags{ 0 }, localDataSize{ 0 }, localDataPtr{ nullptr }, localDataPtr_allocated{ nullptr },
+	: next{ nullptr }, akernel{ nullptr }, flags{ 0 }, localDataSize{ 0 }, localDataPtr{ nullptr }, localDataPtr_allocated{ nullptr }, 
+	  valid_rect_reset{ vx_true_e }, valid_rect_num_inputs{ 0 }, valid_rect_num_outputs{ 0 }, valid_rect_inputs{ nullptr }, valid_rect_outputs{ nullptr },
 	  paramCount{ 0 }, callback{ nullptr }, supernode{ nullptr }, initialized{ false }, target_support_flags{ 0 }, hierarchical_level{ 0 }, status{ VX_SUCCESS }
 #if ENABLE_OPENCL
 	, opencl_type{ 0 }, opencl_param_mem2reg_mask{ 0 }, opencl_param_discard_mask{ 0 }, opencl_param_as_value_mask{ 0 },
@@ -2753,7 +2785,6 @@ AgoNode::AgoNode()
 	memset(&paramList, 0, sizeof(paramList));
 	memset(&paramListForAgeDelay, 0, sizeof(paramListForAgeDelay));
 	memset(&funcExchange, 0, sizeof(funcExchange));
-	memset(&rect_valid, 0, sizeof(rect_valid));
 	memset(&perf, 0, sizeof(perf));
 #if ENABLE_OPENCL
 	memset(&opencl_name, 0, sizeof(opencl_name));
@@ -2765,6 +2796,14 @@ AgoNode::AgoNode()
 AgoNode::~AgoNode()
 {
 	agoShutdownNode(this);
+	if (valid_rect_inputs) {
+		delete[] valid_rect_inputs;
+		valid_rect_inputs = nullptr;
+	}
+	if (valid_rect_outputs) {
+		delete[] valid_rect_outputs;
+		valid_rect_outputs = nullptr;
+	}
 #if ENABLE_OPENCL
 	if (opencl_event) {
 		clReleaseEvent(opencl_event);

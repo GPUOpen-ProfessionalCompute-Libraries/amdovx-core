@@ -195,7 +195,7 @@ int CVxParamMatrix::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "readonly")) {
 			ERROR_CHECK(vxDirective((vx_reference)m_matrix, VX_DIRECTIVE_AMD_READ_ONLY));
 		}
-		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "sync-cl-write")) {
+		else if (!_stricmp(ioType, "directive") && (!_stricmp(fileName, "VX_DIRECTIVE_AMD_COPY_TO_OPENCL") || !_stricmp(fileName, "sync-cl-write"))) {
 			m_useSyncOpenCLWriteDirective = true;
 		}
 		else if (!_stricmp(ioType, "ui") && !_strnicmp(fileName, "f", 1) && m_data_type == VX_TYPE_FLOAT32 && m_columns == 3 && m_rows == 3) {

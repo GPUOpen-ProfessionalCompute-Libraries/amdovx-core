@@ -525,6 +525,14 @@ int agoOptimizeDramaAlloc(AgoGraph * agraph)
 		}
 	}
 
+	// compute image valid rectangles
+	if (agoPrepareImageValidRectangleBuffers(agraph)) {
+		return -1;
+	}
+	if (agoComputeImageValidRectangleOutputs(agraph)) {
+		return -1;
+	}
+
 	// set default target assignments
 	if (agoOptimizeDramaAllocSetDefaultTargets(agraph) < 0) {
 		return -1;

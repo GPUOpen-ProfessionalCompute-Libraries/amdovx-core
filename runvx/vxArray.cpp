@@ -184,7 +184,7 @@ int CVxParamArray::InitializeIO(vx_context context, vx_graph graph, vx_reference
 			m_displayName.assign(fileName);
 			m_paramList.push_back(this);
 		}
-		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "sync-cl-write")) {
+		else if (!_stricmp(ioType, "directive") && (!_stricmp(fileName, "VX_DIRECTIVE_AMD_COPY_TO_OPENCL") || !_stricmp(fileName, "sync-cl-write"))) {
 			m_useSyncOpenCLWriteDirective = true;
 		}
 		else if (!_stricmp(ioType, "init")) {

@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "vxEngine.h"
 
 // program and version
-#define RUNVX_VERSION "0.9.3"
+#define RUNVX_VERSION "0.9.4"
 #if _WIN32
 #define RUNVX_PROGRAM "runvx.exe"
 #else
@@ -174,7 +174,12 @@ int main(int argc, char * argv[])
 		else break;
 	}
 	if (arg == argc) { show_usage(program, false); return -1; }
-	int argCount = argc - arg - 2;
+	int argCount = argc - arg - 1;
+	int argParamOffset = 1;
+	if (!_stricmp(argv[arg], "node") || !_stricmp(argv[arg], "file")) {
+		argParamOffset++;
+		argCount--;
+	}
 	fflush(stdout);
 
 	CVxEngine engine;
@@ -189,7 +194,6 @@ int main(int argc, char * argv[])
 		engine.SetFrameCountOptions(enableMultiFrameProcessing, framesEofRequested, frameCountSpecified, frameStart, frameEnd);
 		fflush(stdout);
 		// pass parameters to the engine: note that shell takes no extra parameters whereas node and file take extra parameter
-		int argParamOffset = (!_stricmp(argv[arg], "shell")) ? 1 : 2;
 		for (int i = 0, j = 0; i < argCount; i++) {
 			char * param = argv[arg + argParamOffset + i];
 			if (engine.SetParameter(j++, param) < 0)

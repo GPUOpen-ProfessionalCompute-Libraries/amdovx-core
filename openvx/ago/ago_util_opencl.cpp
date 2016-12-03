@@ -404,15 +404,27 @@ int agoGpuOclAllocBuffer(AgoData * data)
 	}
 	else if (data->ref.type == VX_TYPE_LUT) {
 		if (!data->opencl_buffer) {
-			cl_int err = -1;
-			cl_image_format format = { CL_INTENSITY, CL_UNORM_INT8 };
-			cl_image_desc desc = { CL_MEM_OBJECT_IMAGE1D, 256, 0, 0, 1, 0, 0, 0, 0, NULL };
-			data->opencl_buffer = data->opencl_buffer_allocated = clCreateImage(context->opencl_context, CL_MEM_READ_WRITE, &format, &desc, NULL, &err);
-			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateImage(%p,CL_MEM_READ_WRITE,1D/U8,256,0,*) => %d (for LUT)\n", context->opencl_context, err);
-				return -1;
+			if (data->u.lut.type == VX_TYPE_UINT8) {
+				// allocal OpenCL image
+				cl_int err = -1;
+				cl_image_format format = { CL_INTENSITY, CL_UNORM_INT8 };
+				cl_image_desc desc = { CL_MEM_OBJECT_IMAGE1D, 256, 0, 0, 1, 0, 0, 0, 0, NULL };
+				data->opencl_buffer = data->opencl_buffer_allocated = clCreateImage(context->opencl_context, CL_MEM_READ_WRITE, &format, &desc, NULL, &err);
+				if (err) {
+					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateImage(%p,CL_MEM_READ_WRITE,1D/U8,256,0,*) => %d (for LUT)\n", context->opencl_context, err);
+					return -1;
+				}
+				data->opencl_buffer_offset = 0;
 			}
-			data->opencl_buffer_offset = 0;
+			else {
+				// normal opencl_buffer allocation
+				cl_int err = -1;
+				data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, data->size + data->opencl_buffer_offset, NULL, &err);
+				if (err) {
+					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,*) => %d (for LUT)\n", context->opencl_context, (int)(data->size + data->opencl_buffer_offset), err);
+					return -1;
+				}
+			}
 		}
 	}
 	else if (data->ref.type == VX_TYPE_REMAP) {
@@ -701,6 +713,21 @@ static int agoGpuOclSetKernelArgs(cl_kernel opencl_kernel, vx_uint32& kernelArgI
 		if (agoGpuOclDataSetBufferAsKernelArg(data, opencl_kernel, kernelArgIndex, group) < 0)
 			return -1;
 		kernelArgIndex++;
+		if (data->u.lut.type != VX_TYPE_UINT8) {
+			// count and offset parameters
+			err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(vx_uint32), &data->u.lut.count);
+			if (err) {
+				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,lut:count) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
+				return -1;
+			}
+			kernelArgIndex++;
+			err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(vx_uint32), &data->u.lut.offset);
+			if (err) {
+				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,lut:offset) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
+				return -1;
+			}
+			kernelArgIndex++;
+		}
 	}
 	else if (data->ref.type == VX_TYPE_REMAP) {
 		if (agoGpuOclDataSetBufferAsKernelArg(data, opencl_kernel, kernelArgIndex, group) < 0)
@@ -925,16 +952,28 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 					return -1;
 			}
 			kernelArgIndex += 1;
+			if (data->u.lut.type != VX_TYPE_UINT8) {
+				kernelArgIndex += 2;
+			}
 			if (need_read_access) {
 				if (!(data->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
 					if (data->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE | AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT)) {
 						int64_t stime = agoGetClockCounter();
-						size_t origin[3] = { 0, 0, 0 };
-						size_t region[3] = { 256, 1, 1 };
-						err = clEnqueueWriteImage(opencl_cmdq, data->opencl_buffer, CL_TRUE, origin, region, 256, 0, data->buffer, 0, NULL, NULL);
-						if (err) { 
-							agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueWriteImage(lut) => %d\n", err);
-							return -1; 
+						if (data->u.lut.type == VX_TYPE_UINT8) {
+							size_t origin[3] = { 0, 0, 0 };
+							size_t region[3] = { 256, 1, 1 };
+							err = clEnqueueWriteImage(opencl_cmdq, data->opencl_buffer, CL_TRUE, origin, region, 256, 0, data->buffer, 0, NULL, NULL);
+							if (err) {
+								agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clEnqueueWriteImage(lut) => %d\n", err);
+								return -1;
+							}
+						}
+						else if (data->u.lut.type == VX_TYPE_INT16) {
+							cl_int err = clEnqueueWriteBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, data->size, data->buffer, 0, NULL, NULL);
+							if (err) {
+								agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGpuOclDataInputSync: clEnqueueWriteBuffer() => %d (for LUT)\n", err);
+								return -1;
+							}
 						}
 						data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
 						int64_t etime = agoGetClockCounter();
@@ -1106,12 +1145,24 @@ static std::string agoGpuOclData2Decl(AgoData * data, vx_uint32 index, vx_uint32
 		code += item;
 	}
 	else if (data->ref.type == VX_TYPE_MATRIX) {
-		if (data->u.mat.columns == 2 && data->u.mat.rows == 3) {
+		if (data->u.mat.type == VX_TYPE_FLOAT32 && data->u.mat.columns == 2 && data->u.mat.rows == 3) {
 			sprintf(item, "ago_affine_matrix_t p%d", index);
 			code += item;
 		}
-		else if (data->u.mat.columns == 3 && data->u.mat.rows == 3) {
+		else if (data->u.mat.type == VX_TYPE_FLOAT32 && data->u.mat.columns == 3 && data->u.mat.rows == 3) {
 			sprintf(item, "ago_perspective_matrix_t p%d", index);
+			code += item;
+		}
+		else if (data->u.mat.type == VX_TYPE_FLOAT32) {
+			sprintf(item, "__global float p%d_buf, uint p%d_columns, p%d_uint rows", index, index, index);
+			code += item;
+		}
+		else if (data->u.mat.type == VX_TYPE_INT32) {
+			sprintf(item, "__global int p%d_buf, uint p%d_columns, p%d_uint rows", index, index, index);
+			code += item;
+		}
+		else if (data->u.mat.type == VX_TYPE_UINT8) {
+			sprintf(item, "__global uchar p%d_buf, uint p%d_columns, p%d_uint rows", index, index, index);
 			code += item;
 		}
 		else {
@@ -1123,8 +1174,14 @@ static std::string agoGpuOclData2Decl(AgoData * data, vx_uint32 index, vx_uint32
 		code += item;
 	}
 	else if (data->ref.type == VX_TYPE_LUT) {
-		sprintf(item, "__read_only image1d_t p%d", index);
-		code += item;
+		if (data->u.lut.type == VX_TYPE_UINT8) {
+			sprintf(item, "__read_only image1d_t p%d", index);
+			code += item;
+		}
+		else if (data->u.lut.type == VX_TYPE_INT16) {
+			sprintf(item, "__global short * p%d_buf, uint p%d_count, uint p%d_offset", index, index, index);
+			code += item;
+		}
 	}
 	else if (data->ref.type == VX_TYPE_REMAP) {
 		sprintf(item, "__global uchar * p%d_buf, uint p%d_stride", index, index);

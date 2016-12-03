@@ -595,7 +595,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 				else ReportError("ERROR: invalid image compare option: %s\n", option);
 			}
 		}
-		else if (!_stricmp(ioType, "directive") && !_stricmp(fileName, "sync-cl-write")) {
+		else if (!_stricmp(ioType, "directive") && (!_stricmp(fileName, "VX_DIRECTIVE_AMD_COPY_TO_OPENCL") || !_stricmp(fileName, "sync-cl-write"))) {
 			m_useSyncOpenCLWriteDirective = true;
 		}
 		else ReportError("ERROR: invalid image operation: %s\n", ioType);

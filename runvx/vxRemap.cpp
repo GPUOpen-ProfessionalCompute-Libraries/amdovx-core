@@ -127,7 +127,7 @@ int CVxParamRemap::InitializeIO(vx_context context, vx_graph graph, vx_reference
 				else ReportError("ERROR: invalid remap compare option: %s\n", option);
 			}
 		}
-		else if (!_stricmp(ioType, "directive,sync-cl-write")) {
+		else if (!_stricmp(ioType, "directive") && (!_stricmp(fileName, "VX_DIRECTIVE_AMD_COPY_TO_OPENCL") || !_stricmp(fileName, "sync-cl-write"))) {
 			m_useSyncOpenCLWriteDirective = true;
 		}
 		else if (!_stricmp(ioType, "init")) {
@@ -218,8 +218,18 @@ int CVxParamRemap::InitializeIO(vx_context context, vx_graph graph, vx_reference
 				}
 			}
 			else {
-				printf("ERROR: invalid remap initiazation pattern name: %s\n", patternName);
-				return -1;
+				// initialize from binary file
+				FILE * fp = fopen(fileName, "rb");
+				if (!fp) ReportError("ERROR: CVxParamRemap::InitializeIO: unable to open: %s\n", fileName);
+				for (vx_uint32 y = 0; y < m_dstHeight; y++){
+					for (vx_uint32 x = 0; x < m_dstWidth; x++){
+						vx_float32 src_xy[2];
+						if (fread(src_xy, sizeof(src_xy), 1, fp) != 1)
+							ReportError("ERROR: detected EOF at (%d,%d) on remap input file: %s\n", x, y, fileName);
+						ERROR_CHECK(vxSetRemapPoint(m_remap, x, y, src_xy[0], src_xy[1]));
+					}
+				}
+				fclose(fp);
 			}
 		}
 		else {

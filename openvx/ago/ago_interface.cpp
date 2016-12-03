@@ -1217,6 +1217,7 @@ vx_status agoVerifyNode(AgoNode * node)
 			if ((kernel->argConfig[arg] & (AGO_KERNEL_ARG_INPUT_FLAG | AGO_KERNEL_ARG_OUTPUT_FLAG)) == AGO_KERNEL_ARG_OUTPUT_FLAG) {
 				vx_meta_format meta = &node->metaList[arg];
 				meta->data.ref.external_count = 1;
+				meta->set_valid_rectangle_callback = nullptr;
 				if (data->ref.type == VX_TYPE_IMAGE) {
 					meta->data.u.img.rect_valid.start_x = 0;
 					meta->data.u.img.rect_valid.start_y = 0;
@@ -1300,10 +1301,6 @@ vx_status agoVerifyNode(AgoNode * node)
 		}
 	}
 	// check if node output arguments are valid
-	node->rect_valid.start_x = 0;
-	node->rect_valid.start_y = 0;
-	node->rect_valid.end_x = INT_MAX;
-	node->rect_valid.end_y = INT_MAX;
 	for (vx_uint32 arg = 0; arg < node->paramCount; arg++) {
 		AgoData * data = node->paramList[arg];
 		if (data) {
@@ -1360,10 +1357,6 @@ vx_status agoVerifyNode(AgoNode * node)
 						data->u.img.rect_valid.end_x = data->u.img.width;
 					if (data->u.img.rect_valid.end_y == INT_MAX)
 						data->u.img.rect_valid.end_y = data->u.img.height;
-					node->rect_valid.start_x = max(node->rect_valid.start_x, data->u.img.rect_valid.start_x);
-					node->rect_valid.start_y = max(node->rect_valid.start_y, data->u.img.rect_valid.start_y);
-					node->rect_valid.end_x = min(node->rect_valid.end_x, data->u.img.rect_valid.end_x);
-					node->rect_valid.end_y = min(node->rect_valid.end_y, data->u.img.rect_valid.end_y);
 					// check for VX_IMAGE_ATTRIBUTE_AMD_ENABLE_USER_BUFFER_OPENCL attribute
 					if (meta->data.u.img.enableUserBufferOpenCL) {
 						// supports only virtual images with single color plane and without ROI
@@ -1436,10 +1429,6 @@ vx_status agoVerifyNode(AgoNode * node)
 						data->u.pyr.rect_valid.end_x = data->u.pyr.width;
 					if (data->u.pyr.rect_valid.end_y == INT_MAX)
 						data->u.pyr.rect_valid.end_y = data->u.pyr.height;
-					node->rect_valid.start_x = max(node->rect_valid.start_x, data->u.pyr.rect_valid.start_x);
-					node->rect_valid.start_y = max(node->rect_valid.start_y, data->u.pyr.rect_valid.start_y);
-					node->rect_valid.end_x = min(node->rect_valid.end_x, data->u.pyr.rect_valid.end_x);
-					node->rect_valid.end_y = min(node->rect_valid.end_y, data->u.pyr.rect_valid.end_y);
 					// propagate valid rectangle to all images inside the pyramid
 					for (vx_uint32 i = 0; i < data->numChildren; i++) {
 						AgoData * img = data->children[i];
@@ -1555,19 +1544,9 @@ int agoVerifyGraph(AgoGraph * graph)
 			AgoData * data = node->paramList[i];
 			if (data) {
 				if (data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.rect_valid.start_x = 0;
-					data->u.img.rect_valid.start_y = 0;
-					data->u.img.rect_valid.end_x = data->u.img.width;
-					data->u.img.rect_valid.end_y = data->u.img.height;
 					if (data->isVirtual) {
 						data->ownerOfUserBufferOpenCL = nullptr;
 					}
-				}
-				else if (data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.rect_valid.start_x = 0;
-					data->u.pyr.rect_valid.start_y = 0;
-					data->u.pyr.rect_valid.end_x = data->u.pyr.width;
-					data->u.pyr.rect_valid.end_y = data->u.pyr.height;
 				}
 			}
 		}
@@ -1588,6 +1567,158 @@ int agoVerifyGraph(AgoGraph * graph)
 	//    - single writers
 	//    - no loops
 	status = agoOptimizeDramaComputeGraphHierarchy(graph);
+
+	return status;
+}
+
+vx_status agoPrepareImageValidRectangleBuffers(AgoGraph * graph)
+{
+	vx_status status = VX_SUCCESS;
+
+	////////////////////////////////////////////////
+	// prepare for image valid rectangle computation
+	////////////////////////////////////////////////
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		vx_uint32 valid_rect_num_inputs = 0, valid_rect_num_outputs = 0;
+		for (vx_uint32 i = 0; i < node->paramCount; i++) {
+			AgoParameter * param = &node->parameters[i];
+			AgoData * data = node->paramList[i];
+			if (data) {
+				if (data->ref.type == VX_TYPE_IMAGE) {
+					if (param->direction == VX_INPUT)
+						valid_rect_num_inputs++;
+					if (param->direction == VX_OUTPUT)
+						valid_rect_num_outputs++;
+				}
+				else if (data->ref.type == VX_TYPE_PYRAMID) {
+					if (param->direction == VX_INPUT)
+						valid_rect_num_inputs += (vx_uint32)data->u.pyr.levels;
+					if (param->direction == VX_OUTPUT)
+						valid_rect_num_outputs += (vx_uint32)data->u.pyr.levels;
+				}
+			}
+		}
+		node->valid_rect_num_inputs = valid_rect_num_inputs;
+		node->valid_rect_num_outputs = valid_rect_num_outputs;
+		if (node->akernel->func && ((node->akernel->flags & AGO_KERNEL_FLAG_GROUP_MASK) == AGO_KERNEL_FLAG_GROUP_AMDLL ||
+			(node->akernel->flags & AGO_KERNEL_FLAG_GROUP_MASK) == AGO_KERNEL_FLAG_GROUP_OVX10))
+		{
+			// nothing to do for built-in kernels
+		}
+		else
+		{
+			if (node->valid_rect_inputs)
+				delete[] node->valid_rect_inputs;
+			if (node->valid_rect_outputs)
+				delete[] node->valid_rect_outputs;
+			node->valid_rect_inputs = nullptr;
+			node->valid_rect_outputs = nullptr;
+			if (valid_rect_num_outputs > 0) {
+				// allocate valid_rect_outputs[] and valid_rect_inputs[]
+				node->valid_rect_outputs = new vx_rectangle_t *[valid_rect_num_outputs]();
+				if (!node->valid_rect_outputs) {
+					status = VX_ERROR_NO_MEMORY;
+					break;
+				}
+				if (valid_rect_num_inputs > 0) {
+					node->valid_rect_inputs = new vx_rectangle_t *[valid_rect_num_inputs]();
+					if (!node->valid_rect_inputs) {
+						status = VX_ERROR_NO_MEMORY;
+						break;
+					}
+					// prepare valid_rect_inputs[] with valid pointers
+					vx_uint32 index = 0;
+					for (vx_uint32 i = 0; i < node->paramCount; i++) {
+						AgoParameter * param = &node->parameters[i];
+						AgoData * data = node->paramList[i];
+						if (data && param->direction == VX_INPUT) {
+							if (data->ref.type == VX_TYPE_IMAGE) {
+								node->valid_rect_inputs[index++] = &data->u.img.rect_valid;
+							}
+							else if (data->ref.type == VX_TYPE_PYRAMID) {
+								for (vx_size level = 0; level < data->u.pyr.levels; level++) {
+									node->valid_rect_inputs[index++] = &data->children[level]->u.img.rect_valid;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return status;
+}
+
+vx_status agoComputeImageValidRectangleOutputs(AgoGraph * graph)
+{
+	vx_status status = VX_SUCCESS;
+
+	// compute output image valid rectangles
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (node->akernel->func && ((node->akernel->flags & AGO_KERNEL_FLAG_GROUP_MASK) == AGO_KERNEL_FLAG_GROUP_AMDLL ||
+			(node->akernel->flags & AGO_KERNEL_FLAG_GROUP_MASK) == AGO_KERNEL_FLAG_GROUP_OVX10))
+		{
+			status = node->akernel->func(node, ago_kernel_cmd_valid_rect_callback);
+			if (status == AGO_ERROR_KERNEL_NOT_IMPLEMENTED) {
+				// consider unimplemented cases as success (nothing needed)
+				status = VX_SUCCESS;
+			}
+		}
+		else if (node->valid_rect_outputs) {
+			// use node->valid_rect_outputs[] to propagate valid rectangles
+			for (vx_uint32 i = 0; i < node->paramCount; i++) {
+				AgoParameter * param = &node->parameters[i];
+				AgoData * data = node->paramList[i];
+				if (data && param->direction == VX_OUTPUT) {
+					if (data->ref.type == VX_TYPE_IMAGE) {
+						if (node->metaList[i].set_valid_rectangle_callback) {
+							node->valid_rect_outputs[0] = &data->u.img.rect_valid;
+							status = node->metaList[i].set_valid_rectangle_callback(node, i, node->valid_rect_inputs, node->valid_rect_outputs);
+						}
+						else if (node->valid_rect_reset) {
+							data->u.img.rect_valid.start_x = 0;
+							data->u.img.rect_valid.start_y = 0;
+							data->u.img.rect_valid.end_x = data->u.img.width;
+							data->u.img.rect_valid.end_y = data->u.img.height;
+						}
+					}
+					else if (data->ref.type == VX_TYPE_PYRAMID) {
+						if (node->metaList[i].set_valid_rectangle_callback) {
+							for (vx_size level = 0; level < data->u.pyr.levels; level++) {
+								node->valid_rect_outputs[level] = &data->children[level]->u.img.rect_valid;
+							}
+							status = node->metaList[i].set_valid_rectangle_callback(node, i, node->valid_rect_inputs, node->valid_rect_outputs);
+						}
+						else if (node->valid_rect_reset) {
+							for (vx_size level = 0; level < data->u.pyr.levels; level++) {
+								data->children[level]->u.img.rect_valid.start_x = 0;
+								data->children[level]->u.img.rect_valid.start_y = 0;
+								data->children[level]->u.img.rect_valid.end_x = data->children[level]->u.img.width;
+								data->children[level]->u.img.rect_valid.end_y = data->children[level]->u.img.height;
+							}
+						}
+					}
+				}
+			}
+		}
+#if 0 // TBD remove -- dump valid rectangle info
+		for (vx_uint32 i = 0; i < node->paramCount; i++) {
+			AgoParameter * param = &node->parameters[i];
+			AgoData * data = node->paramList[i];
+			if (data && param->direction == VX_OUTPUT) {
+				if (data->ref.type == VX_TYPE_IMAGE) {
+					printf("valid_rect [ %5d %5d %5d %5d ] image %s\n", data->u.img.rect_valid.start_x, data->u.img.rect_valid.start_y, data->u.img.rect_valid.end_x, data->u.img.rect_valid.end_y, data->name.c_str());
+				}
+				else if (data->ref.type == VX_TYPE_PYRAMID) {
+					for (vx_size level = 0; level < data->u.pyr.levels; level++) {
+						printf("valid_rect [ %5d %5d %5d %5d ] pyrL%d %s\n", data->children[level]->u.img.rect_valid.start_x, data->children[level]->u.img.rect_valid.start_y, data->children[level]->u.img.rect_valid.end_x, data->children[level]->u.img.rect_valid.end_y, (int)level, data->name.c_str());
+					}
+				}
+			}
+		}
+#endif
+	}
 
 	return status;
 }

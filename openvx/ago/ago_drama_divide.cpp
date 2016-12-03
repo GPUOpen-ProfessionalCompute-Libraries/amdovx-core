@@ -496,18 +496,23 @@ int agoDramaDivideSobel3x3Node(AgoNodeList * nodeList, AgoNode * anode)
 	// sanity checks
 	if (anode->paramCount != 3) return -1;
 	SANITY_CHECK_DATA_TYPE(anode->paramList[0], VX_TYPE_IMAGE);
-	SANITY_CHECK_DATA_TYPE(anode->paramList[1], VX_TYPE_IMAGE);
-	SANITY_CHECK_DATA_TYPE(anode->paramList[2], VX_TYPE_IMAGE);
+	SANITY_CHECK_DATA_TYPE_OPTIONAL(anode->paramList[1], VX_TYPE_IMAGE);
+	SANITY_CHECK_DATA_TYPE_OPTIONAL(anode->paramList[2], VX_TYPE_IMAGE);
 	// perform divide
 	AgoData * paramList[AGO_MAX_PARAMS]; memcpy(paramList, anode->paramList, sizeof(paramList));
-	anode->paramList[0] = paramList[1];
-	anode->paramList[1] = paramList[0];
-	anode->paramCount = 2;
-	if (agoDramaDivideAppend(nodeList, anode, VX_KERNEL_AMD_SOBEL_S16_U8_3x3_GX)) return -1;
-	anode->paramList[0] = paramList[2];
-	anode->paramList[1] = paramList[0];
-	anode->paramCount = 2;
-	return agoDramaDivideAppend(nodeList, anode, VX_KERNEL_AMD_SOBEL_S16_U8_3x3_GY);
+	if (paramList[1]) {
+		anode->paramList[0] = paramList[1];
+		anode->paramList[1] = paramList[0];
+		anode->paramCount = 2;
+		if (agoDramaDivideAppend(nodeList, anode, VX_KERNEL_AMD_SOBEL_S16_U8_3x3_GX)) return -1;
+	}
+	if (paramList[2]) {
+		anode->paramList[0] = paramList[2];
+		anode->paramList[1] = paramList[0];
+		anode->paramCount = 2;
+		if (agoDramaDivideAppend(nodeList, anode, VX_KERNEL_AMD_SOBEL_S16_U8_3x3_GY)) return -1;
+	}
+	return VX_SUCCESS;
 }
 
 int agoDramaDivideMagnitudeNode(AgoNodeList * nodeList, AgoNode * anode)
@@ -1762,8 +1767,8 @@ int agoDramaDivideOpticalFlowPyrLkNode(AgoNodeList * nodeList, AgoNode * anode)
 int agoDramaDivideNode(AgoNodeList * nodeList, AgoNode * anode)
 {
 	// save parameter list
-	AgoData * paramList[AGO_MAX_PARAMS];
-	memcpy(paramList, anode->paramList, sizeof(paramList));
+	vx_uint32 paramCount = anode->paramCount;
+	AgoData * paramList[AGO_MAX_PARAMS]; memcpy(paramList, anode->paramList, sizeof(paramList));
 	// divide the node depending on the type
 	int status = -1;
 	switch (anode->akernel->id)
@@ -1895,6 +1900,7 @@ int agoDramaDivideNode(AgoNodeList * nodeList, AgoNode * anode)
 			break;
 	}
 	// revert parameter list
+	anode->paramCount = paramCount;
 	memcpy(anode->paramList, paramList, sizeof(anode->paramList));
 	return status;
 }
