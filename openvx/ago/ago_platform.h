@@ -60,6 +60,9 @@ using namespace std;
 #include <cstdlib>
 #include <cmath>
 #endif
+#include <strings.h>
+#define _strnicmp strncasecmp
+#define _stricmp  strcasecmp
 #endif
 
 #if ENABLE_OPENCL
