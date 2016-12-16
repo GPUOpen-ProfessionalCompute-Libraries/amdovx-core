@@ -94,6 +94,12 @@ enum vx_kernel_attribute_amd_e {
 	VX_KERNEL_ATTRIBUTE_AMD_OPENCL_CODEGEN_CALLBACK = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_KERNEL) + 0x02,
 	/*! \brief kernel callback for node regeneration. Use a <tt>\ref amd_kernel_node_regen_callback_f</tt> parameter.*/
 	VX_KERNEL_ATTRIBUTE_AMD_NODE_REGEN_CALLBACK     = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_KERNEL) + 0x03,
+	/*! \brief kernel callback for OpenCL global work[]. Use a <tt>\ref amd_kernel_opencl_global_work_update_callback_f</tt> parameter.*/
+	VX_KERNEL_ATTRIBUTE_AMD_OPENCL_GLOBAL_WORK_UPDATE_CALLBACK = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_KERNEL) + 0x04,
+	/*! \brief kernel flag to enable OpenCL image access (default OFF). Use a <tt>\ref vx_bool</tt> parameter.*/
+	VX_KERNEL_ATTRIBUTE_AMD_OPENCL_IMAGE_ACCESS_ENABLE         = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_KERNEL) + 0x05,
+	/*! \brief kernel callback for OpenCL buffer update. Use a <tt>\ref AgoKernelOpenclBufferUpdateInfo</tt> parameter.*/
+	VX_KERNEL_ATTRIBUTE_AMD_OPENCL_BUFFER_UPDATE_CALLBACK      = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_KERNEL) + 0x06,
 };
 
 /*! \brief The AMD graph attributes list.
@@ -129,12 +135,14 @@ enum vx_node_attribute_amd_e {
 enum vx_image_attribute_amd_e {
 	/*! \brief sync with user specified OpenCL buffer. Use a <tt>\ref cl_mem</tt> parameter.*/
 	VX_IMAGE_ATTRIBUTE_AMD_OPENCL_BUFFER             = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_IMAGE) + 0x01,
-	/*! \brief sync with user specified OpenCL buffer offset. Use a <tt>\ref cl_uint</tt> parameter.*/
+	/*! \brief OpenCL buffer offset. Use a <tt>\ref cl_uint</tt> parameter.*/
 	VX_IMAGE_ATTRIBUTE_AMD_OPENCL_BUFFER_OFFSET      = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_IMAGE) + 0x02,
 	/*! \brief Enable user kernel's own OpenCL buffer for virtual images. Supports only images with
 	* single color plane and stride should match framework's internal alignment. image ROI not supported.
 	* Use a <tt>\ref vx_bool</tt> parameter.*/
 	VX_IMAGE_ATTRIBUTE_AMD_ENABLE_USER_BUFFER_OPENCL = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_IMAGE) + 0x03,
+	/*! \brief OpenCL buffer stride. Use a <tt>\ref cl_uint</tt> parameter.*/
+	VX_IMAGE_ATTRIBUTE_AMD_OPENCL_BUFFER_STRIDE      = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_IMAGE) + 0x04,
 };
 
 /*! \brief These enumerations are given to the \c vxDirective API to enable/disable
@@ -149,6 +157,17 @@ enum vx_directive_amd_e {
 	VX_DIRECTIVE_AMD_READ_ONLY      = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x01,
 	/*! \brief data object copy to OpenCL. */
 	VX_DIRECTIVE_AMD_COPY_TO_OPENCL = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x02,
+	/*! \brief collect performance profile capture. */
+	VX_DIRECTIVE_AMD_ENABLE_PROFILE_CAPTURE  = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x03,
+	VX_DIRECTIVE_AMD_DISABLE_PROFILE_CAPTURE = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x04,
+};
+
+/*! \brief An enumeration of additional memory type imports.
+* \ingroup group_context
+*/
+enum vx_memory_type_amd_e {
+	/*! \brief The memory type to import from the OpenCL. Use */
+	VX_MEMORY_TYPE_OPENCL = VX_ENUM_BASE(VX_ID_KHRONOS, VX_ENUM_MEMORY_TYPE) + 0x2,
 };
 
 /*! \brief Based on the VX_DF_IMAGE definition.
@@ -161,9 +180,15 @@ enum vx_df_image_amd_e {
 	VX_DF_IMAGE_F32x3_AMD = VX_DF_IMAGE('F', '3', '3', '2'),  // AGO image with THREE 32-bit floating-point channels in one buffer
 };
 
-/*! \brief module entry point for vxUnpublishKernels.
+/*! \brief Image format information.
 */
-typedef vx_status(VX_API_CALL *vx_unpublish_kernels_f)(vx_context context);
+typedef struct {
+	vx_size            components;
+	vx_size            planes;
+	vx_size            pixelSizeInBits;
+	vx_color_space_e   colorSpace;
+	vx_channel_range_e channelRange;
+} AgoImageFormatDescription;
 
 /*! \brief AMD data structure to specify target affinity.
 */
@@ -247,7 +272,10 @@ typedef vx_status(VX_CALLBACK * amd_kernel_query_target_support_f) (vx_graph gra
 *     vx_remap:       __global short2 * buf, uint stride_in_bytes
 *     vx_lut:         __read_only image1d_t lut
 */
-typedef vx_status(VX_CALLBACK * amd_kernel_opencl_codegen_callback_f) (vx_node node,
+typedef vx_status(VX_CALLBACK * amd_kernel_opencl_codegen_callback_f) (
+	vx_node node,                                  // [input] node
+	const vx_reference parameters[],               // [input] parameters
+	vx_uint32 num,                                 // [input] number of parameters
 	bool opencl_load_function,                     // [input]  false: normal OpenCL kernel; true: reserved
 	char opencl_kernel_function_name[64],          // [output] kernel_name for clCreateKernel()
 	std::string& opencl_kernel_code,               // [output] string for clCreateProgramWithSource()
@@ -262,34 +290,45 @@ typedef vx_status(VX_CALLBACK * amd_kernel_opencl_codegen_callback_f) (vx_node n
 /*! \brief AMD usernode callback for regenerating a node.
 */
 typedef vx_status(VX_CALLBACK * amd_kernel_node_regen_callback_f) (vx_graph graph, vx_node node, vx_bool& regen_not_needed);
+
+/*! \brief AMD usernode callback for updating the OpenCL global_work[]. The framework will pass
+*   OpenVX objects as parameters to OpenCL kernels in othe order they appear to OpenVX node and
+*   previous values of local/global work. This function will get called before launching the kernel.
+*/
+typedef vx_status(VX_CALLBACK * amd_kernel_opencl_global_work_update_callback_f) (
+	vx_node node,                                  // [input] node
+	const vx_reference parameters[],               // [input] parameters
+	vx_uint32 num,                                 // [input] number of parameters
+	vx_uint32 opencl_work_dim,                     // [input] work_dim for clEnqueueNDRangeKernel()
+	vx_size opencl_global_work[],                  // [output] global_work[] for clEnqueueNDRangeKernel()
+	const vx_size opencl_local_work[]              // [input] local_work[] for clEnqueueNDRangeKernel()
+	);
+
+/*! \brief AMD usernode callback for setting the OpenCL buffers. The framework will pass
+*   OpenVX objects as parameters to OpenCL kernels in othe order they appear to OpenVX node.
+*   This function will get called before executing the node.
+*/
+typedef vx_status(VX_CALLBACK * amd_kernel_opencl_buffer_update_callback_f) (
+	vx_node node,                                  // [input] node
+	const vx_reference parameters[],               // [input] parameters
+	vx_uint32 num                                  // [input] number of parameters
+	);
+
+/*! \brief AMD data structure for use by VX_KERNEL_ATTRIBUTE_AMD_OPENCL_BUFFER_UPDATE_CALLBACK.
+*/
+typedef struct {
+	amd_kernel_opencl_buffer_update_callback_f opencl_buffer_update_callback_f;
+	vx_uint32 opencl_buffer_update_param_index;
+} AgoKernelOpenclBufferUpdateInfo;
+#endif
+
+#ifdef  __cplusplus
+extern "C" {
 #endif
 
 /*==============================================================================
 MISCELLANEOUS
 =============================================================================*/
-
-/*! \brief Name a reference
-* \ingroup vx_framework_reference
-*
-* This function is used to associate a name to a reference. This name
-* can be used by the OpenVX implementation in log messages and any
-* other reporting mechanisms.
-*
-* The OpenVX implementation will not check if the name is unique in
-* the reference scope (context or graph). Several references can then
-* have the same name.
-*
-* \param [in] ref The reference to name.
-* \param [in] name Pointer to the '\0' terminated string that identifies
-*             the reference.
-*             The string is copied by the function so that it
-*             stays the property of the caller.
-*             NULL means that the reference is not named.
-* \return A \ref vx_status_e enumeration.
-* \retval VX_SUCCESS No errors.
-* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
-*/
-VX_API_ENTRY vx_status VX_API_CALL vxSetReferenceName(vx_reference ref, const vx_char *name);
 
 /**
 * \brief Retrieve the name of a reference
@@ -337,5 +376,25 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetModuleInternalData(vx_context context, c
 * \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
 */
 VX_API_ENTRY vx_status VX_API_CALL vxGetModuleInternalData(vx_context context, const vx_char * module, void ** ptr, vx_size * size);
+
+/**
+* \brief Set custom image format description.
+* \ingroup vx_framework_reference
+*
+* This function is used to support custom image formats with single-plane by ISVs. Should be called from vxPublishKernels().
+*
+* \param [in] context The context.
+* \param [in] format The image format.
+* \param [in] desc The image format description.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+* \retval VX_ERROR_INVALID_FORMAT if format is already in use.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context context, vx_df_image format, const AgoImageFormatDescription * desc);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

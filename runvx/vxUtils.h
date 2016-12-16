@@ -24,7 +24,17 @@ THE SOFTWARE.
 #ifndef __VX_UTILS_H__
 #define __VX_UTILS_H__
 
+// OpenCL: enabled unless disabled explicitly by setting ENABLE_OPENCL=0
+#ifndef ENABLE_OPENCL
+#define ENABLE_OPENCL  1
+#endif
+// OpenCV: enabled unless disabled explicitly by setting ENABLE_OPENCV=0
+#ifndef ENABLE_OPENCV
+#define ENABLE_OPENCV 1
+#endif
+
 #include <VX/vx.h>
+#include <VX/vx_compatibility.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,10 +68,11 @@ THE SOFTWARE.
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#ifndef USE_OPENCV
-#define USE_OPENCV 1
+#if ENABLE_OPENCL
+#include <CL/cl.h>
 #endif
-#if USE_OPENCV
+
+#if ENABLE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -77,6 +88,7 @@ using namespace std;
 // error check/report macros
 #define ReportError(...) { printf(__VA_ARGS__); throw -1; }
 #define ERROR_CHECK(call) { vx_status status = call; if(status) ReportError("ERROR: " #call "=> %d (%s) [" __FILE__ "#%d]\n", status, ovxEnum2Name(status), __LINE__); }
+#define ERROR_CHECK_AND_WARN(call,warncode) { vx_status status = call; if(status == warncode) printf("WARNING: " #call "=> %d (%s) [" __FILE__ "#%d]\n", status, ovxEnum2Name(status), __LINE__); else if(status) ReportError("ERROR: " #call "=> %d (%s) [" __FILE__ "#%d]\n", status, ovxEnum2Name(status), __LINE__); }
 #define NULLPTR_CHECK(call) if((call) == nullptr) ReportError("ERROR: " #call "=> nullptr [" __FILE__ "#%d]\n", __LINE__)
 
 ///////////////////////////////////////////////////////////////////////////

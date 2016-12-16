@@ -54,10 +54,6 @@ static int ValidateArguments_Img_1OUT(AgoNode * node, vx_df_image fmtOut)
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut;
-	meta->data.u.img.rect_valid.start_x = 0;
-	meta->data.u.img.rect_valid.start_y = 0;
-	meta->data.u.img.rect_valid.end_x = (int)width - 1;
-	meta->data.u.img.rect_valid.end_y = (int)height - 1;
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_1OUT_1IN(AgoNode * node, vx_df_image fmtOut, vx_df_image fmtIn, bool bShrinkValidRegion = false, int shrinkValidRegion_x = 0, int shrinkValidRegion_y = 0)
@@ -75,20 +71,6 @@ static int ValidateArguments_Img_1OUT_1IN(AgoNode * node, vx_df_image fmtOut, vx
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[1]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[1]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[1]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[1]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
-	}
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_2OUT_1IN(AgoNode * node, vx_df_image fmtOut1, vx_df_image fmtOut2, vx_df_image fmtIn, bool bShrinkValidRegion = false, int shrinkValidRegion_x = 0, int shrinkValidRegion_y = 0)
@@ -106,38 +88,10 @@ static int ValidateArguments_Img_2OUT_1IN(AgoNode * node, vx_df_image fmtOut1, v
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut1;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[2]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[2]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[2]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[2]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
-	}
 	meta = &node->metaList[1];
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut2;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[2]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[2]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[2]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[2]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
-	}
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_3OUT_1IN(AgoNode * node, vx_df_image fmtOut1, vx_df_image fmtOut2, vx_df_image fmtOut3, vx_df_image fmtIn, bool bShrinkValidRegion = false, int shrinkValidRegion_x = 0, int shrinkValidRegion_y = 0)
@@ -155,56 +109,14 @@ static int ValidateArguments_Img_3OUT_1IN(AgoNode * node, vx_df_image fmtOut1, v
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut1;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[3]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[3]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[3]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[3]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
-	}
 	meta = &node->metaList[1];
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut2;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[3]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[3]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[3]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[3]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
-	}
 	meta = &node->metaList[2];
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut3;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[3]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[3]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[3]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[3]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
-	}
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_4OUT_1IN(AgoNode * node, vx_df_image fmtOut1, vx_df_image fmtOut2, vx_df_image fmtOut3, vx_df_image fmtOut4, vx_df_image fmtIn, bool bShrinkValidRegion = false, int shrinkValidRegion_x = 0, int shrinkValidRegion_y = 0)
@@ -222,74 +134,18 @@ static int ValidateArguments_Img_4OUT_1IN(AgoNode * node, vx_df_image fmtOut1, v
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut1;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[4]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[4]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[4]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[4]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[4]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[4]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[4]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[4]->u.img.rect_valid.end_y;
-	}
 	meta = &node->metaList[1];
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut2;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[4]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[4]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[4]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[4]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[4]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[4]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[4]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[4]->u.img.rect_valid.end_y;
-	}
 	meta = &node->metaList[2];
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut3;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[4]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[4]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[4]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[4]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[4]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[4]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[4]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[4]->u.img.rect_valid.end_y;
-	}
 	meta = &node->metaList[3];
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut4;
-	if (bShrinkValidRegion)
-	{
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[4]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[4]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[4]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[4]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
-	}
-	else
-	{
-		meta->data.u.img.rect_valid.start_x = node->paramList[4]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[4]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[4]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[4]->u.img.rect_valid.end_y;
-	}
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_1OUT_1IN_S(AgoNode * node, vx_df_image fmtOut, vx_df_image fmtIn, vx_enum scalarType, bool bShrinkValidRegion = false, int shrinkValidRegion_x = 0, int shrinkValidRegion_y = 0)
@@ -334,10 +190,6 @@ static int ValidateArguments_Img_1OUT_2IN(AgoNode * node, vx_df_image fmtOut, vx
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut;
-	meta->data.u.img.rect_valid.start_x = max(node->paramList[1]->u.img.rect_valid.start_x, node->paramList[2]->u.img.rect_valid.start_x);
-	meta->data.u.img.rect_valid.start_y = max(node->paramList[1]->u.img.rect_valid.start_y, node->paramList[2]->u.img.rect_valid.start_y);
-	meta->data.u.img.rect_valid.end_x = min(node->paramList[1]->u.img.rect_valid.end_x, node->paramList[2]->u.img.rect_valid.end_x);
-	meta->data.u.img.rect_valid.end_y = min(node->paramList[1]->u.img.rect_valid.end_y, node->paramList[2]->u.img.rect_valid.end_y);
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_1OUT_2IN_S(AgoNode * node, vx_df_image fmtOut, vx_df_image fmtIn1, vx_df_image fmtIn2, vx_enum scalarType)
@@ -366,10 +218,6 @@ static int ValidateArguments_Img_1OUT_3IN(AgoNode * node, vx_df_image fmtOut, vx
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut;
-	meta->data.u.img.rect_valid.start_x = max(node->paramList[1]->u.img.rect_valid.start_x, max(node->paramList[2]->u.img.rect_valid.start_x, node->paramList[3]->u.img.rect_valid.start_x));
-	meta->data.u.img.rect_valid.start_y = max(node->paramList[1]->u.img.rect_valid.start_y, max(node->paramList[2]->u.img.rect_valid.start_y, node->paramList[3]->u.img.rect_valid.start_y));
-	meta->data.u.img.rect_valid.end_x = min(node->paramList[1]->u.img.rect_valid.end_x, min(node->paramList[2]->u.img.rect_valid.end_x, node->paramList[3]->u.img.rect_valid.end_x));
-	meta->data.u.img.rect_valid.end_y = min(node->paramList[1]->u.img.rect_valid.end_y, min(node->paramList[2]->u.img.rect_valid.end_y, node->paramList[3]->u.img.rect_valid.end_y));
 	return VX_SUCCESS;
 }
 static int ValidateArguments_Img_1OUT_4IN(AgoNode * node, vx_df_image fmtOut, vx_df_image fmtIn1, vx_df_image fmtIn2, vx_df_image fmtIn3, vx_df_image fmtIn4)
@@ -390,10 +238,6 @@ static int ValidateArguments_Img_1OUT_4IN(AgoNode * node, vx_df_image fmtOut, vx
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = fmtOut;
-	meta->data.u.img.rect_valid.start_x = max(node->paramList[1]->u.img.rect_valid.start_x, max(node->paramList[2]->u.img.rect_valid.start_x, max(node->paramList[3]->u.img.rect_valid.start_x, node->paramList[4]->u.img.rect_valid.start_x)));
-	meta->data.u.img.rect_valid.start_y = max(node->paramList[1]->u.img.rect_valid.start_y, max(node->paramList[2]->u.img.rect_valid.start_y, max(node->paramList[3]->u.img.rect_valid.start_y, node->paramList[4]->u.img.rect_valid.start_y)));
-	meta->data.u.img.rect_valid.end_x = min(node->paramList[1]->u.img.rect_valid.end_x, min(node->paramList[2]->u.img.rect_valid.end_x, min(node->paramList[3]->u.img.rect_valid.end_x, node->paramList[4]->u.img.rect_valid.end_x)));
-	meta->data.u.img.rect_valid.end_y = min(node->paramList[1]->u.img.rect_valid.end_y, min(node->paramList[2]->u.img.rect_valid.end_y, min(node->paramList[3]->u.img.rect_valid.end_y, node->paramList[4]->u.img.rect_valid.end_y)));
 	return VX_SUCCESS;
 }
 static int ValidateArguments_CannySuppThreshold_U8(AgoNode * node, vx_df_image fmtIn, int shrinkValidRegion_x, int shrinkValidRegion_y)
@@ -414,10 +258,6 @@ static int ValidateArguments_CannySuppThreshold_U8(AgoNode * node, vx_df_image f
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = VX_DF_IMAGE_U8;
-	meta->data.u.img.rect_valid.start_x = min(node->paramList[1]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-	meta->data.u.img.rect_valid.start_y = min(node->paramList[1]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-	meta->data.u.img.rect_valid.end_x = max((int)node->paramList[1]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-	meta->data.u.img.rect_valid.end_y = max((int)node->paramList[1]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
 	return VX_SUCCESS;
 }
 static int ValidateArguments_CannySuppThreshold_U8XY(AgoNode * node, vx_df_image fmtIn, int shrinkValidRegion_x, int shrinkValidRegion_y)
@@ -438,10 +278,6 @@ static int ValidateArguments_CannySuppThreshold_U8XY(AgoNode * node, vx_df_image
 	meta->data.u.img.width = width;
 	meta->data.u.img.height = height;
 	meta->data.u.img.format = VX_DF_IMAGE_U8;
-	meta->data.u.img.rect_valid.start_x = min(node->paramList[1]->u.img.rect_valid.start_x + shrinkValidRegion_x, width);
-	meta->data.u.img.rect_valid.start_y = min(node->paramList[1]->u.img.rect_valid.start_y + shrinkValidRegion_y, height);
-	meta->data.u.img.rect_valid.end_x = max((int)node->paramList[1]->u.img.rect_valid.end_x - shrinkValidRegion_x, 0);
-	meta->data.u.img.rect_valid.end_y = max((int)node->paramList[1]->u.img.rect_valid.end_y - shrinkValidRegion_y, 0);
 	return VX_SUCCESS;
 }
 static int ValidateArguments_OpticalFlowPyrLK_XY_XY(AgoNode * node)
@@ -524,10 +360,6 @@ int ovxKernel_ColorConvert(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = dstfmt;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -583,10 +415,6 @@ int ovxKernel_ChannelExtract(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> x_scale_factor_is_2;
 		meta->data.u.img.height = height >> y_scale_factor_is_2;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
 		status = VX_SUCCESS;
 	}
     else if (cmd == ago_kernel_cmd_get_image_plane_nonusage) {
@@ -655,10 +483,6 @@ int ovxKernel_ChannelCombine(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = dstfmt;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -698,18 +522,10 @@ int ovxKernel_Sobel3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_S16;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_S16;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -748,10 +564,6 @@ int ovxKernel_Magnitude(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_S16;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -790,10 +602,6 @@ int ovxKernel_Phase(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -836,15 +644,6 @@ int ovxKernel_ScaleImage(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = node->paramList[1]->u.img.width;
 		meta->data.u.img.height = node->paramList[1]->u.img.height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		// set the valid region
-		vx_float32 widthOut = (vx_float32)node->paramList[1]->u.img.width;
-		vx_float32 widthIn = (vx_float32)node->paramList[0]->u.img.width;
-		vx_float32 heightOut = (vx_float32)node->paramList[1]->u.img.height;
-		vx_float32 heightIn = (vx_float32)node->paramList[0]->u.img.height;
-		meta->data.u.img.rect_valid.start_x = (vx_uint32)(((node->paramList[0]->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
-		meta->data.u.img.rect_valid.start_y = (vx_uint32)(((node->paramList[0]->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
-		meta->data.u.img.rect_valid.end_x = (vx_uint32)(((node->paramList[0]->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
-		meta->data.u.img.rect_valid.end_y = (vx_uint32)(((node->paramList[0]->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -883,10 +682,6 @@ int ovxKernel_TableLookup(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -960,10 +755,6 @@ int ovxKernel_EqualizeHistogram(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1003,10 +794,6 @@ int ovxKernel_AbsDiff(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = format;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1086,10 +873,6 @@ int ovxKernel_Threshold(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1128,10 +911,6 @@ int ovxKernel_IntegralImage(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U32;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1170,10 +949,6 @@ int ovxKernel_Dilate3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1212,10 +987,6 @@ int ovxKernel_Erode3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1254,10 +1025,6 @@ int ovxKernel_Median3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1296,11 +1063,6 @@ int ovxKernel_Box3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		// set output image valid region
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1339,10 +1101,6 @@ int ovxKernel_Gaussian3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + 1, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1388,10 +1146,6 @@ int ovxKernel_CustomConvolution(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = dstfmt;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + M, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + N, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - M, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - N, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1474,11 +1228,6 @@ int ovxKernel_Accumulate(AgoNode * node, AgoKernelCommand cmd)
 			return VX_ERROR_INVALID_FORMAT;
 		else if (!width || !height || width != node->paramList[1]->u.img.width || height != node->paramList[1]->u.img.height)
 			return VX_ERROR_INVALID_DIMENSION;
-		// Update the valid region
-		node->paramList[0]->u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		node->paramList[0]->u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		node->paramList[0]->u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		node->paramList[0]->u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1515,11 +1264,6 @@ int ovxKernel_AccumulateWeighted(AgoNode * node, AgoKernelCommand cmd)
 			return VX_ERROR_INVALID_TYPE;
 		else if (node->paramList[1]->u.scalar.u.f < 0.0f || node->paramList[1]->u.scalar.u.f > 1.0f)
 			return VX_ERROR_INVALID_VALUE;
-		// Update the valid region
-		node->paramList[0]->u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		node->paramList[0]->u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		node->paramList[0]->u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		node->paramList[0]->u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1556,11 +1300,6 @@ int ovxKernel_AccumulateSquare(AgoNode * node, AgoKernelCommand cmd)
 			return VX_ERROR_INVALID_TYPE;
 		else if (node->paramList[1]->u.scalar.u.u > 15)
 			return VX_ERROR_INVALID_VALUE;
-		// Update the valid region
-		node->paramList[0]->u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		node->paramList[0]->u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		node->paramList[0]->u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		node->paramList[0]->u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1648,10 +1387,6 @@ int ovxKernel_ConvertDepth(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = (node->paramList[0]->u.img.format == VX_DF_IMAGE_U8) ? VX_DF_IMAGE_S16 : VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[0]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[0]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[0]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[0]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1711,10 +1446,6 @@ int ovxKernel_CannyEdgeDetector(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[0]->u.img.rect_valid.start_x + N + 1, width);				// N rows invalidated by filtering and one extra for non-max supression
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[0]->u.img.rect_valid.start_y + N + 1, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[0]->u.img.rect_valid.end_x - N - 1, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[0]->u.img.rect_valid.end_y - N - 1, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1753,10 +1484,6 @@ int ovxKernel_And(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1795,10 +1522,6 @@ int ovxKernel_Or(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1837,10 +1560,6 @@ int ovxKernel_Xor(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1879,10 +1598,6 @@ int ovxKernel_Not(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1939,10 +1654,6 @@ int ovxKernel_Multiply(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = dstfmt;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -1991,10 +1702,6 @@ int ovxKernel_Add(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = dstfmt;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -2043,10 +1750,6 @@ int ovxKernel_Subtract(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = dstfmt;
-		meta->data.u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		meta->data.u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		meta->data.u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		meta->data.u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -2361,10 +2064,6 @@ int ovxKernel_HalfScaleGaussian(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = (width + 1) >> 1;
 		meta->data.u.img.height = (height + 1) >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = ((node->paramList[0]->u.img.rect_valid.start_x + 1) >> 1) + N;
-		meta->data.u.img.rect_valid.start_y = ((node->paramList[0]->u.img.rect_valid.start_y + 1) >> 1) + N;
-		meta->data.u.img.rect_valid.end_x = ((node->paramList[0]->u.img.rect_valid.end_x + 1) >> 1) - N;
-		meta->data.u.img.rect_valid.end_y = ((node->paramList[0]->u.img.rect_valid.end_y + 1) >> 1) - N;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -2924,7 +2623,14 @@ int agoKernel_Set00_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
-    return status;
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		out->u.img.rect_valid.start_x = 0;
+		out->u.img.rect_valid.start_y = 0;
+		out->u.img.rect_valid.end_x = out->u.img.width;
+		out->u.img.rect_valid.end_y = out->u.img.height;
+	}
+	return status;
 }
 
 int agoKernel_SetFF_U8(AgoNode * node, AgoKernelCommand cmd)
@@ -2965,6 +2671,13 @@ int agoKernel_SetFF_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		out->u.img.rect_valid.start_x = 0;
+		out->u.img.rect_valid.start_y = 0;
+		out->u.img.rect_valid.end_x = out->u.img.width;
+		out->u.img.rect_valid.end_y = out->u.img.height;
+	}
 	return status;
 }
 
@@ -3008,6 +2721,14 @@ int agoKernel_Not_U8_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3053,6 +2774,14 @@ int agoKernel_Not_U8_U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3098,6 +2827,14 @@ int agoKernel_Not_U1_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3141,6 +2878,14 @@ int agoKernel_Not_U1_U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3197,6 +2942,14 @@ int agoKernel_Lut_U8_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3242,6 +2995,14 @@ int agoKernel_Threshold_U8_U8_Binary(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3287,6 +3048,14 @@ int agoKernel_Threshold_U8_U8_Range(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3337,6 +3106,14 @@ int agoKernel_Threshold_U1_U8_Binary(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3387,6 +3164,14 @@ int agoKernel_Threshold_U1_U8_Range(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3437,6 +3222,14 @@ int agoKernel_ThresholdNot_U8_U8_Binary(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3487,6 +3280,14 @@ int agoKernel_ThresholdNot_U8_U8_Range(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3537,6 +3338,14 @@ int agoKernel_ThresholdNot_U1_U8_Binary(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3587,6 +3396,14 @@ int agoKernel_ThresholdNot_U1_U8_Range(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3641,6 +3458,14 @@ int agoKernel_ColorDepth_U8_S16_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3698,6 +3523,14 @@ int agoKernel_ColorDepth_U8_S16_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3751,6 +3584,14 @@ int agoKernel_ColorDepth_S16_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -3804,6 +3645,15 @@ int agoKernel_Add_U8_U8U8_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -3851,6 +3701,15 @@ int agoKernel_Add_U8_U8U8_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -3904,6 +3763,15 @@ int agoKernel_Sub_U8_U8U8_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -3951,6 +3819,15 @@ int agoKernel_Sub_U8_U8U8_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4005,6 +3882,15 @@ int agoKernel_Mul_U8_U8U8_Wrap_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4059,6 +3945,15 @@ int agoKernel_Mul_U8_U8U8_Wrap_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4116,6 +4011,15 @@ int agoKernel_Mul_U8_U8U8_Sat_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4173,6 +4077,15 @@ int agoKernel_Mul_U8_U8U8_Sat_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4217,6 +4130,15 @@ int agoKernel_And_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4263,6 +4185,15 @@ int agoKernel_And_U8_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4309,6 +4240,15 @@ int agoKernel_And_U8_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4356,6 +4296,15 @@ int agoKernel_And_U8_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4401,6 +4350,15 @@ int agoKernel_And_U1_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4447,6 +4405,15 @@ int agoKernel_And_U1_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4493,6 +4460,15 @@ int agoKernel_And_U1_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4537,6 +4513,15 @@ int agoKernel_And_U1_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4581,6 +4566,15 @@ int agoKernel_Or_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4627,6 +4621,15 @@ int agoKernel_Or_U8_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4673,6 +4676,15 @@ int agoKernel_Or_U8_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4720,6 +4732,15 @@ int agoKernel_Or_U8_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4765,6 +4786,15 @@ int agoKernel_Or_U1_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4811,6 +4841,15 @@ int agoKernel_Or_U1_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4857,6 +4896,15 @@ int agoKernel_Or_U1_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4901,6 +4949,15 @@ int agoKernel_Or_U1_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4945,6 +5002,15 @@ int agoKernel_Xor_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -4991,6 +5057,15 @@ int agoKernel_Xor_U8_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5037,6 +5112,15 @@ int agoKernel_Xor_U8_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5084,6 +5168,15 @@ int agoKernel_Xor_U8_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5129,6 +5222,15 @@ int agoKernel_Xor_U1_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5175,6 +5277,15 @@ int agoKernel_Xor_U1_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5221,6 +5332,15 @@ int agoKernel_Xor_U1_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5265,6 +5385,15 @@ int agoKernel_Xor_U1_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5311,6 +5440,15 @@ int agoKernel_Nand_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5358,6 +5496,15 @@ int agoKernel_Nand_U8_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5405,6 +5552,15 @@ int agoKernel_Nand_U8_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5453,6 +5609,15 @@ int agoKernel_Nand_U8_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5500,6 +5665,15 @@ int agoKernel_Nand_U1_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5546,6 +5720,15 @@ int agoKernel_Nand_U1_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5592,6 +5775,15 @@ int agoKernel_Nand_U1_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5636,6 +5828,15 @@ int agoKernel_Nand_U1_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5681,6 +5882,15 @@ int agoKernel_Nor_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5727,6 +5937,15 @@ int agoKernel_Nor_U8_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5773,6 +5992,15 @@ int agoKernel_Nor_U8_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5820,6 +6048,15 @@ int agoKernel_Nor_U8_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5866,6 +6103,15 @@ int agoKernel_Nor_U1_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5912,6 +6158,15 @@ int agoKernel_Nor_U1_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -5958,6 +6213,15 @@ int agoKernel_Nor_U1_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6002,6 +6266,15 @@ int agoKernel_Nor_U1_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6046,6 +6319,15 @@ int agoKernel_Xnor_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6092,6 +6374,15 @@ int agoKernel_Xnor_U8_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6138,6 +6429,15 @@ int agoKernel_Xnor_U8_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6185,6 +6485,15 @@ int agoKernel_Xnor_U8_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6229,6 +6538,15 @@ int agoKernel_Xnor_U1_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6275,6 +6593,15 @@ int agoKernel_Xnor_U1_U8U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6321,6 +6648,15 @@ int agoKernel_Xnor_U1_U1U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6365,6 +6701,15 @@ int agoKernel_Xnor_U1_U1U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6412,6 +6757,15 @@ int agoKernel_AbsDiff_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6437,11 +6791,6 @@ int agoKernel_AccumulateWeighted_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
 			return VX_ERROR_INVALID_DIMENSION;
 		else if (node->paramList[2]->u.scalar.type != VX_TYPE_FLOAT32)
 			return VX_ERROR_INVALID_TYPE;
-		// Update the valid region
-		node->paramList[0]->u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		node->paramList[0]->u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		node->paramList[0]->u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		node->paramList[0]->u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -6483,6 +6832,15 @@ int agoKernel_AccumulateWeighted_U8_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[0];
+		AgoData * inp2 = node->paramList[1];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6536,6 +6894,15 @@ int agoKernel_Add_S16_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6589,6 +6956,15 @@ int agoKernel_Sub_S16_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6643,6 +7019,15 @@ int agoKernel_Mul_S16_U8U8_Wrap_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6697,6 +7082,15 @@ int agoKernel_Mul_S16_U8U8_Wrap_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6751,6 +7145,15 @@ int agoKernel_Mul_S16_U8U8_Sat_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6805,6 +7208,15 @@ int agoKernel_Mul_S16_U8U8_Sat_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6858,6 +7270,15 @@ int agoKernel_Add_S16_S16U8_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6900,6 +7321,15 @@ int agoKernel_Add_S16_S16U8_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -6922,11 +7352,6 @@ int agoKernel_Accumulate_S16_S16U8_Sat(AgoNode * node, AgoKernelCommand cmd)
 			return VX_ERROR_INVALID_FORMAT;
 		else if (!width || !height || width != node->paramList[1]->u.img.width || height != node->paramList[1]->u.img.height)
 			return VX_ERROR_INVALID_DIMENSION;
-		// Update the valid region
-		node->paramList[0]->u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		node->paramList[0]->u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		node->paramList[0]->u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		node->paramList[0]->u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -6956,6 +7381,15 @@ int agoKernel_Accumulate_S16_S16U8_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[0];
+		AgoData * inp2 = node->paramList[1];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7009,6 +7443,15 @@ int agoKernel_Sub_S16_S16U8_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7062,6 +7505,15 @@ int agoKernel_Sub_S16_S16U8_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7116,6 +7568,15 @@ int agoKernel_Mul_S16_S16U8_Wrap_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7170,6 +7631,15 @@ int agoKernel_Mul_S16_S16U8_Wrap_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7225,6 +7695,15 @@ int agoKernel_Mul_S16_S16U8_Sat_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7279,6 +7758,15 @@ int agoKernel_Mul_S16_S16U8_Sat_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7304,11 +7792,6 @@ int agoKernel_AccumulateSquared_S16_S16U8_Sat(AgoNode * node, AgoKernelCommand c
 			return VX_ERROR_INVALID_DIMENSION;
 		else if (node->paramList[2]->u.scalar.type != VX_TYPE_UINT32)
 			return VX_ERROR_INVALID_TYPE;
-		// Update the valid region
-		node->paramList[0]->u.img.rect_valid.start_x = max(node->paramList[0]->u.img.rect_valid.start_x, node->paramList[1]->u.img.rect_valid.start_x);
-		node->paramList[0]->u.img.rect_valid.start_y = max(node->paramList[0]->u.img.rect_valid.start_y, node->paramList[1]->u.img.rect_valid.start_y);
-		node->paramList[0]->u.img.rect_valid.end_x = min(node->paramList[0]->u.img.rect_valid.end_x, node->paramList[1]->u.img.rect_valid.end_x);
-		node->paramList[0]->u.img.rect_valid.end_y = min(node->paramList[0]->u.img.rect_valid.end_y, node->paramList[1]->u.img.rect_valid.end_y);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -7347,6 +7830,15 @@ int agoKernel_AccumulateSquared_S16_S16U8_Sat(AgoNode * node, AgoKernelCommand c
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[0];
+		AgoData * inp2 = node->paramList[1];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7400,6 +7892,15 @@ int agoKernel_Sub_S16_U8S16_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7454,6 +7955,15 @@ int agoKernel_Sub_S16_U8S16_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7510,6 +8020,15 @@ int agoKernel_AbsDiff_S16_S16S16_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7563,6 +8082,15 @@ int agoKernel_Add_S16_S16S16_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7616,6 +8144,15 @@ int agoKernel_Add_S16_S16S16_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7669,6 +8206,15 @@ int agoKernel_Sub_S16_S16S16_Wrap(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7722,6 +8268,15 @@ int agoKernel_Sub_S16_S16S16_Sat(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7776,6 +8331,15 @@ int agoKernel_Mul_S16_S16S16_Wrap_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7830,6 +8394,15 @@ int agoKernel_Mul_S16_S16S16_Wrap_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7884,6 +8457,15 @@ int agoKernel_Mul_S16_S16S16_Sat_Trunc(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7938,6 +8520,15 @@ int agoKernel_Mul_S16_S16S16_Sat_Round(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -7992,6 +8583,15 @@ int agoKernel_Magnitude_S16_S16S16(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -8050,6 +8650,15 @@ int agoKernel_Phase_U8_S16S16(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -8093,6 +8702,14 @@ int agoKernel_ChannelCopy_U8_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8136,6 +8753,14 @@ int agoKernel_ChannelCopy_U8_U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8179,6 +8804,14 @@ int agoKernel_ChannelCopy_U1_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8222,6 +8855,14 @@ int agoKernel_ChannelCopy_U1_U1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8251,10 +8892,6 @@ int agoKernel_ChannelExtract_U8_U16_Pos0(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
 		status = VX_SUCCESS;
@@ -8285,6 +8922,14 @@ int agoKernel_ChannelExtract_U8_U16_Pos0(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8314,10 +8959,6 @@ int agoKernel_ChannelExtract_U8_U16_Pos1(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
 		status = VX_SUCCESS;
@@ -8348,6 +8989,14 @@ int agoKernel_ChannelExtract_U8_U16_Pos1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8389,6 +9038,14 @@ int agoKernel_ChannelExtract_U8_U24_Pos0(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8430,6 +9087,14 @@ int agoKernel_ChannelExtract_U8_U24_Pos1(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8471,6 +9136,14 @@ int agoKernel_ChannelExtract_U8_U24_Pos2(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8501,10 +9174,6 @@ int agoKernel_ChannelExtract_U8_U32_Pos0(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> (format == VX_DF_IMAGE_RGBX ? 0 : 1);
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
 		status = VX_SUCCESS;
@@ -8547,6 +9216,14 @@ int agoKernel_ChannelExtract_U8_U32_Pos0(AgoNode * node, AgoKernelCommand cmd)
         
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8577,10 +9254,6 @@ int agoKernel_ChannelExtract_U8_U32_Pos1(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> (format == VX_DF_IMAGE_RGBX ? 0 : 1);
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
 		status = VX_SUCCESS;
@@ -8622,6 +9295,14 @@ int agoKernel_ChannelExtract_U8_U32_Pos1(AgoNode * node, AgoKernelCommand cmd)
 		}
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8652,10 +9333,6 @@ int agoKernel_ChannelExtract_U8_U32_Pos2(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> (format == VX_DF_IMAGE_RGBX ? 0 : 1);
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
 		status = VX_SUCCESS;
@@ -8696,6 +9373,14 @@ int agoKernel_ChannelExtract_U8_U32_Pos2(AgoNode * node, AgoKernelCommand cmd)
 				;
 		}
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8726,10 +9411,6 @@ int agoKernel_ChannelExtract_U8_U32_Pos3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> (format == VX_DF_IMAGE_RGBX ? 0 : 1);
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
 		status = VX_SUCCESS;
@@ -8771,6 +9452,14 @@ int agoKernel_ChannelExtract_U8_U32_Pos3(AgoNode * node, AgoKernelCommand cmd)
 		}
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8821,6 +9510,24 @@ int agoKernel_ChannelExtract_U8U8U8_U24(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out3->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out3->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8871,6 +9578,24 @@ int agoKernel_ChannelExtract_U8U8U8_U32(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out3->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out3->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8924,6 +9649,29 @@ int agoKernel_ChannelExtract_U8U8U8U8_U32(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * out4 = node->paramList[3];
+		AgoData * inp = node->paramList[4];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out3->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out3->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out4->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out4->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out4->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out4->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -8975,6 +9723,15 @@ int agoKernel_ChannelCombine_U16_U8U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out  = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -9028,6 +9785,16 @@ int agoKernel_ChannelCombine_U24_U8U8U8_RGB(AgoNode * node, AgoKernelCommand cmd
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out  = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		AgoData * inp3 = node->paramList[3];
+		out->u.img.rect_valid.start_x = max(max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x), inp3->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y), inp3->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x), inp3->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y), inp3->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -9062,10 +9829,6 @@ int agoKernel_ChannelCombine_U32_U8U8U8_UYVY(AgoNode * node, AgoKernelCommand cm
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_UYVY;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9085,6 +9848,14 @@ int agoKernel_ChannelCombine_U32_U8U8U8_UYVY(AgoNode * node, AgoKernelCommand cm
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9119,10 +9890,6 @@ int agoKernel_ChannelCombine_U32_U8U8U8_YUYV(AgoNode * node, AgoKernelCommand cm
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_YUYV;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9142,6 +9909,14 @@ int agoKernel_ChannelCombine_U32_U8U8U8_YUYV(AgoNode * node, AgoKernelCommand cm
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9200,6 +9975,17 @@ int agoKernel_ChannelCombine_U32_U8U8U8U8_RGBX(AgoNode * node, AgoKernelCommand 
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out  = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		AgoData * inp3 = node->paramList[3];
+		AgoData * inp4 = node->paramList[4];
+		out->u.img.rect_valid.start_x = max(max(max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x), inp3->u.img.rect_valid.start_x), inp4->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(max(max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y), inp3->u.img.rect_valid.start_y), inp4->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(min(min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x), inp3->u.img.rect_valid.end_x), inp4->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(min(min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y), inp3->u.img.rect_valid.end_y), inp4->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -9276,6 +10062,15 @@ int agoKernel_Mul_U24_U24U8_Sat_Round(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
 	}
 	return status;
 }
@@ -9364,6 +10159,15 @@ int agoKernel_Mul_U32_U32U8_Sat_Round(AgoNode * node, AgoKernelCommand cmd)
 			;
 		status = VX_SUCCESS;
 	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp1 = node->paramList[1];
+		AgoData * inp2 = node->paramList[2];
+		out->u.img.rect_valid.start_x = max(inp1->u.img.rect_valid.start_x, inp2->u.img.rect_valid.start_x);
+		out->u.img.rect_valid.start_y = max(inp1->u.img.rect_valid.start_y, inp2->u.img.rect_valid.start_y);
+		out->u.img.rect_valid.end_x = min(inp1->u.img.rect_valid.end_x, inp2->u.img.rect_valid.end_x);
+		out->u.img.rect_valid.end_y = min(inp1->u.img.rect_valid.end_y, inp2->u.img.rect_valid.end_y);
+	}
 	return status;
 }
 
@@ -9414,6 +10218,14 @@ int agoKernel_ColorConvert_RGB_RGBX(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9450,6 +10262,14 @@ int agoKernel_ColorConvert_RGB_UYVY(AgoNode * node, AgoKernelCommand cmd)
 					;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9486,6 +10306,14 @@ int agoKernel_ColorConvert_RGB_YUYV(AgoNode * node, AgoKernelCommand cmd)
 			;
 		status = VX_SUCCESS;
 	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9520,10 +10348,6 @@ int agoKernel_ColorConvert_RGB_IYUV(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_RGB;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9542,6 +10366,14 @@ int agoKernel_ColorConvert_RGB_IYUV(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9574,10 +10406,6 @@ int agoKernel_ColorConvert_RGB_NV12(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_RGB;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9596,6 +10424,14 @@ int agoKernel_ColorConvert_RGB_NV12(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9628,10 +10464,6 @@ int agoKernel_ColorConvert_RGB_NV21(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_RGB;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9650,6 +10482,14 @@ int agoKernel_ColorConvert_RGB_NV21(AgoNode * node, AgoKernelCommand cmd)
 #endif
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9705,6 +10545,14 @@ int agoKernel_ColorConvert_RGBX_RGB(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9740,6 +10588,14 @@ int agoKernel_ColorConvert_RGBX_UYVY(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9777,6 +10633,14 @@ int agoKernel_ColorConvert_RGBX_YUYV(AgoNode * node, AgoKernelCommand cmd)
 			;
 		status = VX_SUCCESS;
 	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -9811,10 +10675,6 @@ int agoKernel_ColorConvert_RGBX_IYUV(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_RGBX;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9833,6 +10693,14 @@ int agoKernel_ColorConvert_RGBX_IYUV(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9865,10 +10733,6 @@ int agoKernel_ColorConvert_RGBX_NV12(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_RGBX;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9887,6 +10751,14 @@ int agoKernel_ColorConvert_RGBX_NV12(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9919,10 +10791,6 @@ int agoKernel_ColorConvert_RGBX_NV21(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_RGBX;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -9941,6 +10809,14 @@ int agoKernel_ColorConvert_RGBX_NV21(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -9975,26 +10851,14 @@ int agoKernel_ColorConvert_YUV4_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10028,6 +10892,24 @@ int agoKernel_ColorConvert_YUV4_RGB(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out3->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out3->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -10061,26 +10943,14 @@ int agoKernel_ColorConvert_YUV4_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10114,6 +10984,24 @@ int agoKernel_ColorConvert_YUV4_RGBX(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out3->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out3->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -10144,10 +11032,6 @@ int agoKernel_ScaleUp2x2_U8_U8(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width << 1;
 		meta->data.u.img.height = height << 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x << 1;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y << 1;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x << 1;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y << 1;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10167,6 +11051,14 @@ int agoKernel_ScaleUp2x2_U8_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x << 1;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y << 1;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x << 1;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y << 1;
+	}
 	return status;
 }
 
@@ -10198,18 +11090,10 @@ int agoKernel_FormatConvert_UV_UV12(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width << 1;
 		meta->data.u.img.height = height << 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width << 1;
 		meta->data.u.img.height = height << 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10229,6 +11113,19 @@ int agoKernel_FormatConvert_UV_UV12(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x << 1;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y << 1;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x << 1;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y << 1;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x << 1;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y << 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x << 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y << 1;
+	}
 	return status;
 }
 
@@ -10262,26 +11159,14 @@ int agoKernel_ColorConvert_IYUV_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10300,6 +11185,24 @@ int agoKernel_ColorConvert_IYUV_RGB(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+		out3->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out3->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -10334,26 +11237,14 @@ int agoKernel_ColorConvert_IYUV_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10372,6 +11263,24 @@ int agoKernel_ColorConvert_IYUV_RGBX(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+		out3->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out3->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -10406,26 +11315,14 @@ int agoKernel_FormatConvert_IYUV_UYVY(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10445,6 +11342,24 @@ int agoKernel_FormatConvert_IYUV_UYVY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+		out3->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out3->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+	}
 	return status;
 }
 
@@ -10478,26 +11393,14 @@ int agoKernel_FormatConvert_IYUV_YUYV(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		meta = &node->metaList[2];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[3]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[3]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[3]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[3]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10517,6 +11420,24 @@ int agoKernel_FormatConvert_IYUV_YUYV(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * out3 = node->paramList[2];
+		AgoData * inp = node->paramList[3];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+		out3->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out3->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out3->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out3->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+	}
 	return status;
 }
 
@@ -10548,18 +11469,10 @@ int agoKernel_FormatConvert_IUV_UV12(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10579,6 +11492,19 @@ int agoKernel_FormatConvert_IUV_UV12(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out2->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -10610,18 +11536,10 @@ int agoKernel_ColorConvert_NV12_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U16;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10640,6 +11558,19 @@ int agoKernel_ColorConvert_NV12_RGB(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = (inp->u.img.rect_valid.end_x + 1) >> 1;
+		out2->u.img.rect_valid.end_y = (inp->u.img.rect_valid.end_y + 1) >> 1;
 	}
 	return status;
 }
@@ -10672,18 +11603,10 @@ int agoKernel_ColorConvert_NV12_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U16;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10702,6 +11625,19 @@ int agoKernel_ColorConvert_NV12_RGBX(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = (inp->u.img.rect_valid.end_x + 1) >> 1;
+		out2->u.img.rect_valid.end_y = (inp->u.img.rect_valid.end_y + 1) >> 1;
 	}
 	return status;
 }
@@ -10734,18 +11670,10 @@ int agoKernel_FormatConvert_NV12_UYVY(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U16;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10765,6 +11693,19 @@ int agoKernel_FormatConvert_NV12_UYVY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = (inp->u.img.rect_valid.end_x + 1) >> 1;
+		out2->u.img.rect_valid.end_y = (inp->u.img.rect_valid.end_y + 1) >> 1;
+	}
 	return status;
 }
 
@@ -10796,18 +11737,10 @@ int agoKernel_FormatConvert_NV12_YUYV(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U16;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -10827,6 +11760,19 @@ int agoKernel_FormatConvert_NV12_YUYV(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out1->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = (inp->u.img.rect_valid.end_x + 1) >> 1;
+		out2->u.img.rect_valid.end_y = (inp->u.img.rect_valid.end_y + 1) >> 1;
+	}
 	return status;
 }
 
@@ -10864,6 +11810,14 @@ int agoKernel_FormatConvert_UV12_IUV(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -10905,6 +11859,14 @@ int agoKernel_ColorConvert_Y_RGB(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -10946,6 +11908,14 @@ int agoKernel_ColorConvert_Y_RGBX(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -10987,6 +11957,14 @@ int agoKernel_ColorConvert_U_RGB(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -11028,6 +12006,14 @@ int agoKernel_ColorConvert_U_RGBX(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -11069,6 +12055,14 @@ int agoKernel_ColorConvert_V_RGB(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -11110,6 +12104,14 @@ int agoKernel_ColorConvert_V_RGBX(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -11138,10 +12140,6 @@ int agoKernel_ColorConvert_IU_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11159,6 +12157,14 @@ int agoKernel_ColorConvert_IU_RGB(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -11188,10 +12194,6 @@ int agoKernel_ColorConvert_IU_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11209,6 +12211,14 @@ int agoKernel_ColorConvert_IU_RGBX(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -11238,10 +12248,6 @@ int agoKernel_ColorConvert_IV_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11259,6 +12265,14 @@ int agoKernel_ColorConvert_IV_RGB(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -11288,10 +12302,6 @@ int agoKernel_ColorConvert_IV_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11309,6 +12319,14 @@ int agoKernel_ColorConvert_IV_RGBX(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -11341,18 +12359,10 @@ int agoKernel_ColorConvert_IUV_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11370,6 +12380,19 @@ int agoKernel_ColorConvert_IUV_RGB(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out1->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -11402,18 +12425,10 @@ int agoKernel_ColorConvert_IUV_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = node->paramList[2]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[2]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[2]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[2]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11431,6 +12446,19 @@ int agoKernel_ColorConvert_IUV_RGBX(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		out1->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out1->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out1->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out1->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
+		out2->u.img.rect_valid.start_x = (inp->u.img.rect_valid.start_x + 1) >> 1;
+		out2->u.img.rect_valid.start_y = (inp->u.img.rect_valid.start_y + 1) >> 1;
+		out2->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x >> 1;
+		out2->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y >> 1;
 	}
 	return status;
 }
@@ -11460,10 +12488,6 @@ int agoKernel_ColorConvert_UV12_RGB(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U16;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11481,6 +12505,14 @@ int agoKernel_ColorConvert_UV12_RGB(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -11510,10 +12542,6 @@ int agoKernel_ColorConvert_UV12_RGBX(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width >> 1;
 		meta->data.u.img.height = height >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U16;
-		meta->data.u.img.rect_valid.start_x = node->paramList[1]->u.img.rect_valid.start_x;
-		meta->data.u.img.rect_valid.start_y = node->paramList[1]->u.img.rect_valid.start_y;
-		meta->data.u.img.rect_valid.end_x = node->paramList[1]->u.img.rect_valid.end_x;
-		meta->data.u.img.rect_valid.end_y = node->paramList[1]->u.img.rect_valid.end_y;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11531,6 +12559,14 @@ int agoKernel_ColorConvert_UV12_RGBX(AgoNode * node, AgoKernelCommand cmd)
 #endif			
 			;
 		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
 	}
 	return status;
 }
@@ -11576,6 +12612,16 @@ int agoKernel_Box_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -11611,6 +12657,16 @@ int agoKernel_Dilate_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -11646,6 +12702,16 @@ int agoKernel_Erode_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -11681,6 +12747,16 @@ int agoKernel_Median_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -11725,6 +12801,16 @@ int agoKernel_Gaussian_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -11754,10 +12840,6 @@ int agoKernel_ScaleGaussianHalf_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = (width + 1) >> 1;
 		meta->data.u.img.height = (height + 1) >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = ((node->paramList[1]->u.img.rect_valid.start_x + 1) >> 1) + 1;
-		meta->data.u.img.rect_valid.start_y = ((node->paramList[1]->u.img.rect_valid.start_y + 1) >> 1) + 1;
-		meta->data.u.img.rect_valid.end_x = ((node->paramList[1]->u.img.rect_valid.end_x + 1) >> 1) - 1;
-		meta->data.u.img.rect_valid.end_y = ((node->paramList[1]->u.img.rect_valid.end_y + 1) >> 1) - 1;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -11782,6 +12864,16 @@ int agoKernel_ScaleGaussianHalf_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(((inp->u.img.rect_valid.start_x + 1) >> 1) + 1, width);
+		out->u.img.rect_valid.start_y = min(((inp->u.img.rect_valid.start_y + 1) >> 1) + 1, height);
+		out->u.img.rect_valid.end_x = max((int)((inp->u.img.rect_valid.end_x + 1) >> 1) - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)((inp->u.img.rect_valid.end_y + 1) >> 1) - 1, 0);
+	}
 	return status;
 }
 
@@ -11816,10 +12908,6 @@ int agoKernel_ScaleGaussianHalf_U8_U8_5x5(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = (width + 1) >> 1;
 		meta->data.u.img.height = (height + 1) >> 1;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = ((node->paramList[1]->u.img.rect_valid.start_x + 1) >> 1) + 2;
-		meta->data.u.img.rect_valid.start_y = ((node->paramList[1]->u.img.rect_valid.start_y + 1) >> 1) + 2;
-		meta->data.u.img.rect_valid.end_x = ((node->paramList[1]->u.img.rect_valid.end_x + 1) >> 1) - 2;
-		meta->data.u.img.rect_valid.end_y = ((node->paramList[1]->u.img.rect_valid.end_y + 1) >> 1) - 2;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -11844,6 +12932,16 @@ int agoKernel_ScaleGaussianHalf_U8_U8_5x5(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(((inp->u.img.rect_valid.start_x + 1) >> 1) + 1, width);
+		out->u.img.rect_valid.start_y = min(((inp->u.img.rect_valid.start_y + 1) >> 1) + 1, height);
+		out->u.img.rect_valid.end_x = max((int)((inp->u.img.rect_valid.end_x + 1) >> 1) - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)((inp->u.img.rect_valid.end_y + 1) >> 1) - 1, 0);
+	}
 	return status;
 }
 
@@ -11878,10 +12976,6 @@ int agoKernel_ScaleGaussianOrb_U8_U8_5x5(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = node->paramList[0]->u.img.width ? node->paramList[0]->u.img.width : dwidth;
 		meta->data.u.img.height = node->paramList[0]->u.img.height ? node->paramList[0]->u.img.height : dheight;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = (vx_uint32)ceilf(VX_SCALE_PYRAMID_ORB * node->paramList[1]->u.img.rect_valid.start_x) + 2;
-		meta->data.u.img.rect_valid.start_y = (vx_uint32)ceilf(VX_SCALE_PYRAMID_ORB * node->paramList[1]->u.img.rect_valid.start_y) + 2;
-		meta->data.u.img.rect_valid.end_x = (vx_uint32)floorf(VX_SCALE_PYRAMID_ORB * node->paramList[1]->u.img.rect_valid.end_x) - 2;
-		meta->data.u.img.rect_valid.end_y = (vx_uint32)floorf(VX_SCALE_PYRAMID_ORB * node->paramList[1]->u.img.rect_valid.end_y) - 2;
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -11906,6 +13000,16 @@ int agoKernel_ScaleGaussianOrb_U8_U8_5x5(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(((vx_uint32)ceilf(VX_SCALE_PYRAMID_ORB * inp->u.img.rect_valid.start_x)) + 1, width);
+		out->u.img.rect_valid.start_y = min(((vx_uint32)ceilf(VX_SCALE_PYRAMID_ORB * inp->u.img.rect_valid.start_y)) + 1, height);
+		out->u.img.rect_valid.end_x = max(((int)floorf(VX_SCALE_PYRAMID_ORB * inp->u.img.rect_valid.end_x)) - 1, 0);
+		out->u.img.rect_valid.end_y = max(((int)floorf(VX_SCALE_PYRAMID_ORB * inp->u.img.rect_valid.end_y)) - 1, 0);
+	}
 	return status;
 }
 
@@ -11963,10 +13067,6 @@ int agoKernel_Convolve_U8_U8(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_U8;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[1]->u.img.rect_valid.start_x + M, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[1]->u.img.rect_valid.start_y + N, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[1]->u.img.rect_valid.end_x - M, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[1]->u.img.rect_valid.end_y - N, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -11986,6 +13086,18 @@ int agoKernel_Convolve_U8_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		int M = (int) node->paramList[2]->u.conv.columns >> 1;
+		int N = (int) node->paramList[2]->u.conv.rows >> 1;
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + M, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + N, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - M, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - N, 0);
+	}
 	return status;
 }
 
@@ -12043,10 +13155,6 @@ int agoKernel_Convolve_S16_U8(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = VX_DF_IMAGE_S16;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[1]->u.img.rect_valid.start_x + M, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[1]->u.img.rect_valid.start_y + N, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[1]->u.img.rect_valid.end_x - M, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[1]->u.img.rect_valid.end_y - N, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -12066,6 +13174,18 @@ int agoKernel_Convolve_S16_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		int M = (int) node->paramList[2]->u.conv.columns >> 1;
+		int N = (int) node->paramList[2]->u.conv.rows >> 1;
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + M, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + N, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - M, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - N, 0);
+	}
 	return status;
 }
 
@@ -12087,8 +13207,8 @@ int agoKernel_LinearFilter_ANY_ANY(AgoNode * node, AgoKernelCommand cmd)
 		// validate parameters
 		vx_uint32 width = node->paramList[1]->u.img.width;
 		vx_uint32 height = node->paramList[1]->u.img.height;
-		int M = (int) node->paramList[2]->u.conv.columns >> 1;
-		int N = (int) node->paramList[2]->u.conv.rows >> 1;
+		int M = (int) node->paramList[2]->u.mat.columns >> 1;
+		int N = (int) node->paramList[2]->u.mat.rows >> 1;
 		if (node->paramList[1]->u.img.format != VX_DF_IMAGE_U8 &&
 			node->paramList[1]->u.img.format != VX_DF_IMAGE_S16 &&
 			node->paramList[1]->u.img.format != VX_DF_IMAGE_F32_AMD)
@@ -12109,10 +13229,6 @@ int agoKernel_LinearFilter_ANY_ANY(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = node->paramList[0]->u.img.format;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[1]->u.img.rect_valid.start_x + M, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[1]->u.img.rect_valid.start_y + N, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[1]->u.img.rect_valid.end_x - M, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[1]->u.img.rect_valid.end_y - N, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -12143,6 +13259,18 @@ int agoKernel_LinearFilter_ANY_ANY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		int M = (int) node->paramList[2]->u.mat.columns >> 1;
+		int N = (int) node->paramList[2]->u.mat.rows >> 1;
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + M, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + N, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - M, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - N, 0);
+	}
 	return status;
 }
 
@@ -12156,8 +13284,8 @@ int agoKernel_LinearFilter_ANYx2_ANY(AgoNode * node, AgoKernelCommand cmd)
 		// validate parameters
 		vx_uint32 width = node->paramList[2]->u.img.width;
 		vx_uint32 height = node->paramList[2]->u.img.height;
-		int M = (int) node->paramList[3]->u.conv.columns >> 1;
-		int N = (int) node->paramList[3]->u.conv.rows >> 1;
+		int M = (int) node->paramList[3]->u.mat.columns >> 1;
+		int N = (int) node->paramList[3]->u.mat.rows >> 1;
 		if (node->paramList[2]->u.img.format != VX_DF_IMAGE_U8)
 			return VX_ERROR_INVALID_FORMAT;
 		else if (!width || !height)
@@ -12179,18 +13307,10 @@ int agoKernel_LinearFilter_ANYx2_ANY(AgoNode * node, AgoKernelCommand cmd)
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = node->paramList[0]->u.img.format;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[2]->u.img.rect_valid.start_x + M, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[2]->u.img.rect_valid.start_y + N, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[2]->u.img.rect_valid.end_x - M, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[2]->u.img.rect_valid.end_y - N, 0);
 		meta = &node->metaList[1];
 		meta->data.u.img.width = width;
 		meta->data.u.img.height = height;
 		meta->data.u.img.format = node->paramList[0]->u.img.format;
-		meta->data.u.img.rect_valid.start_x = min(node->paramList[2]->u.img.rect_valid.start_x + M, width);
-		meta->data.u.img.rect_valid.start_y = min(node->paramList[2]->u.img.rect_valid.start_y + N, height);
-		meta->data.u.img.rect_valid.end_x = max((int)node->paramList[2]->u.img.rect_valid.end_x - M, 0);
-		meta->data.u.img.rect_valid.end_y = max((int)node->paramList[2]->u.img.rect_valid.end_y - N, 0);
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -12214,6 +13334,23 @@ int agoKernel_LinearFilter_ANYx2_ANY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		int M = (int) node->paramList[3]->u.mat.columns >> 1;
+		int N = (int) node->paramList[3]->u.mat.rows >> 1;
+		vx_uint32 width = out1->u.img.width;
+		vx_uint32 height = out1->u.img.height;
+		out1->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + M, width);
+		out1->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + N, height);
+		out1->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - M, 0);
+		out1->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - N, 0);
+		out2->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + M, width);
+		out2->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + N, height);
+		out2->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - M, 0);
+		out2->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - N, 0);
+	}
 	return status;
 }
 
@@ -12249,6 +13386,16 @@ int agoKernel_SobelMagnitude_S16_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12290,6 +13437,16 @@ int agoKernel_SobelPhase_U8_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12332,6 +13489,21 @@ int agoKernel_SobelMagnitudePhase_S16U8_U8_3x3(AgoNode * node, AgoKernelCommand 
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = inp->u.img.width;
+		vx_uint32 height = inp->u.img.height;
+		out1->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out1->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out1->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out1->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+		out2->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out2->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out2->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out2->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12376,6 +13548,21 @@ int agoKernel_Sobel_S16S16_U8_3x3_GXY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out1 = node->paramList[0];
+		AgoData * out2 = node->paramList[1];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = inp->u.img.width;
+		vx_uint32 height = inp->u.img.height;
+		out1->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out1->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out1->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out1->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+		out2->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out2->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out2->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out2->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12416,6 +13603,16 @@ int agoKernel_Sobel_S16_U8_3x3_GX(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12456,6 +13653,16 @@ int agoKernel_Sobel_S16_U8_3x3_GY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12491,6 +13698,16 @@ int agoKernel_Dilate_U1_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12526,6 +13743,16 @@ int agoKernel_Erode_U1_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12561,6 +13788,16 @@ int agoKernel_Dilate_U1_U1_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12596,6 +13833,16 @@ int agoKernel_Erode_U1_U1_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12631,6 +13878,16 @@ int agoKernel_Dilate_U8_U1_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12666,6 +13923,16 @@ int agoKernel_Erode_U8_U1_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12823,6 +14090,16 @@ int agoKernel_HarrisSobel_HG3_U8_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12862,6 +14139,16 @@ int agoKernel_HarrisSobel_HG3_U8_5x5(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 2, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 2, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 2, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 2, 0);
+	}
 	return status;
 }
 
@@ -12901,6 +14188,16 @@ int agoKernel_HarrisSobel_HG3_U8_7x7(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 3, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 3, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 3, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 3, 0);
+	}
 	return status;
 }
 
@@ -12941,6 +14238,16 @@ int agoKernel_HarrisScore_HVC_HG3_3x3(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -12981,6 +14288,16 @@ int agoKernel_HarrisScore_HVC_HG3_5x5(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 2, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 2, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 2, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 2, 0);
+	}
 	return status;
 }
 
@@ -13021,6 +14338,16 @@ int agoKernel_HarrisScore_HVC_HG3_7x7(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 3, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 3, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 3, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 3, 0);
+	}
 	return status;
 }
 
@@ -13179,6 +14506,16 @@ int agoKernel_CannySobelSuppThreshold_U8XY_U8_3x3_L1NORM(AgoNode * node, AgoKern
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -13211,6 +14548,16 @@ int agoKernel_CannySobelSuppThreshold_U8XY_U8_3x3_L2NORM(AgoNode * node, AgoKern
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -13243,6 +14590,16 @@ int agoKernel_CannySobelSuppThreshold_U8XY_U8_5x5_L1NORM(AgoNode * node, AgoKern
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 2, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 2, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 2, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 2, 0);
+	}
 	return status;
 }
 
@@ -13275,6 +14632,16 @@ int agoKernel_CannySobelSuppThreshold_U8XY_U8_5x5_L2NORM(AgoNode * node, AgoKern
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 2, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 2, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 2, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 2, 0);
+	}
 	return status;
 }
 
@@ -13307,6 +14674,16 @@ int agoKernel_CannySobelSuppThreshold_U8XY_U8_7x7_L1NORM(AgoNode * node, AgoKern
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 3, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 3, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 3, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 3, 0);
+	}
 	return status;
 }
 
@@ -13339,6 +14716,16 @@ int agoKernel_CannySobelSuppThreshold_U8XY_U8_7x7_L2NORM(AgoNode * node, AgoKern
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 3, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 3, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 3, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 3, 0);
+	}
 	return status;
 }
 
@@ -13379,6 +14766,16 @@ int agoKernel_CannySobel_U16_U8_3x3_L1NORM(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -13419,6 +14816,16 @@ int agoKernel_CannySobel_U16_U8_3x3_L2NORM(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -13459,6 +14866,16 @@ int agoKernel_CannySobel_U16_U8_5x5_L1NORM(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 2, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 2, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 2, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 2, 0);
+	}
 	return status;
 }
 
@@ -13499,6 +14916,16 @@ int agoKernel_CannySobel_U16_U8_5x5_L2NORM(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 2, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 2, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 2, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 2, 0);
+	}
 	return status;
 }
 
@@ -13539,6 +14966,16 @@ int agoKernel_CannySobel_U16_U8_7x7_L1NORM(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 3, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 3, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 3, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 3, 0);
+	}
 	return status;
 }
 
@@ -13579,6 +15016,16 @@ int agoKernel_CannySobel_U16_U8_7x7_L2NORM(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 3, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 3, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 3, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 3, 0);
+	}
 	return status;
 }
 
@@ -13607,6 +15054,16 @@ int agoKernel_CannySuppThreshold_U8_U16_3x3(AgoNode * node, AgoKernelCommand cmd
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -13648,6 +15105,16 @@ int agoKernel_CannySuppThreshold_U8XY_U16_3x3(AgoNode * node, AgoKernelCommand c
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[2];
+		vx_uint32 width = out->u.img.width;
+		vx_uint32 height = out->u.img.height;
+		out->u.img.rect_valid.start_x = min(inp->u.img.rect_valid.start_x + 1, width);
+		out->u.img.rect_valid.start_y = min(inp->u.img.rect_valid.start_y + 1, height);
+		out->u.img.rect_valid.end_x = max((int)inp->u.img.rect_valid.end_x - 1, 0);
+		out->u.img.rect_valid.end_y = max((int)inp->u.img.rect_valid.end_y - 1, 0);
+	}
 	return status;
 }
 
@@ -14134,47 +15601,47 @@ int agoKernel_Remap_U24_U32_Bilinear(AgoNode * node, AgoKernelCommand cmd)
 			"  float4 f; uint map, sx, sy, offset; uint2 px0, px1; __global uchar * pt; float4 mf;\n"
 			"  uint QFB = (1 << QF) - 1; float QFM = 1.0f / (1 << QF);\n"
 			"  // pixel[0]\n"
-			"  map = remap[0]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[0]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  // pixel[1]\n"
-			"  map = remap[1]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[1]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s3 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s0 = amd_pack(f);\n"
 			"  f.s0 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  // pixel[2]\n"
-			"  map = remap[2]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[2]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s2 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s1 = amd_pack(f);\n"
 			"  f.s0 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  // pixel[3]\n"
-			"  map = remap[3]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[3]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s1 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s2 = amd_pack(f);\n"
 			"  // pixel[4]\n"
-			"  map = remap[4]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[4]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  // pixel[5]\n"
-			"  map = remap[5]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[5]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s3 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s3 = amd_pack(f);\n"
 			"  f.s0 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  // pixel[6]\n"
-			"  map = remap[6]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[6]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s2 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s4 = amd_pack(f);\n"
 			"  f.s0 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  // pixel[7]\n"
-			"  map = remap[7]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[7]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s1 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
@@ -14235,56 +15702,56 @@ int agoKernel_Remap_U32_U32_Bilinear(AgoNode * node, AgoKernelCommand cmd)
 			"  float4 f; uint map, sx, sy, offset; uint2 px0, px1; __global uchar * pt; float4 mf;\n"
 			"  uint QFB = (1 << QF) - 1; float QFM = 1.0f / (1 << QF);\n"
 			"  // pixel[0]\n"
-			"  map = remap[0]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[0]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s0 = amd_pack(f);\n"
 			"  // pixel[1]\n"
-			"  map = remap[1]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[1]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s1 = amd_pack(f);\n"
 			"  // pixel[2]\n"
-			"  map = remap[2]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[2]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s2 = amd_pack(f);\n"
 			"  // pixel[3]\n"
-			"  map = remap[3]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[3]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s3 = amd_pack(f);\n"
 			"  // pixel[4]\n"
-			"  map = remap[4]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[4]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s4 = amd_pack(f);\n"
 			"  // pixel[5]\n"
-			"  map = remap[5]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[5]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s5 = amd_pack(f);\n"
 			"  // pixel[6]\n"
-			"  map = remap[6]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[6]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s3 = (amd_unpack3(px0.s0) * mf.s2 + amd_unpack3(px0.s1) * mf.s0) * mf.s3 + (amd_unpack3(px1.s0) * mf.s2 + amd_unpack3(px1.s1) * mf.s0) * mf.s1;\n"
 			"  rv.s6 = amd_pack(f);\n"
 			"  // pixel[7]\n"
-			"  map = remap[7]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + (sx >> QF) << 2; pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
+			"  map = remap[7]; sx = map & 0xffff; sy = (map >> 16); offset = (sy >> QF) * stride + ((sx >> QF) << 2); pt = p + offset; px0 = vload2(0, (__global uint *)pt); px1 = vload2(0, (__global uint *)(pt + stride)); mf.s0 = (sx & QFB) * QFM; mf.s1 = (sy & QFB) * QFM; mf.s2 = 1.0f - mf.s0; mf.s3 = 1.0f - mf.s1;\n"
 			"  f.s0 = (amd_unpack0(px0.s0) * mf.s2 + amd_unpack0(px0.s1) * mf.s0) * mf.s3 + (amd_unpack0(px1.s0) * mf.s2 + amd_unpack0(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s1 = (amd_unpack1(px0.s0) * mf.s2 + amd_unpack1(px0.s1) * mf.s0) * mf.s3 + (amd_unpack1(px1.s0) * mf.s2 + amd_unpack1(px1.s1) * mf.s0) * mf.s1;\n"
 			"  f.s2 = (amd_unpack2(px0.s0) * mf.s2 + amd_unpack2(px0.s1) * mf.s0) * mf.s3 + (amd_unpack2(px1.s0) * mf.s2 + amd_unpack2(px1.s1) * mf.s0) * mf.s1;\n"
@@ -14368,6 +15835,7 @@ int agoKernel_WarpAffine_U8_U8_Nearest(AgoNode * node, AgoKernelCommand cmd)
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14462,6 +15930,7 @@ int agoKernel_WarpAffine_U8_U8_Nearest_Constant(AgoNode * node, AgoKernelCommand
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14541,6 +16010,7 @@ int agoKernel_WarpAffine_U8_U8_Bilinear(AgoNode * node, AgoKernelCommand cmd)
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14624,6 +16094,7 @@ int agoKernel_WarpAffine_U8_U8_Bilinear_Constant(AgoNode * node, AgoKernelComman
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14700,6 +16171,7 @@ int agoKernel_WarpPerspective_U8_U8_Nearest(AgoNode * node, AgoKernelCommand cmd
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14795,6 +16267,7 @@ int agoKernel_WarpPerspective_U8_U8_Nearest_Constant(AgoNode * node, AgoKernelCo
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14875,6 +16348,7 @@ int agoKernel_WarpPerspective_U8_U8_Bilinear(AgoNode * node, AgoKernelCommand cm
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14959,6 +16433,7 @@ int agoKernel_WarpPerspective_U8_U8_Bilinear_Constant(AgoNode * node, AgoKernelC
 			), node->opencl_name);
 		node->opencl_code += textBuffer;
 		node->opencl_type = NODE_OPENCL_TYPE_MEM2REG | NODE_OPENCL_TYPE_NEED_IMGSIZE;
+		node->opencl_param_as_value_mask |= (1 << 2); // matrix parameter needs to be passed by value
 	}
 #endif
     else if (cmd == ago_kernel_cmd_query_target_support) {
@@ -14993,15 +16468,6 @@ int agoKernel_ScaleImage_U8_U8_Nearest(AgoNode * node, AgoKernelCommand cmd)
 			meta = &node->metaList[0];
 			meta->data.u.img.width = node->paramList[0]->u.img.width;
 			meta->data.u.img.height = node->paramList[0]->u.img.height;
-			// set the valid region
-			vx_float32 widthOut = (vx_float32)node->paramList[0]->u.img.width;
-			vx_float32 widthIn = (vx_float32)node->paramList[1]->u.img.width;
-			vx_float32 heightOut = (vx_float32)node->paramList[0]->u.img.height;
-			vx_float32 heightIn = (vx_float32)node->paramList[1]->u.img.height;
-			meta->data.u.img.rect_valid.start_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.start_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
 		}
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -15070,6 +16536,18 @@ int agoKernel_ScaleImage_U8_U8_Nearest(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * inp = node->paramList[0];
+		AgoData * out = node->paramList[1];
+		vx_float32 widthOut = (vx_float32)out->u.img.width;
+		vx_float32 heightOut = (vx_float32)out->u.img.height;
+		vx_float32 widthIn = (vx_float32)inp->u.img.width;
+		vx_float32 heightIn = (vx_float32)inp->u.img.height;
+		out->u.img.rect_valid.start_x = (vx_uint32)(((inp->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
+		out->u.img.rect_valid.start_y = (vx_uint32)(((inp->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
+		out->u.img.rect_valid.end_x = (vx_uint32)(((inp->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
+		out->u.img.rect_valid.end_y = (vx_uint32)(((inp->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
+	}
 	return status;
 }
 
@@ -15093,15 +16571,6 @@ int agoKernel_ScaleImage_U8_U8_Bilinear(AgoNode * node, AgoKernelCommand cmd)
 			meta = &node->metaList[0];
 			meta->data.u.img.width = node->paramList[0]->u.img.width;
 			meta->data.u.img.height = node->paramList[0]->u.img.height;
-			// set the valid region
-			vx_float32 widthOut = (vx_float32)node->paramList[0]->u.img.width;
-			vx_float32 widthIn = (vx_float32)node->paramList[1]->u.img.width;
-			vx_float32 heightOut = (vx_float32)node->paramList[0]->u.img.height;
-			vx_float32 heightIn = (vx_float32)node->paramList[1]->u.img.height;
-			meta->data.u.img.rect_valid.start_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.start_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
 		}
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -15160,6 +16629,18 @@ int agoKernel_ScaleImage_U8_U8_Bilinear(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * inp = node->paramList[0];
+		AgoData * out = node->paramList[1];
+		vx_float32 widthOut = (vx_float32)out->u.img.width;
+		vx_float32 heightOut = (vx_float32)out->u.img.height;
+		vx_float32 widthIn = (vx_float32)inp->u.img.width;
+		vx_float32 heightIn = (vx_float32)inp->u.img.height;
+		out->u.img.rect_valid.start_x = (vx_uint32)(((inp->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
+		out->u.img.rect_valid.start_y = (vx_uint32)(((inp->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
+		out->u.img.rect_valid.end_x = (vx_uint32)(((inp->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
+		out->u.img.rect_valid.end_y = (vx_uint32)(((inp->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
+	}
 	return status;
 }
 
@@ -15183,15 +16664,6 @@ int agoKernel_ScaleImage_U8_U8_Bilinear_Replicate(AgoNode * node, AgoKernelComma
 			meta = &node->metaList[0];
 			meta->data.u.img.width = node->paramList[0]->u.img.width;
 			meta->data.u.img.height = node->paramList[0]->u.img.height;
-			// set the valid region
-			vx_float32 widthOut = (vx_float32)node->paramList[0]->u.img.width;
-			vx_float32 widthIn = (vx_float32)node->paramList[1]->u.img.width;
-			vx_float32 heightOut = (vx_float32)node->paramList[0]->u.img.height;
-			vx_float32 heightIn = (vx_float32)node->paramList[1]->u.img.height;
-			meta->data.u.img.rect_valid.start_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.start_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
 		}
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -15306,15 +16778,6 @@ int agoKernel_ScaleImage_U8_U8_Bilinear_Constant(AgoNode * node, AgoKernelComman
 			meta = &node->metaList[0];
 			meta->data.u.img.width = node->paramList[0]->u.img.width;
 			meta->data.u.img.height = node->paramList[0]->u.img.height;
-			// set the valid region
-			vx_float32 widthOut = (vx_float32)node->paramList[0]->u.img.width;
-			vx_float32 widthIn = (vx_float32)node->paramList[1]->u.img.width;
-			vx_float32 heightOut = (vx_float32)node->paramList[0]->u.img.height;
-			vx_float32 heightIn = (vx_float32)node->paramList[1]->u.img.height;
-			meta->data.u.img.rect_valid.start_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.start_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
 		}
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -15424,15 +16887,6 @@ int agoKernel_ScaleImage_U8_U8_Area(AgoNode * node, AgoKernelCommand cmd)
 			meta = &node->metaList[0];
 			meta->data.u.img.width = node->paramList[0]->u.img.width;
 			meta->data.u.img.height = node->paramList[0]->u.img.height;
-			// set the valid region
-			vx_float32 widthOut = (vx_float32)node->paramList[0]->u.img.width;
-			vx_float32 widthIn = (vx_float32)node->paramList[1]->u.img.width;
-			vx_float32 heightOut = (vx_float32)node->paramList[0]->u.img.height;
-			vx_float32 heightIn = (vx_float32)node->paramList[1]->u.img.height;
-			meta->data.u.img.rect_valid.start_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.start_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_x = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
-			meta->data.u.img.rect_valid.end_y = (vx_uint32)(((node->paramList[1]->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
 		}
 	}
 	else if (cmd == ago_kernel_cmd_initialize) {
@@ -15727,6 +17181,18 @@ int agoKernel_ScaleImage_U8_U8_Area(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * inp = node->paramList[0];
+		AgoData * out = node->paramList[1];
+		vx_float32 widthOut = (vx_float32)out->u.img.width;
+		vx_float32 heightOut = (vx_float32)out->u.img.height;
+		vx_float32 widthIn = (vx_float32)inp->u.img.width;
+		vx_float32 heightIn = (vx_float32)inp->u.img.height;
+		out->u.img.rect_valid.start_x = (vx_uint32)(((inp->u.img.rect_valid.start_x + 0.5f) * widthOut / widthIn) - 0.5f);
+		out->u.img.rect_valid.start_y = (vx_uint32)(((inp->u.img.rect_valid.start_y + 0.5f) * heightOut / heightIn) - 0.5f);
+		out->u.img.rect_valid.end_x = (vx_uint32)(((inp->u.img.rect_valid.end_x + 0.5f) * widthOut / widthIn) - 0.5f);
+		out->u.img.rect_valid.end_y = (vx_uint32)(((inp->u.img.rect_valid.end_y + 0.5f) * heightOut / heightIn) - 0.5f);
+	}
 	return status;
 }
 
@@ -16062,6 +17528,9 @@ int agoKernel_CannyEdgeTrace_U8_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+        status = VX_SUCCESS;
+	}
 	return status;
 }
 
@@ -16095,6 +17564,9 @@ int agoKernel_CannyEdgeTrace_U8_U8XY(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+        status = VX_SUCCESS;
+	}
 	return status;
 }
 
@@ -16123,6 +17595,14 @@ int agoKernel_IntegralImage_U32_U8(AgoNode * node, AgoKernelCommand cmd)
                     ;
         status = VX_SUCCESS;
     }
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		AgoData * out = node->paramList[0];
+		AgoData * inp = node->paramList[1];
+		out->u.img.rect_valid.start_x = inp->u.img.rect_valid.start_x;
+		out->u.img.rect_valid.start_y = inp->u.img.rect_valid.start_y;
+		out->u.img.rect_valid.end_x = inp->u.img.rect_valid.end_x;
+		out->u.img.rect_valid.end_y = inp->u.img.rect_valid.end_y;
+	}
 	return status;
 }
 
@@ -16170,7 +17650,7 @@ int agoKernel_MeanStdDev_DATA_U8(AgoNode * node, AgoKernelCommand cmd)
 			status = VX_FAILURE;
 		}
 		else {
-			((ago_meanstddev_data_t *)oData->buffer)->sampleCount = iImg->u.img.width * iImg->u.img.height;
+			((ago_meanstddev_data_t *)oData->buffer)->sampleCount = (iImg->u.img.rect_valid.end_x - iImg->u.img.rect_valid.start_x) * (iImg->u.img.rect_valid.end_y - iImg->u.img.rect_valid.start_y);
 		}
 	}
 	else if (cmd == ago_kernel_cmd_validate) {

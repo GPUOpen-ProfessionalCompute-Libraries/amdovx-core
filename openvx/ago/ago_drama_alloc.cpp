@@ -142,13 +142,11 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 				node->opencl_local_buffer_usage_mask = 0;
 				node->opencl_local_buffer_size_in_bytes = 0;
 				node->opencl_code = "";
-				int status = node->akernel->opencl_codegen_callback_f(node, false, node->opencl_name, node->opencl_code, node->opencl_build_options, node->opencl_work_dim, node->opencl_global_work,
+				int status = node->akernel->opencl_codegen_callback_f(node, (vx_reference *)node->paramList, node->paramCount,
+					false, node->opencl_name, node->opencl_code, node->opencl_build_options, node->opencl_work_dim, node->opencl_global_work,
 					node->opencl_local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
 				if (status == VX_SUCCESS) {
 					node->opencl_type = NODE_OPENCL_TYPE_FULL_KERNEL;
-					if (agoGpuOclSingleNodeFinalize(graph, node) < 0) {
-						return -1;
-					}
 				}
 				else if (status != AGO_ERROR_KERNEL_NOT_IMPLEMENTED) {
 					agoAddLogEntry(&node->akernel->ref, status, "ERROR: agoOptimizeDramaAllocGpuResources: kernel %s failed to generate OpenCL code (error %d)\n", node->akernel->name, status);
@@ -256,7 +254,7 @@ static int agoOptimizeDramaAllocSetDefaultTargets(AgoGraph * agraph)
 #else
 			vx_status status = node->akernel->query_target_support_f(agraph, node, vx_false_e, supported_target_affinity);
 			if (status) {
-				printf("ERROR: kernel %s: query_target_support_f(*,*,%d,*) => %d\n", node->akernel->name, vx_false_e, status);
+				agoAddLogEntry(&node->akernel->ref, status, "ERROR: kernel %s: query_target_support_f(*,*,%d,*) => %d\n", node->akernel->name, vx_false_e, status);
 				return -1;
 			}
 			supported_target_affinity &= ~AGO_KERNEL_FLAG_DEVICE_GPU;
@@ -297,6 +295,8 @@ static int agoOptimizeDramaAllocSetDefaultTargets(AgoGraph * agraph)
 			}
 			else {
 				// fall back to GPU
+				vxAddLogEntry((vx_reference)node, VX_SUCCESS, "WARNING: kernel %s not supported on CPU -- falling back to GPU\n", node->akernel->name);
+				// set default target as GPU
 				node->attr_affinity.device_type = AGO_KERNEL_FLAG_DEVICE_GPU;
 				node->attr_affinity.device_info = 0;
 				node->attr_affinity.group = 0;
@@ -304,8 +304,6 @@ static int agoOptimizeDramaAllocSetDefaultTargets(AgoGraph * agraph)
 					// use an unsed group Id
 					node->attr_affinity.group = nextAvailGroupId++;
 				}
-				//TBD: these messages may be useful when requested by user
-				//printf("WARNING: kernel %s not supported on CPU -- falling back to GPU\n", node->akernel->name);
 			}
 		}
 		else if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU) {
@@ -328,8 +326,7 @@ static int agoOptimizeDramaAllocSetDefaultTargets(AgoGraph * agraph)
 			}
 			else {
 				// fall back to CPU
-				//TBD: these messages may be useful when requested by user
-				//printf("WARNING: kernel %s not supported on GPU -- falling back to CPU\n", node->akernel->name);
+				vxAddLogEntry((vx_reference)node, VX_SUCCESS, "WARNING: kernel %s not supported on GPU -- falling back to CPU\n", node->akernel->name);
 				// set default target as CPU
 				node->attr_affinity.device_type = AGO_KERNEL_FLAG_DEVICE_CPU;
 				node->attr_affinity.device_info = 0;
@@ -526,6 +523,14 @@ int agoOptimizeDramaAlloc(AgoGraph * agraph)
 		if (!adata->buffer && agoDataSanityCheckAndUpdate(adata)) {
 			return -1;
 		}
+	}
+
+	// compute image valid rectangles
+	if (agoPrepareImageValidRectangleBuffers(agraph)) {
+		return -1;
+	}
+	if (agoComputeImageValidRectangleOutputs(agraph)) {
+		return -1;
 	}
 
 	// set default target assignments

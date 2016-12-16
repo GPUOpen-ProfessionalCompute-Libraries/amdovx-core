@@ -34,7 +34,7 @@ THE SOFTWARE.
 //
 
 // version
-#define AGO_VERSION "0.9.1"
+#define AGO_VERSION "0.9.4"
 
 // debug configuration
 #define ENABLE_DEBUG_MESSAGES                 0 // 0:disable 1:enable
@@ -48,6 +48,9 @@ THE SOFTWARE.
 
 // Flag to enable BMI2 instructions in the primitives
 #define USE_BMI2 0
+
+// Flag to enable AVX instructions (256 bit operations) in primitives
+#define USE_AVX 0
 
 // AGO configuration
 #define USE_AGO_CANNY_SOBEL_SUPP_THRESHOLD    0 // 0:seperate-sobel-and-nonmaxsupression 1:combine-sobel-and-nonmaxsupression
@@ -74,6 +77,7 @@ THE SOFTWARE.
 #define AGO_KERNEL_FLAG_GPU_INTEG_M2R    0x0200 // kernel GPU integration: need OpenCL kernel generation (MEM2REG)
 #define AGO_KERNEL_FLAG_GPU_INTEG_R2R    0x0400 // kernel GPU integration: need OpenCL kernel generation (REG2REG)
 #define AGO_KERNEL_FLAG_SUBGRAPH         0x1000 // kernel is a subgraph
+#define AGO_KERNEL_FLAG_VALID_RECT_RESET 0x2000 // kernel valid_rect_reset is true
 
 // AGO default target priority
 #if ENABLE_OPENCL
@@ -126,13 +130,13 @@ THE SOFTWARE.
 #define NODE_OPENCL_TYPE_MEM2REG              2 // memory to register
 #define NODE_OPENCL_TYPE_NEED_IMGSIZE         8 // need image size as argument for memory operation
 #define NODE_OPENCL_TYPE_FULL_KERNEL         16 // node is a single kernel
-#define NODE_OPENCL_TYPE_ATOMIC              32 // argument has atomic output
 // additional bit-fields for dataFlags[]
 #define DATA_OPENCL_FLAG_BUFFER        (1 <<  8) // marks that the data is a buffer
 #define DATA_OPENCL_FLAG_NEED_LOAD_R2R (1 <<  9) // marks that the data needs to load for REG2REG
 #define DATA_OPENCL_FLAG_NEED_LOAD_M2R (1 << 10) // marks that the data needs to load for MEM2REG
 #define DATA_OPENCL_FLAG_NEED_LOCAL    (1 << 11) // marks that the data needs to load into local buffer
 #define DATA_OPENCL_FLAG_DISCARD_PARAM (1 << 12) // marks that the data needs to be discarded
+#define DATA_OPENCL_FLAG_PASS_BY_VALUE (1 << 13) // marks that the data needs to be passed by value
 // kernel name
 #define NODE_OPENCL_KERNEL_NAME  "OpenVX_kernel"
 // opencl related constants
@@ -144,6 +148,8 @@ THE SOFTWARE.
 #define CONFIG_OPENCL_SVM_AS_FGS           0x0020  // use OpenCL SVM as fine grain system
 #define CONFIG_OPENCL_SVM_AS_CLMEM         0x0040  // use OpenCL SVM as cl_mem
 #endif
+// opencl image fixed byte offset
+#define OPENCL_IMAGE_FIXED_OFFSET             256
 
 // thread scheduling configuration
 #define CONFIG_THREAD_DEFAULT                 1  // 0:disable 1:enable separate threads for graph scheduling
@@ -159,7 +165,11 @@ THE SOFTWARE.
 #define debug_printf(fmt, ...)
 #endif
 //   ALIGN16 - aligns data to 16 multiple
+//   ALIGN32 - aligns data to 32 multiple
+//   ALIGN32PTR - aligns pointer to 32 multiple
 #define ALIGN16(x)		((((size_t)(x))+15)&~15)
+#define ALIGN32(x)		((((size_t)(x))+31)&~31)
+#define ALIGN32PTR(x)	((((uintptr_t)(x))+31)&~31)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ago data types
@@ -172,21 +182,38 @@ THE SOFTWARE.
 #define AgoParameter  _vx_parameter
 #define AgoMetaFormat _vx_meta_format
 typedef enum {
-	ago_kernel_cmd_execute,
-	ago_kernel_cmd_validate,
-	ago_kernel_cmd_get_image_plane_nonusage,
-	ago_kernel_cmd_initialize,
-	ago_kernel_cmd_shutdown,
-	ago_kernel_cmd_query_target_support,
+	ago_kernel_cmd_execute                    =  0,
+	ago_kernel_cmd_validate                   =  1,
+	ago_kernel_cmd_get_image_plane_nonusage   =  2,
+	ago_kernel_cmd_initialize                 =  3,
+	ago_kernel_cmd_shutdown                   =  4,
+	ago_kernel_cmd_query_target_support       =  5,
 #if ENABLE_OPENCL
-	ago_kernel_cmd_opencl_codegen,
+	ago_kernel_cmd_opencl_codegen             =  6,
 #endif
+	ago_kernel_cmd_valid_rect_callback        =  7,
 } AgoKernelCommand;
+typedef enum {
+	ago_profile_type_launch_begin,
+	ago_profile_type_launch_end,
+	ago_profile_type_wait_begin,
+	ago_profile_type_wait_end,
+	ago_profile_type_copy_begin,
+	ago_profile_type_copy_end,
+	ago_profile_type_exec_begin,
+	ago_profile_type_exec_end,
+} AgoProfileEntryType;
+struct AgoProfileEntry {
+	vx_uint32           id;
+	AgoProfileEntryType type;
+	vx_reference        ref;
+	int64_t             time;
+};
 struct AgoNode;
 struct AgoContext;
 struct AgoData;
 struct AgoReference {
-	void * dispatchTbl;           // dispatch table to support Installable Client Driver (ICD) loader
+	struct _vx_platform * platform; // platform handle to support Installable Client Driver (ICD) loader
 	vx_uint32    magic;           // shall be always be AGO_MAGIC
 	vx_enum      type;            // object type
 	AgoContext * context;         // context
@@ -252,6 +279,7 @@ struct AgoConfigImage {
 };
 struct AgoConfigLut {
 	vx_enum type;
+	vx_uint32 offset;
 	vx_size count;
 };
 struct AgoConfigMatrix {
@@ -259,6 +287,8 @@ struct AgoConfigMatrix {
 	vx_size columns;
 	vx_size rows;
 	vx_size itemsize;
+	vx_enum pattern;
+	vx_coordinates2d_t origin;
 };
 struct AgoConfigPyramid {
 	vx_uint32 width;
@@ -314,10 +344,12 @@ struct AgoTargetAffinityInfo_ { // NOTE: make sure that this data structure is i
 	vx_uint32 reserved;
 };
 struct MappedData {
+	vx_map_id map_id;
 	void * ptr;
 	vx_enum usage;
 	bool used_external_ptr;
 	vx_size stride;
+	vx_uint32 plane;
 };
 struct AgoData {
 	AgoReference ref;
@@ -338,9 +370,8 @@ struct AgoData {
 		AgoConfigCannyStack cannystack;
 		AgoConfigScaleMatrix scalemat;
 	} u;
-	vx_delta_rectangle_t delta;
 	vx_size size;
-	vx_import_type_e import_type;
+	vx_enum import_type;
 	vx_uint8 * buffer;
 	vx_uint8 * buffer_allocated;
 	vx_uint8 * reserved;
@@ -363,9 +394,11 @@ struct AgoData {
 	AgoData * parent;
 	vx_uint32 inputUsageCount, outputUsageCount, inoutUsageCount;
 	std::list<MappedData> mapped;
+	vx_map_id nextMapId;
 	vx_uint32 hierarchical_level;
 	vx_uint32 hierarchical_life_start;
 	vx_uint32 hierarchical_life_end;
+	struct AgoNode * ownerOfUserBufferOpenCL;
 public:
 	AgoData();
 	~AgoData();
@@ -377,8 +410,11 @@ struct AgoDataList {
 	AgoData * trash;
 };
 struct AgoMetaFormat {
-	vx_enum type;
+	// TBD: this data struct needs some cleanup -- just keep only required fields
 	AgoData data;
+	vx_kernel_image_valid_rectangle_f set_valid_rectangle_callback;
+public:
+	AgoMetaFormat();
 };
 struct AgoParameter {
 	AgoReference ref;
@@ -409,6 +445,7 @@ struct AgoKernel {
 	bool external_kernel;
 	bool finalized;
 	vx_kernel_f kernel_f;
+	vx_kernel_validate_f validate_f;
 	vx_kernel_input_validate_f input_validate_f;
 	vx_kernel_output_validate_f output_validate_f;
 	vx_kernel_initialize_f initialize_f;
@@ -416,6 +453,10 @@ struct AgoKernel {
 	amd_kernel_query_target_support_f query_target_support_f;
 	amd_kernel_opencl_codegen_callback_f opencl_codegen_callback_f;
 	amd_kernel_node_regen_callback_f regen_callback_f;
+	amd_kernel_opencl_global_work_update_callback_f opencl_global_work_update_callback_f;
+	amd_kernel_opencl_buffer_update_callback_f opencl_buffer_update_callback_f;
+	vx_uint32 opencl_buffer_update_param_index;
+	vx_bool opencl_image_access_enable;
 	vx_uint32 importing_module_index_plus1;
 public:
 	AgoKernel();
@@ -458,6 +499,7 @@ struct AgoNode {
 	AgoKernel * akernel;
 	vx_uint32 flags;
 	vx_border_mode_t attr_border_mode;
+	vx_bool valid_rect_reset;
 	AgoTargetAffinityInfo_ attr_affinity;
 	vx_size localDataSize;
 	vx_uint8 * localDataPtr;
@@ -471,7 +513,10 @@ struct AgoNode {
 	vx_nodecomplete_f callback;
 	AgoSuperNode * supernode;
 	bool initialized;
-	vx_rectangle_t rect_valid;
+	vx_uint32 valid_rect_num_inputs;
+	vx_uint32 valid_rect_num_outputs;
+	vx_rectangle_t ** valid_rect_inputs;
+	vx_rectangle_t ** valid_rect_outputs;
 	vx_uint32 target_support_flags;
 	vx_uint32 hierarchical_level;
 	vx_status status;
@@ -484,6 +529,7 @@ struct AgoNode {
 	struct { bool enable; int paramIndexScalar; int paramIndexArray; } opencl_scalar_array_output_sync;
 	vx_uint32 opencl_param_mem2reg_mask;
 	vx_uint32 opencl_param_discard_mask;
+	vx_uint32 opencl_param_as_value_mask;
 	vx_uint32 opencl_param_atomic_mask;
 	vx_uint32 opencl_local_buffer_usage_mask;
 	vx_uint32 opencl_local_buffer_size_in_bytes;
@@ -541,6 +587,7 @@ struct AgoGraph {
 	vx_uint32 optimizer_flags;
 	bool verified;
 	std::vector<vx_parameter> parameters;
+	std::vector<AgoData *> autoAgeDelayList;
 #if ENABLE_OPENCL
 	std::vector<AgoNode *> opencl_nodeListQueued;
 	AgoSuperNode * supernodeList;
@@ -548,6 +595,9 @@ struct AgoGraph {
 	cl_device_id opencl_device;
 #endif
 	AgoTargetAffinityInfo_ attr_affinity;
+	vx_uint32 execFrameCount;
+	bool enable_performance_profiling;
+	std::vector<AgoProfileEntry> performance_profile;
 public:
 	AgoGraph();
 	~AgoGraph();
@@ -556,6 +606,10 @@ struct AgoGraphList {
 	vx_uint32 count;
 	AgoGraph * head;
 	AgoGraph * tail;
+};
+struct AgoImageFormatDescItem {
+	vx_df_image               format;
+	AgoImageFormatDescription desc;
 };
 struct ModuleData {
 	char module_name[256];
@@ -579,6 +633,8 @@ struct AgoContext {
 	std::vector<AgoUserStruct> userStructList;
 	vx_uint32 dataGenerationCount;
 	vx_enum nextUserStructId;
+	vx_uint32 nextUserKernelId;
+	vx_uint32 nextUserLibraryId;
 	vx_uint32 num_active_modules;
 	vx_uint32 num_active_references;
 	vx_border_mode_t immediate_border_mode;
@@ -589,6 +645,7 @@ struct AgoContext {
 	std::vector<ModuleData> modules;
 	std::vector<MacroData> macros;
 	std::vector<AgoNodeMergeRule> merge_rules;
+	std::vector<AgoImageFormatDescItem> image_format_list;
 	vx_uint32 importing_module_index_plus1;
 	AgoData * graph_garbage_data;
 	AgoNode * graph_garbage_node;
@@ -664,13 +721,16 @@ bool agoIsPartOfDelay(AgoData * adata);
 AgoData * agoGetSiblingTraceToDelayForInit(AgoData * data, int trace[], int& traceCount);
 AgoData * agoGetSiblingTraceToDelayForUpdate(AgoData * data, int trace[], int& traceCount);
 AgoData * agoGetDataFromTrace(AgoData * data, int trace[], int traceCount);
+int agoUpdateDelaySlots(AgoNode * node);
 void agoGetDescriptionFromData(AgoContext * acontext, char * desc, AgoData * data);
 int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData * data, const char * desc);
 AgoData * agoCreateDataFromDescription(AgoContext * acontext, AgoGraph * agraph, const char * desc, bool isForExternalUse);
 void agoGenerateDataName(AgoContext * acontext, const char * postfix, std::string& name);
 void agoGenerateVirtualDataName(AgoGraph * agraph, const char * postfix, std::string& name);
-int agoGetImageComponentsAndPlanes(vx_df_image format, vx_size * pComponents, vx_size * pPlanes, vx_size * pPixelSizeInBits, vx_color_space_e * pColorSpace, vx_channel_range_e * pChannelRange);
-int agoGetImagePlaneFormat(vx_df_image format, vx_uint32 width, vx_uint32 height, vx_uint32 plane, vx_df_image *pFormat, vx_uint32 * pWidth, vx_uint32 * pHeight);
+int agoInitializeImageComponentsAndPlanes(AgoContext * acontext);
+int agoSetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size components, vx_size planes, vx_size pixelSizeInBits, vx_color_space_e colorSpace, vx_channel_range_e channelRange);
+int agoGetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size * pComponents, vx_size * pPlanes, vx_size * pPixelSizeInBits, vx_color_space_e * pColorSpace, vx_channel_range_e * pChannelRange);
+int agoGetImagePlaneFormat(AgoContext * acontext, vx_df_image format, vx_uint32 width, vx_uint32 height, vx_uint32 plane, vx_df_image *pFormat, vx_uint32 * pWidth, vx_uint32 * pHeight);
 void agoGetDataName(vx_char * name, AgoData * data);
 int agoAllocData(AgoData * data);
 void agoRetainData(AgoGraph * graph, AgoData * data, bool isForExternalUse);
@@ -709,11 +769,13 @@ void agoImportDataConfig(AgoData * data, vx_reference vxref, AgoGraph * graph);
 // string processing
 void agoEvaluateIntegerExpression(char * expr);
 // performance
+void agoPerfProfileEntry(AgoGraph * graph, AgoProfileEntryType type, vx_reference ref);
 void agoPerfCaptureReset(vx_perf_t * perf);
 void agoPerfCaptureStart(vx_perf_t * perf);
 void agoPerfCaptureStop(vx_perf_t * perf);
 void agoPerfCopyNormalize(AgoContext * context, vx_perf_t * perfDst, vx_perf_t * perfSrc);
 // log
+void agoRegisterLogCallback(vx_context context, vx_log_callback_f callback, vx_bool reentrant);
 void agoAddLogEntry(AgoReference * ref, vx_status status, const char *message, ...);
 #if ENABLE_OPENCL
 // OpenCL
@@ -737,15 +799,19 @@ int agoGpuOclSingleNodeWait(AgoGraph * graph, AgoNode * node);
 ///////////////////////////////////////////////////////////
 // high-level functions
 extern "C" typedef void (VX_CALLBACK * ago_data_registry_callback_f) (void * obj, vx_reference ref, const char * name, const char * app_params);
+AgoContext * agoCreateContextFromPlatform(struct _vx_platform * platform);
 AgoContext * agoCreateContext();
 AgoGraph * agoCreateGraph(AgoContext * acontext);
 int agoReleaseGraph(AgoGraph * agraph);
 int agoReleaseContext(AgoContext * acontext);
 int agoVerifyGraph(AgoGraph * agraph);
+vx_status agoPrepareImageValidRectangleBuffers(AgoGraph * graph);
+vx_status agoComputeImageValidRectangleOutputs(AgoGraph * graph);
 int agoOptimizeGraph(AgoGraph * agraph);
 int agoInitializeGraph(AgoGraph * agraph);
 int agoShutdownGraph(AgoGraph * graph);
 int agoExecuteGraph(AgoGraph * agraph);
+int agoAgeDelay(AgoData * delay);
 // scheduling
 int agoProcessGraph(AgoGraph * agraph);
 int agoScheduleGraph(AgoGraph * agraph);
@@ -754,6 +820,7 @@ int agoWriteGraph(AgoGraph * agraph, AgoReference * * ref, int num_ref, FILE * f
 int agoReadGraph(AgoGraph * agraph, AgoReference * * ref, int num_ref, ago_data_registry_callback_f callback_f, void * callback_obj, FILE * fp, vx_int32 dumpToConsole);
 int agoReadGraphFromString(AgoGraph * agraph, AgoReference * * ref, int num_ref, ago_data_registry_callback_f callback_f, void * callback_obj, char * str, vx_int32 dumpToConsole);
 int agoLoadModule(AgoContext * context, const char * module);
+int agoUnloadModule(AgoContext * context, const char * module);
 vx_status agoGraphDumpPerformanceProfile(AgoGraph * graph, const char * fileName);
 vx_status agoDirective(vx_reference reference, vx_enum directive);
 

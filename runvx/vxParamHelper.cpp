@@ -153,7 +153,7 @@ int GuiTrackBarProcessKey(int key)
 // global OpenCV image count and specified read inputs count
 int ProcessCvWindowKeyRefresh(int waitKeyDelayInMilliSeconds)
 {
-#if USE_OPENCV
+#if ENABLE_OPENCV
 	if (g_numCvUse > 0) {
 		// process keyboard
 		int key = waitKey(waitKeyDelayInMilliSeconds);

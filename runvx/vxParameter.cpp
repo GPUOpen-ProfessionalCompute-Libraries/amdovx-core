@@ -57,6 +57,7 @@ CVxParameter::CVxParameter()
 	m_usingMultiFrameCapture = false;
 	m_captureFrameStart = false;
 	m_isVirtualObject = false;
+	m_useSyncOpenCLWriteDirective = false;
 }
 
 CVxParameter::~CVxParameter()
@@ -202,7 +203,10 @@ int CVxParamDelay::CompareFrame(int frameNumber)
 CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std::string, CVxParameter *> * m_paramMap, map<string, vx_enum> * m_userStructMap, const char * desc, vx_uint32 captureFrameStart)
 {
 	// create the object based on the description
-	if (!_strnicmp(desc, "image:", 6) || !_strnicmp(desc, "image-virtual:", 14) || !_strnicmp(desc, "image-uniform:", 14) || !_strnicmp(desc, "image-roi:", 10)) {
+	if (!_strnicmp(desc, "image:", 6) || !_strnicmp(desc, "virtual-image:", 14) || !_strnicmp(desc, "uniform-image:", 14) || 
+		!_strnicmp(desc, "image-from-roi:", 15) || !_strnicmp(desc, "image-from-handle:", 18) || !_strnicmp(desc, "image-from-channel:", 19) ||
+		!_strnicmp(desc, "image-virtual:", 14) || !_strnicmp(desc, "image-uniform:", 14) || !_strnicmp(desc, "image-roi:", 10))
+	{
 		CVxParamImage *this_image = new CVxParamImage();
 		this_image->SetCaptureFrameStart(captureFrameStart);
 		this_image->SetParamMap(m_paramMap);
@@ -211,7 +215,9 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_image;
 	}
-	else if (!_strnicmp(desc, "array:", 6) || !_strnicmp(desc, "array-virtual:", 14)){
+	else if (!_strnicmp(desc, "array:", 6) || !_strnicmp(desc, "virtual-array:", 14) ||
+			 !_strnicmp(desc, "array-virtual:", 14))
+	{
 		CVxParamArray *this_array = new CVxParamArray();
 		this_array->SetCaptureFrameStart(captureFrameStart);
 		this_array->SetUserStructMap(m_userStructMap);
@@ -220,7 +226,9 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_array;
 	}
-	else if (!_strnicmp(desc, "pyramid:", 8) || !_strnicmp(desc, "pyramid-virtual:", 16)) {
+	else if (!_strnicmp(desc, "pyramid:", 8) || !_strnicmp(desc, "virtual-pyramid:", 16) ||
+			 !_strnicmp(desc, "pyramid-virtual:", 16))
+	{
 		CVxParamPyramid *this_pyramid = new CVxParamPyramid();
 		this_pyramid->SetCaptureFrameStart(captureFrameStart);
 		int status = this_pyramid->Initialize(context, graph, desc);
@@ -483,19 +491,29 @@ const char * ScanParameters(const char * s_, const char * syntax, const char * f
 			else if (*fmt == 's' || *fmt == 'S') { // string of upto 64-bytes/256-bytes until ',', ':', or end-of-string
 				int maxStringBufferLength = (*fmt == 'S') ? 256 : 64;
 				char * p = va_arg(argp, char *);
-				if (!_strnicmp(s, "https://", 8) || !_strnicmp(s, "http://", 7) || !_strnicmp(s, "file://", 7) || 
-					(((s[0] >= 'a' && s[0] <= 'z') || (s[0] >= 'A' && s[0] <= 'Z')) && s[1] == ':' && s[2] == '\\'))
-				{
-					// started with drive letter or url, so copy prefix string to avoid use of ':' as end marker
-					int len = (s[1] == ':') ? 3 : ((s[4] == ':') ? 7 : 8);
-					strncpy(p, s, len);
-					p += len;  s += len;
-					maxStringBufferLength -= len;
+				if (s[0] == '"') {
+					s++;
+					// copy till end of string or '"'
+					for (; (*s != '\0') && (*s != '"') && (--maxStringBufferLength > 0);)
+						*p++ = *s++;
+					*p = 0;
+					if(*s == '"') s++;
 				}
-				// copy till end of string or ',' or ':'
-				for (; (*s != '\0') && (*s != ',') && (*s != ':') && (--maxStringBufferLength > 0);)
-					*p++ = *s++;
-				*p = 0;
+				else {
+					if (!_strnicmp(s, "https://", 8) || !_strnicmp(s, "http://", 7) || !_strnicmp(s, "file://", 7) ||
+						(((s[0] >= 'a' && s[0] <= 'z') || (s[0] >= 'A' && s[0] <= 'Z')) && s[1] == ':' && s[2] == '\\'))
+					{
+						// started with drive letter or url, so copy prefix string to avoid use of ':' as end marker
+						int len = (s[1] == ':') ? 3 : ((s[4] == ':') ? 7 : 8);
+						strncpy(p, s, len);
+						p += len;  s += len;
+						maxStringBufferLength -= len;
+					}
+					// copy till end of string or ',' or ':'
+					for (; (*s != '\0') && (*s != ',') && (*s != ':') && (--maxStringBufferLength > 0);)
+						*p++ = *s++;
+					*p = 0;
+				}
 			}
 			else if (*fmt == *s) { // skip matched seperators in fmt
 				s++;

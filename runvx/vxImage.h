@@ -43,7 +43,7 @@ public:
 	virtual void DisableWaitForKeyPress();
 
 protected:
-#if USE_OPENCV
+#if ENABLE_OPENCV
 	int ViewFrame(int frameNumber);
 #endif
 
@@ -57,7 +57,12 @@ private:
 	int m_repeatFrames;
 	int m_countFrames;
 	char m_cameraName[256];
-#if USE_OPENCV
+	vx_enum m_memory_type;
+	int m_active_handle;
+	vx_imagepatch_addressing_t m_addr[4];
+	void * m_memory_handle[2][4];
+	bool m_swap_handles;
+#if ENABLE_OPENCV
 	void * m_cvCapDev;
 	void * m_cvCapMat;
 	void * m_cvWriter;
@@ -70,12 +75,11 @@ private:
 	char m_roiMasterName[64];      // name of ROI image master
 	vx_rectangle_t m_roiRegion;    // rectangle used to save ROI image dimensions
 	vx_rectangle_t m_rectFull;     // rectangle with full image size for use by access/commit
-	vx_uint64 m_uniformValue;      // uniform image value
+	vx_pixel_value_t m_uniformValue; // uniform image value
 
 	// image I/O
 	size_t m_frameSize;
 	std::list<std::string> m_viewKeypointFilenameList;
-	bool m_useSyncOpenCLWriteDirective;
 	float m_comparePixelErrorMin;
 	float m_comparePixelErrorMax;
 	vx_rectangle_t m_rectCompare;  // rectangle used to save rectangular region used for compare
@@ -93,6 +97,8 @@ private:
 	vx_uint32 m_captureWidth;
 	vx_uint32 m_captureHeight;
 	int m_countInitializeIO;
+	int m_colorIndexDefault;
+	float m_radiusDefault;
 };
 
 

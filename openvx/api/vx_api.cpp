@@ -23,11 +23,15 @@ THE SOFTWARE.
 
 #include "ago_internal.h"
 
-vx_uint32 vxComputePatchOffset(vx_uint32 x, vx_uint32 y, const vx_imagepatch_addressing_t *addr)
+static inline vx_uint32 vxComputePatchOffset(vx_uint32 x, vx_uint32 y, const vx_imagepatch_addressing_t *addr)
 {
-	// TBD: division can be changed to right-shift
+#if VX_SCALE_UNITY == (1024u)
+	return ((addr->stride_y * ((addr->scale_y * y) >> 10)) +
+		(addr->stride_x * ((addr->scale_x * x) >> 10)));
+#else
 	return ((addr->stride_y * ((addr->scale_y * y) / VX_SCALE_UNITY)) +
 		(addr->stride_x * ((addr->scale_x * x) / VX_SCALE_UNITY)));
+#endif
 }
 
 /*! \brief Creates a <tt>\ref vx_context</tt>.
@@ -41,7 +45,7 @@ vx_uint32 vxComputePatchOffset(vx_uint32 x, vx_uint32 y, const vx_imagepatch_add
 */
 VX_API_ENTRY vx_context VX_API_CALL vxCreateContext()
 {
-	vx_context context = agoCreateContext();
+	vx_context context = agoCreateContextFromPlatform(nullptr);
 	return context;
 }
 
@@ -65,6 +69,32 @@ VX_API_ENTRY vx_status VX_API_CALL vxReleaseContext(vx_context *context)
 	if (context && !agoReleaseContext(*context)) {
 		*context = NULL;
 		status = VX_SUCCESS;
+	}
+	return status;
+}
+
+/**
+* \brief Set custom image format description.
+* \ingroup vx_framework_reference
+*
+* This function is used to support custom image formats with single-plane by ISVs. Should be called from vxPublishKernels().
+*
+* \param [in] context The context.
+* \param [in] format The image format.
+* \param [in] desc The image format description.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+* \retval VX_ERROR_INVALID_FORMAT if format is already in use.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context context, vx_df_image format, const AgoImageFormatDescription * desc)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context)) {
+		status = VX_ERROR_INVALID_FORMAT;
+		if (desc->planes == 1 && !agoSetImageComponentsAndPlanes(context, format, desc->components, desc->planes, desc->pixelSizeInBits, desc->colorSpace, desc->channelRange)) {
+			status = VX_SUCCESS;
+		}
 	}
 	return status;
 }
@@ -122,6 +152,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					*(vx_uint32 *)ptr = (vx_uint32)context->num_active_modules;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_CONTEXT_ATTRIBUTE_REFERENCES:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = (vx_uint32)context->num_active_references;
@@ -169,6 +200,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					*(vx_uint32 *)ptr = (vx_uint32)context->kernelList.count;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_CONTEXT_ATTRIBUTE_UNIQUE_KERNEL_TABLE:
 				if (size == (context->kernelList.count * sizeof(vx_kernel_info_t))) {
 					vx_kernel_info_t * table = (vx_kernel_info_t *)ptr;
@@ -240,7 +272,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextAttribute(vx_context context, vx_
 					if (immediate_border_mode.mode == VX_BORDER_MODE_UNDEFINED || immediate_border_mode.mode == VX_BORDER_MODE_CONSTANT || immediate_border_mode.mode == VX_BORDER_MODE_REPLICATE) {
 						context->immediate_border_mode = immediate_border_mode;
 						if (immediate_border_mode.mode == VX_BORDER_MODE_UNDEFINED || immediate_border_mode.mode == VX_BORDER_MODE_REPLICATE)
-							context->immediate_border_mode.constant_value = 0;
+							memset(&context->immediate_border_mode.constant_value, 0, sizeof(context->immediate_border_mode.constant_value));
 						status = VX_SUCCESS;
 					}
 				}
@@ -304,17 +336,18 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextAttribute(vx_context context, vx_
 }
 
 /*! \brief Provides a generic API to give platform-specific hints to the implementation.
-* \param [in] context The reference to the implementation context.
 * \param [in] reference The reference to the object to hint at.
 * This could be <tt>\ref vx_context</tt>, <tt>\ref vx_graph</tt>, <tt>\ref vx_node</tt>, <tt>\ref vx_image</tt>, <tt>\ref vx_array</tt>, or any other reference.
-* \param [in] hint A <tt>\ref vx_hint_e</tt> \a hint to give the OpenVX context. This is a platform-specific optimization or implementation mechanism.
+* \param [in] hint A <tt>\ref vx_hint_e</tt> \a hint to give to a \ref vx_context. This is a platform-specific optimization or implementation mechanism.
+* \param [in] data Optional vendor specific data.
+* \param [in] data_size Size of the data structure \p data.
 * \return A <tt>\ref vx_status_e</tt> enumeration.
 * \retval VX_SUCCESS No error.
 * \retval VX_ERROR_INVALID_REFERENCE If context or reference is invalid.
 * \retval VX_ERROR_NOT_SUPPORTED If the hint is not supported.
 * \ingroup group_hint
 */
-VX_API_ENTRY vx_status VX_API_CALL vxHint(vx_reference reference, vx_enum hint)
+VX_API_ENTRY vx_status VX_API_CALL vxHint(vx_reference reference, vx_enum hint, const void* data, vx_size data_size)
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (agoIsValidReference(reference)) {
@@ -401,6 +434,100 @@ VX_API_ENTRY vx_enum VX_API_CALL vxRegisterUserStruct(vx_context context, vx_siz
 		type = agoAddUserStruct(context, size, NULL);
 	}
 	return type;
+}
+
+/*!
+* \brief Allocates and registers user-defined kernel enumeration to a context.
+* The allocated enumeration is from available pool of 4096 enumerations reserved
+* for dynamic allocation from VX_KERNEL_BASE(VX_ID_USER,0).
+* \param [in] context  The reference to the implementation context.
+* \param [out] pKernelEnumId  pointer to return <tt>\ref vx_enum</tt> for user-defined kernel.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_NO_RESOURCES The enumerations has been exhausted.
+* \ingroup group_user_kernels
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxAllocateUserKernelId(vx_context context, vx_enum * pKernelEnumId)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context) && pKernelEnumId)
+	{
+		status = VX_ERROR_NO_RESOURCES;
+		if (context->nextUserKernelId <= VX_KERNEL_MASK)
+		{
+			*pKernelEnumId = VX_KERNEL_BASE(VX_ID_USER, 0) + context->nextUserKernelId++;
+			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+/*!
+* \brief Allocates and registers user-defined kernel library ID to a context.
+*
+* The allocated library ID is from available pool of library IDs (1..255)
+* reserved for dynamic allocation. The returned libraryId can be used by
+* user-kernel library developer to specify individual kernel enum IDs in
+* a header file, shown below:
+* \code
+* #define MY_KERNEL_ID1(libraryId) (VX_KERNEL_BASE(VX_ID_USER,libraryId) + 0);
+* #define MY_KERNEL_ID2(libraryId) (VX_KERNEL_BASE(VX_ID_USER,libraryId) + 1);
+* #define MY_KERNEL_ID3(libraryId) (VX_KERNEL_BASE(VX_ID_USER,libraryId) + 2);
+* \endcode
+* \param [in] context  The reference to the implementation context.
+* \param [out] pLibraryId  pointer to <tt>\ref vx_enum</tt> for user-kernel libraryId.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_NO_RESOURCES The enumerations has been exhausted.
+* \ingroup group_user_kernels
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxAllocateUserKernelLibraryId(vx_context context, vx_enum * pLibraryId)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context) && pLibraryId)
+	{
+		status = VX_ERROR_NO_RESOURCES;
+		if (context->nextUserLibraryId <= VX_LIBRARY(VX_LIBRARY_MASK))
+		{
+			*pLibraryId = context->nextUserLibraryId++;
+			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+/*! \brief Sets the default target of the immediate mode. Upon successful execution of this
+* function any future execution of immediate mode function is attempted on the new default
+* target of the context.
+* \param [in] context  The reference to the implementation context.
+* \param [in] target_enum  The default immediate mode target enum to be set
+* to the <tt>\ref vx_context</tt> object. Use a <tt>\ref vx_target_e</tt>.
+* \param [in] target_string  The target name ASCII string. This contains a valid value
+* when target_enum is set to <tt>\ref VX_TARGET_STRING</tt>, otherwise it is ignored.
+* \ingroup group_context
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS Default target set.
+* \retval VX_ERROR_INVALID_REFERENCE If the context is not a <tt>\ref vx_context</tt>.
+* \retval VX_ERROR_NOT_SUPPORTED If the specified target is not supported in this context.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetImmediateModeTarget(vx_context context, vx_enum target_enum, const char* target_string)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context))
+	{
+		status = VX_ERROR_NOT_SUPPORTED;
+		if (target_enum == VX_TARGET_ANY) {
+			status = VX_SUCCESS;
+		}
+		else if (target_enum == VX_TARGET_STRING) {
+			if (!target_string) {
+				status = VX_ERROR_INVALID_REFERENCE;
+			}
+			else if (!_stricmp(target_string, "any") || !_stricmp(target_string, "cpu")) {
+				// only cpu mode is supported as immediate mode target
+				status = VX_SUCCESS;
+			}
+		}
+	}
+	return status;
 }
 
 /*==============================================================================
@@ -497,26 +624,26 @@ VX_API_ENTRY vx_image VX_API_CALL vxCreateImageFromROI(vx_image img, const vx_re
 * a uniform image reference.
 * \ingroup group_image
 */
-VX_API_ENTRY vx_image VX_API_CALL vxCreateUniformImage(vx_context context, vx_uint32 width, vx_uint32 height, vx_df_image color, const void *value)
+VX_API_ENTRY vx_image VX_API_CALL vxCreateUniformImage(vx_context context, vx_uint32 width, vx_uint32 height, vx_df_image color, const vx_pixel_value_t *value)
 {
 	AgoData * data = NULL;
 	if (agoIsValidContext(context)) {
 		CAgoLock lock(context->cs);
 		char desc[128];
 		if (color == VX_DF_IMAGE_S16) {
-			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d", FORMAT_STR(color), width, height, *(vx_int16 *)value);
+			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d", FORMAT_STR(color), width, height, value->S16);
 		}
 		else if (color == VX_DF_IMAGE_U16) {
-			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d", FORMAT_STR(color), width, height, *(vx_uint16 *)value);
+			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d", FORMAT_STR(color), width, height, value->U16);
 		}
 		else if (color == VX_DF_IMAGE_S32) {
-			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d", FORMAT_STR(color), width, height, *(vx_int32 *)value);
+			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d", FORMAT_STR(color), width, height, value->S32);
 		}
 		else if (color == VX_DF_IMAGE_U32) {
-			sprintf(desc, "image-uniform:%4.4s,%d,%d,%u", FORMAT_STR(color), width, height, *(vx_uint32 *)value);
+			sprintf(desc, "image-uniform:%4.4s,%d,%d,%u", FORMAT_STR(color), width, height, value->U32);
 		}
 		else {
-			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d,%d,%d,%d", FORMAT_STR(color), width, height, ((vx_uint8 *)value)[0], ((vx_uint8 *)value)[1], ((vx_uint8 *)value)[2], ((vx_uint8 *)value)[3]);
+			sprintf(desc, "image-uniform:%4.4s,%d,%d,%d,%d,%d,%d", FORMAT_STR(color), width, height, value->reserved[0], value->reserved[1], value->reserved[2], value->reserved[3]);
 		}
 		data = agoCreateDataFromDescription(context, NULL, desc, true);
 		if (data) {
@@ -588,20 +715,36 @@ VX_API_ENTRY vx_image VX_API_CALL vxCreateVirtualImage(vx_graph graph, vx_uint32
 * \param [in] color See the <tt>\ref vx_df_image_e</tt> codes. This mandates the
 * number of planes needed to be valid in the \a addrs and \a ptrs arrays based on the format given.
 * \param [in] addrs[] The array of image patch addressing structures that
-* define the dimension and stride of the array of pointers.
-* \param [in] ptrs[] The array of platform-defined references to each plane.
-* \param [in] import_type <tt>\ref vx_import_type_e</tt>. When giving <tt>\ref VX_IMPORT_TYPE_HOST</tt>
+* define the dimension and stride of the array of pointers. See note below.
+* \param [in] ptrs[] The array of platform-defined references to each plane. See note below.
+* \param [in] memory_type <tt>\ref vx_memory_type_e</tt>. When giving <tt>\ref VX_MEMORY_TYPE_HOST</tt>
 * the \a ptrs array is assumed to be HOST accessible pointers to memory.
-* \return <tt>\ref vx_image</tt>.
-* \retval 0 Image could not be created.
-* \retval * Valid Image reference.
+* \returns An image reference <tt>\ref vx_image</tt>. Any possible errors preventing a
+* successful creation should be checked using <tt>\ref vxGetStatus</tt>.
+* \note The user must call vxMapImagePatch prior to accessing the pixels of an image, even if the
+* image was created via <tt>\ref vxCreateImageFromHandle</tt>. Reads or writes to memory referenced
+* by ptrs[ ] after calling <tt>\ref vxCreateImageFromHandle</tt> without first calling
+* <tt>\ref vxMapImagePatch</tt> will result in undefined behavior.
+* The property of addr[] and ptrs[] arrays is kept by the caller (It means that the implementation will
+* make an internal copy of the provided information. \a addr and \a ptrs can then simply be application's
+* local variables).
+* Only \a dim_x, \a dim_y, \a stride_x and \a stride_y fields of the <tt>\ref vx_imagepatch_addressing_t</tt> need to be
+* provided by the application. Other fields (\a step_x, \a step_y, \a scale_x & \a scale_y) are ignored by this function.
+* The layout of the imported memory must follow a row-major order. In other words, \a stride_x should be
+* sufficiently large so that there is no overlap between data elements corresponding to different
+* pixels, and \a stride_y >= \a stride_x * \a dim_x.
+*
+* In order to release the image back to the application we should use <tt>\ref vxSwapImageHandle</tt>.
+*
+* Import type of the created image is available via the image attribute <tt>\ref vx_image_attribute_e</tt> parameter.
+*
 * \ingroup group_image
 */
-VX_API_ENTRY vx_image VX_API_CALL vxCreateImageFromHandle(vx_context context, vx_df_image color, vx_imagepatch_addressing_t addrs[], void *ptrs[], vx_enum import_type)
+VX_API_ENTRY vx_image VX_API_CALL vxCreateImageFromHandle(vx_context context, vx_df_image color, const vx_imagepatch_addressing_t addrs[], void *const ptrs[], vx_enum memory_type)
 {
 	AgoData * data = NULL;
 	if (agoIsValidContext(context)) {
-		if (import_type == VX_IMPORT_TYPE_HOST) {
+		if (memory_type == VX_MEMORY_TYPE_HOST) {
 			char desc[128]; sprintf(desc, "image:%4.4s,%d,%d", FORMAT_STR(color), addrs[0].dim_x, addrs[0].dim_y);
 			data = agoCreateDataFromDescription(context, NULL, desc, true);
 			if (data) {
@@ -614,23 +757,163 @@ VX_API_ENTRY vx_image VX_API_CALL vxCreateImageFromHandle(vx_context context, vx
 					}
 				}
 				// set host allocated pointers
-				// TBD: check for errors in addrs[]
 				if (data->children) {
+					data->import_type = VX_MEMORY_TYPE_HOST;
 					for (vx_uint32 i = 0; i < data->numChildren; i++) {
-						data->children[i]->import_type = VX_IMPORT_TYPE_HOST;
-						data->children[i]->buffer = (vx_uint8 *)ptrs[i];
+						data->children[i]->import_type = VX_MEMORY_TYPE_HOST;
+						data->children[i]->buffer = (vx_uint8 *)(ptrs ? ptrs[i] : nullptr);
 						data->children[i]->u.img.stride_in_bytes = addrs[i].stride_y;
+						data->children[i]->opencl_buffer_offset = 0;
 					}
 				}
 				else {
-					data->import_type = VX_IMPORT_TYPE_HOST;
-					data->buffer = (vx_uint8 *)ptrs[0];
+					data->import_type = VX_MEMORY_TYPE_HOST;
+					data->buffer = (vx_uint8 *)(ptrs ? ptrs[0] : nullptr);
 					data->u.img.stride_in_bytes = addrs[0].stride_y;
+					data->opencl_buffer_offset = 0;
 				}
 			}
 		}
+#if ENABLE_OPENCL
+		else if (memory_type == VX_MEMORY_TYPE_OPENCL) {
+			char desc[128]; sprintf(desc, "image:%4.4s,%d,%d", FORMAT_STR(color), addrs[0].dim_x, addrs[0].dim_y);
+			data = agoCreateDataFromDescription(context, NULL, desc, true);
+			if (data) {
+				agoGenerateDataName(context, "image-opencl", data->name);
+				agoAddData(&context->dataList, data);
+				// if data has children, add them too
+				if (data->children) {
+					for (vx_uint32 i = 0; i < data->numChildren; i++) {
+						agoAddData(&context->dataList, data->children[i]);
+					}
+				}
+				// set host allocated pointers
+				if (data->children) {
+					data->import_type = VX_MEMORY_TYPE_OPENCL;
+					for (vx_uint32 i = 0; i < data->numChildren; i++) {
+						data->children[i]->import_type = VX_MEMORY_TYPE_OPENCL;
+						data->children[i]->opencl_buffer = (cl_mem)(ptrs ? ptrs[i] : nullptr);
+						data->children[i]->opencl_buffer_offset = 0;
+						data->children[i]->u.img.stride_in_bytes = addrs[i].stride_y;
+						data->children[i]->opencl_buffer_offset = 0;
+					}
+				}
+				else {
+					data->import_type = VX_MEMORY_TYPE_OPENCL;
+					data->opencl_buffer = (cl_mem)(ptrs ? ptrs[0] : nullptr);
+					data->u.img.stride_in_bytes = addrs[0].stride_y;
+					data->opencl_buffer_offset = 0;
+				}
+			}
+		}
+#endif
 	}
 	return (vx_image)data;
+}
+
+/*! \brief Swaps the image handle of an image previously created from handle.
+*
+* This function sets the new image handle (i.e. pointer to all image planes)
+* and returns the previous one.
+*
+* Once this function call has completed, the application gets back the
+* ownership of the memory referenced by the previous handle. This memory
+* contains up-to-date pixel data, and the application can safely reuse or
+* release it.
+*
+* The memory referenced by the new handle must have been allocated
+* consistently with the image properties since the import type,
+* memory layout and dimensions are unchanged (see addrs, color, and
+* memory_type in <tt>\ref vxCreateImageFromHandle</tt>).
+*
+* All images created from ROI with this image as parent or ancestor
+* will automatically use the memory referenced by the new handle.
+*
+* The behavior of SwapImageHandle when called from a user node is undefined.
+* \param [in] image The reference to an image created from handle
+* \param [in] new_ptrs[] pointer to a caller owned array that contains
+* the new image handle (image plane pointers)
+* \arg new_ptrs is non NULL. new_ptrs[i] must be non NULL for each i such as
+* 0 < i < nbPlanes, otherwise, this is an error. The address of the storage memory
+* for image plane i is set to new_ptrs[i]
+* \arg new_ptrs is NULL: the previous image storage memory is reclaimed by the
+* caller, while no new handle is provided.
+* \param [out] prev_ptrs[] pointer to a caller owned array in which
+* the application returns the previous image handle
+* \arg prev_ptrs is non NULL. prev_ptrs must have at least as many
+* elements as the number of image planes. For each i such as
+* 0 < i < nbPlanes , prev_ptrs[i] is set to the address of the previous storage
+* memory for plane i.
+* \arg prev_ptrs NULL : the previous handle is not returned.
+* \param [in] num_planes Number of planes in the image. This must be set equal to the number of planes of the input image.
+*  The number of elements in new_ptrs and prev_ptrs arrays must be equal to or greater than num_planes.
+* If either array has more than num_planes elements, the extra elements are ignored. If either array is smaller
+* than num_planes, the results are undefined.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE image is not a valid image
+* reference.
+* \retval VX_ERROR_INVALID_PARAMETERS The image was not created from handle or
+* the content of new_ptrs is not valid.
+* \retval VX_FAILURE The image was already being accessed.
+* \ingroup group_image
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* const new_ptrs[], void* prev_ptrs[], vx_size num_planes)
+{
+	AgoData * image = (AgoData *)image_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(image, VX_TYPE_IMAGE)) {
+		CAgoLock lock(image->ref.context->cs);
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (image->import_type == VX_MEMORY_TYPE_HOST && num_planes == image->u.img.planes) {
+			status = VX_SUCCESS;
+			if (image->children) {
+				for (vx_uint32 i = 0; i < image->numChildren; i++) {
+					if (prev_ptrs) prev_ptrs[i] = image->children[i]->buffer;
+					image->children[i]->buffer = (vx_uint8 *)(new_ptrs ? new_ptrs[i] : nullptr);
+					if (image->children[i]->buffer) {
+						image->children[i]->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+						image->children[i]->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+					}
+					// TBD: propagate to ROIs
+				}
+			}
+			else {
+				if (prev_ptrs) prev_ptrs[0] = image->buffer;
+				image->buffer = (vx_uint8 *)(new_ptrs ? new_ptrs[0] : nullptr);
+				if (image->buffer) {
+					image->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					image->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+				}
+				// TBD: propagate to ROIs
+			}
+		}
+#if ENABLE_OPENCL
+		else if (image->import_type == VX_MEMORY_TYPE_OPENCL && num_planes == image->u.img.planes) {
+			status = VX_SUCCESS;
+			if (image->children) {
+				for (vx_uint32 i = 0; i < image->numChildren; i++) {
+					if (prev_ptrs) prev_ptrs[i] = image->children[i]->opencl_buffer;
+					image->children[i]->opencl_buffer = (cl_mem)(new_ptrs ? new_ptrs[i] : nullptr);
+					if (image->children[i]->opencl_buffer) {
+						image->children[i]->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+						image->children[i]->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
+					}
+					// TBD: propagate to ROIs
+				}
+			}
+			else {
+				if (prev_ptrs) prev_ptrs[0] = image->opencl_buffer;
+				image->opencl_buffer = (cl_mem)(new_ptrs ? new_ptrs[0] : nullptr);
+				if (image->opencl_buffer) {
+					image->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					image->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
+				}
+				// TBD: propagate to ROIs
+			}
+		}
+#endif
+	}
+	return status;
 }
 
 /*! \brief Retrieves various attributes of an image.
@@ -655,42 +938,49 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_IMAGE_ATTRIBUTE_WIDTH:
+			case VX_IMAGE_WIDTH:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = image->u.img.width;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_HEIGHT:
+			case VX_IMAGE_HEIGHT:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = image->u.img.height;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_FORMAT:
+			case VX_IMAGE_FORMAT:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_df_image *)ptr = image->u.img.format;
 					status = VX_SUCCESS;
 				}
-			case VX_IMAGE_ATTRIBUTE_PLANES:
+				break;
+			case VX_IMAGE_PLANES:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = image->u.img.planes;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_SPACE:
+			case VX_IMAGE_SPACE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = image->u.img.color_space;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_RANGE:
+			case VX_IMAGE_RANGE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = image->u.img.channel_range;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_SIZE:
+			case VX_IMAGE_MEMORY_TYPE:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = image->import_type;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_IMAGE_SIZE:
 				if (size == sizeof(vx_size)) {
 					status = VX_SUCCESS;
 					if (image->numChildren) {
@@ -732,6 +1022,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 			case VX_IMAGE_ATTRIBUTE_AMD_OPENCL_BUFFER_OFFSET:
 				if (size == sizeof(cl_uint)) {
 					*(cl_uint *)ptr = image->opencl_buffer_offset;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_IMAGE_ATTRIBUTE_AMD_OPENCL_BUFFER_STRIDE:
+				if (size == sizeof(cl_uint)) {
+					*(cl_uint *)ptr = image->u.img.stride_in_bytes;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -913,8 +1209,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 				}
 			}
 			if (!*ptr) {
-				addr->dim_x = rect->end_x - rect->start_x;
-				addr->dim_y = rect->end_y - rect->start_y;
+				addr->dim_x = (rect->end_x - rect->start_x);
+				addr->dim_y = (rect->end_y - rect->start_y);
 				addr->scale_x = VX_SCALE_UNITY >> img->u.img.x_scale_factor_is_2;
 				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
 				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
@@ -936,7 +1232,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 				}
 			}
 			if (status == VX_SUCCESS) {
-				MappedData item = { ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false };
+				MappedData item = { img->nextMapId++, ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false };
 				img->mapped.push_back(item);
 				*ptr = ptr_returned;
 				if (usage == VX_READ_ONLY || usage == VX_READ_AND_WRITE) {
@@ -958,10 +1254,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 					if (item.used_external_ptr) {
 						// copy if read is requested with explicit external buffer
 						if (addr->stride_x == ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3)
-							HafCpu_ChannelCopy_U8_U8((addr->dim_x >> img->u.img.x_scale_factor_is_2) * addr->stride_x, (addr->dim_y >> img->u.img.y_scale_factor_is_2),
+							HafCpu_ChannelCopy_U8_U8(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2) * addr->stride_x, ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
 							ptr_returned, addr->stride_y, ptr_internal, img->u.img.stride_in_bytes);
 						else
-							HafCpu_BufferCopyDisperseInDst((addr->dim_x >> img->u.img.x_scale_factor_is_2), (addr->dim_y >> img->u.img.y_scale_factor_is_2),
+							HafCpu_BufferCopyDisperseInDst(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2), ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
 							((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3, ptr_returned, addr->stride_y, addr->stride_x, ptr_internal, img->u.img.stride_in_bytes);
 					}
 				}
@@ -996,9 +1292,9 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 * within the bounds of the original image dimensions.
 */
 VX_API_ENTRY vx_status VX_API_CALL vxCommitImagePatch(vx_image image_,
-	vx_rectangle_t *rect,
+	const vx_rectangle_t *rect,
 	vx_uint32 plane_index,
-	vx_imagepatch_addressing_t *addr,
+	const vx_imagepatch_addressing_t *addr,
 	const void *ptr)
 {
 	AgoData * image = (AgoData *)image_;
@@ -1037,11 +1333,6 @@ VX_API_ENTRY vx_status VX_API_CALL vxCommitImagePatch(vx_image image_,
 					}
 				}
 				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
-					// mark valid region
-					img->u.img.rect_valid.start_x = rect->start_x >> img->u.img.x_scale_factor_is_2;
-					img->u.img.rect_valid.start_y = rect->start_y >> img->u.img.y_scale_factor_is_2;
-					img->u.img.rect_valid.end_x = rect->end_x >> img->u.img.x_scale_factor_is_2;
-					img->u.img.rect_valid.end_y = rect->end_y >> img->u.img.y_scale_factor_is_2;
 					if (used_external_ptr) {
 						// copy from external buffer
 						vx_uint8 * buffer = img->buffer + (rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes + 
@@ -1145,6 +1436,317 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetValidRegionImage(vx_image image_, vx_rec
 	return status;
 }
 
+/*! \brief Allows the application to copy a rectangular patch from/into an image object plane.
+* \param [in] image The reference to the image object that is the source or the
+* destination of the copy.
+* \param [in] image_rect The coordinates of the image patch. The patch must be within
+* the bounds of the image. (start_x, start_y) gives the coordinates of the topleft
+* pixel inside the patch, while (end_x, end_y) gives the coordinates of the bottomright
+* element out of the patch. Must be 0 <= start < end <= number of pixels in the image dimension.
+* \param [in] image_plane_index The plane index of the image object that is the source or the
+* destination of the patch copy.
+* \param [in] user_addr The address of a structure describing the layout of the
+* user memory location pointed by user_ptr. In the structure, only dim_x, dim_y,
+* stride_x and stride_y fields must be provided, other fields are ignored by the function.
+* The layout of the user memory must follow a row major order:
+* stride_x >= pixel size in bytes, and stride_y >= stride_x * dim_x.
+* \param [in] user_ptr The address of the memory location where to store the requested data
+* if the copy was requested in read mode, or from where to get the data to store into the image
+* object if the copy was requested in write mode. The accessible memory must be large enough
+* to contain the specified patch with the specified layout:
+* accessible memory in bytes >= (end_y - start_y) * stride_y.
+* \param [in] usage This declares the effect of the copy with regard to the image object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. For uniform images, only VX_READ_ONLY
+* is supported. For other images, Only VX_READ_ONLY and VX_WRITE_ONLY are supported:
+* \arg VX_READ_ONLY means that data is copied from the image object into the application memory
+* \arg VX_WRITE_ONLY means that data is copied into the image object from the application memory
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_OPTIMIZED_AWAY This is a reference to a virtual image that cannot be
+* accessed by the application.
+* \retval VX_ERROR_INVALID_REFERENCE The image reference is not actually an image reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \note The application may ask for data outside the bounds of the valid region, but
+* such data has an undefined value.
+* \ingroup group_image
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyImagePatch(vx_image image_, const vx_rectangle_t *image_rect, vx_uint32 image_plane_index, const vx_imagepatch_addressing_t *user_addr, void * user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * image = (AgoData *)image_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(image, VX_TYPE_IMAGE))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr && (usage == VX_READ_ONLY || usage == VX_WRITE_ONLY)) {
+			vx_rectangle_t rect = *image_rect;
+			vx_imagepatch_addressing_t addr = *user_addr;
+			status = vxAccessImagePatch(image_, &rect, image_plane_index, &addr, &user_ptr, usage);
+			if (status == VX_SUCCESS) {
+				status = vxCommitImagePatch(image_, &rect, image_plane_index, &addr, user_ptr);
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to get direct access to a rectangular patch of an image object plane.
+* \param [in] image The reference to the image object that contains the patch to map.
+* \param [in] rect The coordinates of image patch. The patch must be within the
+* bounds of the image. (start_x, start_y) gives the coordinate of the topleft
+* element inside the patch, while (end_x, end_y) give the coordinate of
+* the bottomright element out of the patch. Must be 0 <= start < end.
+* \param [in] plane_index The plane index of the image object to be accessed.
+* \param [out] map_id The address of a vx_map_id variable where the function
+* returns a map identifier.
+* \arg (*map_id) must eventually be provided as the map_id parameter of a call to
+* <tt>\ref vxUnmapImagePatch</tt>.
+* \param [out] addr The address of a structure describing the memory layout of the
+* image patch to access. The function fills the structure pointed by addr with the
+* layout information that the application must consult to access the pixel data
+* at address (*ptr). The layout of the mapped memory follows a row-major order:
+* stride_x>0, stride_y>0 and stride_y >= stride_x * dim_x.
+* If the image object being accessed was created via
+* <tt>\ref vxCreateImageFromHandle</tt>, then the returned memory layout will be
+* the identical to that of the addressing structure provided when
+* <tt>\ref vxCreateImageFromHandle</tt> was called.
+* \param [out] ptr The address of a pointer that the function sets to the
+* address where the requested data can be accessed. This returned (*ptr) address
+* is only valid between the call to this function and the corresponding call to
+* <tt>\ref vxUnmapImagePatch</tt>.
+* If image was created via <tt>\ref vxCreateImageFromHandle</tt> then the returned
+* address (*ptr) will be the address of the patch in the original pixel buffer
+* provided when image was created.
+* \param [in] usage This declares the access mode for the image patch, using
+* the <tt>\ref vx_accessor_e</tt> enumeration. For uniform images, only VX_READ_ONLY
+* is supported.
+* \arg VX_READ_ONLY: after the function call, the content of the memory location
+* pointed by (*ptr) contains the image patch data. Writing into this memory location
+* is forbidden and its behavior is undefined.
+* \arg VX_READ_AND_WRITE : after the function call, the content of the memory
+* location pointed by (*ptr) contains the image patch data; writing into this memory
+* is allowed only for the location of pixels only and will result in a modification
+* of the written pixels in the image object once the patch is unmapped. Writing into
+* a gap between pixels (when addr->stride_x > pixel size in bytes or addr->stride_y > addr->stride_x*addr->dim_x)
+* is forbidden and its behavior is undefined.
+* \arg VX_WRITE_ONLY: after the function call, the memory location pointed by (*ptr)
+* contains undefined data; writing each pixel of the patch is required prior to
+* unmapping. Pixels not written by the application before unmap will become
+* undefined after unmap, even if they were well defined before map. Like for
+* VX_READ_AND_WRITE, writing into a gap between pixels is forbidden and its behavior
+* is undefined.
+* \param [in] mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that
+* specifies the type of the memory where the image patch is requested to be mapped.
+* \param [in] flags An integer that allows passing options to the map operation.
+* Use the <tt>\ref vx_map_flag_e</tt> enumeration.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_OPTIMIZED_AWAY This is a reference to a virtual image that cannot be
+* accessed by the application.
+* \retval VX_ERROR_INVALID_REFERENCE The image reference is not actually an image
+* reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \note The user may ask for data outside the bounds of the valid region, but
+* such data has an undefined value.
+* \ingroup group_image
+* \post <tt>\ref vxUnmapImagePatch </tt> with same (*map_id) value.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxMapImagePatch(vx_image image_, const vx_rectangle_t *rect, vx_uint32 plane_index, vx_map_id *map_id, vx_imagepatch_addressing_t *addr, void **ptr, vx_enum usage, vx_enum mem_type, vx_uint32 flags)
+{
+	AgoData * image = (AgoData *)image_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(image, VX_TYPE_IMAGE)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (image->isVirtual && !image->buffer) {
+			status = VX_ERROR_OPTIMIZED_AWAY;
+		}
+		else if ((mem_type == VX_MEMORY_TYPE_HOST) && (plane_index < image->u.img.planes) && addr && ptr && rect &&
+			rect->start_x < rect->end_x && rect->start_y < rect->end_y &&
+			rect->end_x <= image->u.img.width && rect->end_y <= image->u.img.height &&
+			(!image->u.img.isUniform || usage == VX_READ_ONLY) && !image->isNotFullyConfigured)
+		{
+			AgoData * img = image;
+			if (image->children) {
+				img = image->children[plane_index];
+			}
+			if (!img->buffer) {
+				CAgoLock lock(img->ref.context->cs);
+				if (agoAllocData(img)) {
+					return VX_FAILURE;
+				}
+			}
+			vx_uint8 * ptr_returned = img->buffer +
+				(rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes +
+				(((rect->start_x >> img->u.img.x_scale_factor_is_2) * img->u.img.pixel_size_in_bits) >> 3);
+			// save the pointer and usage for use in vxCommitImagePatch
+			status = VX_SUCCESS;
+			for (auto i = img->mapped.begin(); i != img->mapped.end(); i++) {
+				if (i->ptr == ptr_returned) {
+					// can't support vxAccessImagePatch() more than once with same pointer
+					// the application needs to call vxCommitImagePatch() before calling vxAccessImagePatch()
+					status = VX_FAILURE;
+				}
+			}
+			if (status == VX_SUCCESS) {
+#if ENABLE_OPENCL
+				if (usage == VX_READ_ONLY || usage == VX_READ_AND_WRITE) {
+					auto dataToSync = img->u.img.isROI ? img->u.img.roiMasterImage : img;
+					if (dataToSync->opencl_buffer && !(dataToSync->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+						// make sure dirty OpenCL buffers are synched before giving access for read
+						if (dataToSync->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+							cl_int err = clEnqueueReadBuffer(dataToSync->ref.context->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, dataToSync->size, dataToSync->buffer, 0, NULL, NULL);
+							if (err) {
+								status = VX_FAILURE;
+								agoAddLogEntry(&image->ref, status, "ERROR: vxMapImagePatch: clEnqueueReadBuffer() => %d\n", err);
+								return status;
+							}
+							dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+						}
+					}
+				}
+#endif
+				// get map id and set returned pointer
+				MappedData item = { img->nextMapId++, ptr_returned, usage, false, 0, plane_index };
+				image->mapped.push_back(item);
+				*map_id = item.map_id;
+				*ptr = ptr_returned;
+				addr->dim_x = rect->end_x - rect->start_x;
+				addr->dim_y = rect->end_y - rect->start_y;
+				addr->scale_x = VX_SCALE_UNITY >> img->u.img.x_scale_factor_is_2;
+				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
+				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
+				addr->step_y = 1 << img->u.img.y_scale_factor_is_2;
+				addr->stride_x = ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3;
+				addr->stride_y = img->u.img.stride_in_bytes;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Unmap and commit potential changes to a image object patch that were previously mapped.
+* Unmapping an image patch invalidates the memory location from which the patch could
+* be accessed by the application. Accessing this memory location after the unmap function
+* completes has an undefined behavior.
+* \param [in] image The reference to the image object to unmap.
+* \param [out] map_id The unique map identifier that was returned by <tt>\ref vxMapImagePatch</tt> .
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The image reference is not actually an image reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_image
+* \pre <tt>\ref vxMapImagePatch</tt> with same map_id value
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxUnmapImagePatch(vx_image image_, vx_map_id map_id)
+{
+	AgoData * image = (AgoData *)image_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(image, VX_TYPE_IMAGE)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		for (auto i = image->mapped.begin(); i != image->mapped.end(); i++) {
+			if (i->map_id == map_id) {
+				vx_enum usage = i->usage;
+				vx_uint32 plane = i->plane;
+				image->mapped.erase(i);
+				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
+					// update sync flags
+					auto dataToSync = image->u.img.isROI ? image->u.img.roiMasterImage : image;
+					dataToSync->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+					if (dataToSync->numChildren > 0 && plane < dataToSync->numChildren && dataToSync->children[plane]) {
+						dataToSync->children[plane]->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+						dataToSync->children[plane]->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+					}
+				}
+				status = VX_SUCCESS;
+				break;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Create a sub-image from a single plane channel of another image.
+*
+* The sub-image refers to the data in the original image. Updates to this image
+* update the parent image and reversely.
+*
+* The function supports only channels that occupy an entire plane of a multi-planar
+* images, as listed below. Other cases are not supported.
+*     VX_CHANNEL_Y from YUV4, IYUV, NV12, NV21
+*     VX_CHANNEL_U from YUV4, IYUV
+*     VX_CHANNEL_V from YUV4, IYUV
+*
+* \param [in] img          The reference to the parent image.
+* \param [in] channel      The <tt>\ref vx_channel_e</tt> channel to use.
+
+* \returns An image reference <tt>\ref vx_image</tt> to the sub-image. Any possible errors preventing a
+* successful creation should be checked using <tt>\ref vxGetStatus</tt>.
+* \ingroup group_image
+*/
+VX_API_ENTRY vx_image VX_API_CALL vxCreateImageFromChannel(vx_image img, vx_enum channel)
+{
+	AgoData * image = (AgoData *)img, * subImage = nullptr;
+	if (agoIsValidData(image, VX_TYPE_IMAGE))
+	{
+		if (image->numChildren > 0) {
+			if (channel == VX_CHANNEL_Y && 
+				(image->u.img.format == VX_DF_IMAGE_YUV4 || image->u.img.format == VX_DF_IMAGE_IYUV ||
+				 image->u.img.format == VX_DF_IMAGE_NV12 || image->u.img.format == VX_DF_IMAGE_NV21))
+			{
+				subImage = image->children[0];
+			}
+			else if (channel == VX_CHANNEL_U && (image->u.img.format == VX_DF_IMAGE_YUV4 || image->u.img.format == VX_DF_IMAGE_IYUV))
+			{
+				subImage = image->children[1];
+			}
+			else if (channel == VX_CHANNEL_V && (image->u.img.format == VX_DF_IMAGE_YUV4 || image->u.img.format == VX_DF_IMAGE_IYUV))
+			{
+				subImage = image->children[2];
+			}
+		}
+	}
+	if (subImage) {
+		subImage->ref.external_count++;
+	}
+	return (vx_image)subImage;
+}
+
+/*! \brief Sets the valid rectangle for an image according to a supplied rectangle.
+* \note Setting or changing the valid region from within a user node by means other than the call-back, for
+* example by calling <tt>\ref vxSetImageValidRectangle</tt>, might result in an incorrect valid region calculation
+* by the framework.
+* \param [in] image  The reference to the image.
+* \param [in] rect   The value to be set to the image valid rectangle. A NULL indicates that the valid region is the entire image.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE  The image is not a <tt>\ref vx_image</tt>.
+* \retval VX_ERROR_INVALID_PARAMETERS The rect does not define a proper valid rectangle.
+* \ingroup group_image
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetImageValidRectangle(vx_image image_, const vx_rectangle_t *rect)
+{
+	AgoData * image = (AgoData *)image_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(image, VX_TYPE_IMAGE) && !image->isVirtual)
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (!rect) {
+			image->u.img.rect_valid.start_x = 0;
+			image->u.img.rect_valid.start_y = 0;
+			image->u.img.rect_valid.end_x = image->u.img.width;
+			image->u.img.rect_valid.end_y = image->u.img.height;
+			status = VX_SUCCESS;
+		}
+		else if (rect->start_x < rect->end_x && rect->start_y < rect->end_y && rect->end_x <= image->u.img.width && rect->end_y <= image->u.img.height) {
+			image->u.img.rect_valid = *rect;
+			status = VX_SUCCESS;
+		}
+		if (status == VX_SUCCESS) {
+			// TBD: inform graphs for take this image as input, to re-computed output valid regions
+		}
+	}
+	return status;
+}
+
 /*==============================================================================
 KERNEL
 =============================================================================*/
@@ -1171,6 +1773,29 @@ KERNEL
 VX_API_ENTRY vx_status VX_API_CALL vxLoadKernels(vx_context context, const vx_char *module)
 {
 	return agoLoadModule(context, module);
+}
+
+/*! \brief Unloads all kernels from the OpenVX context that had been loaded from
+* the module using the \ref vxLoadKernels function.
+* \param [in] context The reference to the implementation context.
+* \param [in] module The short name of the module to unload. On systems where
+* there are specific naming conventions for modules, the name passed
+* should ignore such conventions. For example: \c libxyz.so should be
+* passed as just \c xyz and the implementation will <i>do the right thing</i>
+* that the platform requires.
+* \note This API uses the system pre-defined paths for modules.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE If the context is not a <tt>\ref
+vx_context</tt>.
+* \retval VX_ERROR_INVALID_PARAMETERS If any of the other parameters are
+incorrect.
+* \ingroup group_user_kernels
+* \see vxLoadKernels
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxUnloadKernels(vx_context context, const vx_char *module)
+{
+	return agoUnloadModule(context, module);
 }
 
 /*! \brief Obtains a reference to a kernel using a string to specify the name.
@@ -1260,15 +1885,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryKernel(vx_kernel kernel, vx_enum attri
 					*(vx_enum *)ptr = kernel->id;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_KERNEL_ATTRIBUTE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = kernel->localDataSize;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_KERNEL_ATTRIBUTE_LOCAL_DATA_PTR:
-				if (size == sizeof(void *)) {
-					*(void **)ptr = kernel->localDataPtr;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -1348,12 +1968,72 @@ VX_API_ENTRY vx_kernel VX_API_CALL vxAddKernel(vx_context context,
 			kernel->ref.internal_count = 1;
 			kernel->ref.external_count = 1;
 			kernel->id = enumeration;
-			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU;
+			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU | AGO_KERNEL_FLAG_VALID_RECT_RESET;
 			strcpy(kernel->name, name);
 			kernel->argCount = numParams;
 			kernel->kernel_f = func_ptr;
 			kernel->input_validate_f = input;
 			kernel->output_validate_f = output;
+			kernel->initialize_f = init;
+			kernel->deinitialize_f = deinit;
+			kernel->importing_module_index_plus1 = context->importing_module_index_plus1;
+			agoAddKernel(&context->kernelList, kernel);
+			// update reference count
+			kernel->ref.context->num_active_references++;
+		}
+	}
+	return kernel;
+}
+
+/*! \brief Allows users to add custom kernels to the known kernel
+* database in OpenVX at run-time. This would primarily be used by the module function
+* <tt>\ref vxPublishKernels</tt>.
+* \param [in] context The reference to the implementation context.
+* \param [in] name The string to use to match the kernel.
+* \param [in] enumeration The enumerated value of the kernel to be used by clients.
+* \param [in] func_ptr The process-local function pointer to be invoked.
+* \param [in] numParams The number of parameters for this kernel.
+* \param [in] validate The pointer to <tt>\ref vx_kernel_validate_f</tt>, which validates
+* parameters to this kernel.
+* \param [in] init The kernel initialization function.
+* \param [in] deinit The kernel de-initialization function.
+* \ingroup group_user_kernels
+* \return <tt>\ref vx_kernel</tt>. Any possible errors
+* preventing a successful creation should be checked using <tt>\ref vxGetStatus</tt>.
+* \retval 0 Indicates that an error occurred when adding the kernel.
+* \retval * Kernel added to OpenVX.
+*/
+VX_API_ENTRY vx_kernel VX_API_CALL vxAddUserKernel(vx_context context,
+	const vx_char name[VX_MAX_KERNEL_NAME],
+	vx_enum enumeration,
+	vx_kernel_f func_ptr,
+	vx_uint32 numParams,
+	vx_kernel_validate_f validate,
+	vx_kernel_initialize_f init,
+	vx_kernel_deinitialize_f deinit)
+{
+	vx_kernel kernel = NULL;
+	if (agoIsValidContext(context) && numParams > 0 && numParams <= AGO_MAX_PARAMS && func_ptr && validate) {
+		CAgoLock lock(context->cs);
+		// make sure there are no kernels with the same name
+		if (!agoFindKernelByEnum(context, enumeration) && !agoFindKernelByName(context, name)) {
+			kernel = new AgoKernel;
+			// initialize references
+			agoResetReference(&kernel->ref, VX_TYPE_KERNEL, context, NULL);
+			for (vx_uint32 index = 0; index < AGO_MAX_PARAMS; index++) {
+				agoResetReference(&kernel->parameters[index].ref, VX_TYPE_PARAMETER, kernel->ref.context, &kernel->ref);
+				kernel->parameters[index].scope = &kernel->ref;
+			}
+			// add kernel object to context
+			kernel->external_kernel = true;
+			kernel->ref.internal_count = 1;
+			kernel->ref.external_count = 1;
+			kernel->id = enumeration;
+			kernel->flags = AGO_KERNEL_FLAG_GROUP_USER | AGO_KERNEL_FLAG_DEVICE_CPU | AGO_KERNEL_FLAG_VALID_RECT_RESET;
+			strcpy(kernel->name, name);
+			kernel->argCount = numParams;
+			kernel->kernel_f = func_ptr;
+			kernel->validate_f = validate;
 			kernel->initialize_f = init;
 			kernel->deinitialize_f = deinit;
 			kernel->importing_module_index_plus1 = context->importing_module_index_plus1;
@@ -1457,8 +2137,11 @@ VX_API_ENTRY vx_status VX_API_CALL vxRemoveKernel(vx_kernel kernel)
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (agoIsValidKernel(kernel)) {
 		status = VX_ERROR_INVALID_PARAMETERS;
-		// release if the kernel is not finalized and not a built-in kernel
-		if (!kernel->finalized) {
+		// release if the kernel is not finalized and not a built-in kernel or user kernel with validate_f without external references
+		if (!kernel->finalized ||
+			(kernel->validate_f && kernel->external_kernel && (kernel->flags & AGO_KERNEL_FLAG_GROUP_USER) && 
+			 kernel->ref.internal_count < 2 && kernel->ref.external_count == 0))
+		{
 			CAgoLock lock(kernel->ref.context->cs);
 			if (!agoReleaseKernel(kernel, true)) {
 				status = VX_SUCCESS;
@@ -1493,12 +2176,6 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetKernelAttribute(vx_kernel kernel, vx_enu
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_KERNEL_ATTRIBUTE_LOCAL_DATA_PTR:
-				if (size == sizeof(void *)) {
-					kernel->localDataPtr = (vx_uint8 *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
 			case VX_KERNEL_ATTRIBUTE_AMD_NODE_REGEN_CALLBACK:
 				if (size == sizeof(void *)) {
 					if (!kernel->finalized) {
@@ -1527,6 +2204,53 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetKernelAttribute(vx_kernel kernel, vx_enu
 					if (!kernel->finalized) {
 						*((void **)&kernel->opencl_codegen_callback_f) = *(void **)ptr;
 						status = VX_SUCCESS;
+					}
+					else {
+						status = VX_ERROR_NOT_SUPPORTED;
+					}
+				}
+				break;
+			case VX_KERNEL_ATTRIBUTE_AMD_OPENCL_GLOBAL_WORK_UPDATE_CALLBACK:
+				if (size == sizeof(void *)) {
+					if (!kernel->finalized) {
+						*((void **)&kernel->opencl_global_work_update_callback_f) = *(void **)ptr;
+						status = VX_SUCCESS;
+					}
+					else {
+						status = VX_ERROR_NOT_SUPPORTED;
+					}
+				}
+				break;
+			case VX_KERNEL_ATTRIBUTE_AMD_OPENCL_IMAGE_ACCESS_ENABLE:
+				if (size == sizeof(vx_bool)) {
+					if (!kernel->finalized && !kernel->opencl_buffer_update_callback_f) {
+						kernel->opencl_image_access_enable = *(vx_bool *)ptr;
+						status = VX_SUCCESS;
+					}
+					else {
+						status = VX_ERROR_NOT_SUPPORTED;
+					}
+				}
+				break;
+			case VX_KERNEL_ATTRIBUTE_AMD_OPENCL_BUFFER_UPDATE_CALLBACK:
+				if (size == sizeof(AgoKernelOpenclBufferUpdateInfo)) {
+					if (!kernel->finalized) {
+						AgoKernelOpenclBufferUpdateInfo * info = (AgoKernelOpenclBufferUpdateInfo *)ptr;
+						if (info->opencl_buffer_update_param_index >= kernel->argCount ||
+							info->opencl_buffer_update_callback_f == nullptr ||
+							kernel->parameters[info->opencl_buffer_update_param_index].direction != VX_INPUT ||
+							kernel->parameters[info->opencl_buffer_update_param_index].type != VX_TYPE_IMAGE ||
+							kernel->parameters[info->opencl_buffer_update_param_index].state != VX_PARAMETER_STATE_REQUIRED)
+						{
+							// param index has to point to required input images only
+							status = VX_ERROR_INVALID_PARAMETERS;
+						}
+						else {
+							kernel->opencl_buffer_update_callback_f = info->opencl_buffer_update_callback_f;
+							kernel->opencl_buffer_update_param_index = info->opencl_buffer_update_param_index;
+							kernel->opencl_image_access_enable = vx_true_e;
+							status = VX_SUCCESS;
+						}
 					}
 					else {
 						status = VX_ERROR_NOT_SUPPORTED;
@@ -1760,6 +2484,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 					agoPerfCopyNormalize(graph->ref.context, (vx_perf_t *)ptr, &graph->perf);
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_GRAPH_ATTRIBUTE_NUMPARAMETERS:
 				if (size == sizeof(vx_uint32)) {
 					*(vx_uint32 *)ptr = (vx_uint32)graph->parameters.size();
@@ -1813,9 +2538,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryGraph(vx_graph graph, vx_enum attribut
 				}
 				break;
 			case VX_GRAPH_ATTRIBUTE_AMD_PERFORMANCE_INTERNAL_PROFILE:
-				if (graph->perf.num > 0) {
-					status = agoGraphDumpPerformanceProfile(graph, (const char *)ptr);
-				}
+				status = agoGraphDumpPerformanceProfile(graph, (const char *)ptr);
 				break;
 #if ENABLE_OPENCL
 			case VX_GRAPH_ATTRIBUTE_AMD_OPENCL_COMMAND_QUEUE:
@@ -2039,13 +2762,13 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryNode(vx_node node, vx_enum attribute, 
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_NODE_ATTRIBUTE_STATUS:
+			case VX_NODE_STATUS:
 				if (size == sizeof(vx_status)) {
 					*(vx_status *)ptr = node->status;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_PERFORMANCE:
+			case VX_NODE_PERFORMANCE:
 				if (size == sizeof(vx_perf_t)) {
 					vx_perf_t * perf = &node->perf;
 					if (node->perf.num == 0) {
@@ -2059,21 +2782,33 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryNode(vx_node node, vx_enum attribute, 
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_BORDER_MODE:
-				if (size == sizeof(vx_border_mode_t)) {
+			case VX_NODE_BORDER:
+				if (size == sizeof(vx_border_mode_t) || size == sizeof(vx_border_t)) {
 					*(vx_border_mode_t *)ptr = node->attr_border_mode;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_LOCAL_DATA_SIZE:
+			case VX_NODE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = node->localDataSize;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_NODE_ATTRIBUTE_LOCAL_DATA_PTR:
+			case VX_NODE_LOCAL_DATA_PTR:
 				if (size == sizeof(void *)) {
 					*(void **)ptr = node->localDataPtr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_NODE_PARAMETERS:
+				if (size == sizeof(vx_uint32)) {
+					*(vx_uint32 *)ptr = node->paramCount;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_NODE_VALID_RECT_RESET:
+				if (size == sizeof(vx_bool)) {
+					*(vx_bool *)ptr = node->valid_rect_reset;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -2116,10 +2851,11 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetNodeAttribute(vx_node node, vx_enum attr
 			switch (attribute)
 			{
 			case VX_NODE_ATTRIBUTE_BORDER_MODE:
-				if (size == sizeof(vx_border_mode_t)) {
+				if (size == sizeof(vx_border_mode_t) || size == sizeof(vx_border_t)) {
 					node->attr_border_mode = *(vx_border_mode_t *)ptr;
 					status = VX_SUCCESS;
 				}
+				break;
 			case VX_NODE_ATTRIBUTE_LOCAL_DATA_SIZE:
 				if (size == sizeof(vx_size)) {
 					node->localDataSize = *(vx_size *)ptr;
@@ -2234,6 +2970,127 @@ VX_API_ENTRY vx_nodecomplete_f VX_API_CALL vxRetrieveNodeCallback(vx_node node)
 	return callback;
 }
 
+/*! \brief Sets the node target to the provided value. A success invalidates the graph
+* that the node belongs to (<tt>\ref vxVerifyGraph</tt> must be called before the next execution)
+* \param [in] node  The reference to the <tt>\ref vx_node</tt> object.
+* \param [in] target_enum  The target enum to be set to the <tt>\ref vx_node</tt> object.
+* Use a <tt>\ref vx_target_e</tt>.
+* \param [in] target_string  The target name ASCII string. This contains a valid value
+* when target_enum is set to <tt>\ref VX_TARGET_STRING</tt>, otherwise it is ignored.
+* \ingroup group_node
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS Node target set.
+* \retval VX_ERROR_INVALID_REFERENCE If node is not a <tt>\ref vx_node</tt>.
+* \retval VX_ERROR_NOT_SUPPORTED If the node kernel is not supported by the specified target.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetNodeTarget(vx_node node, vx_enum target_enum, const char* target_string)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidNode(node)) {
+		status = VX_ERROR_NOT_SUPPORTED;
+		if (target_enum == VX_TARGET_ANY) {
+			status = VX_SUCCESS;
+		}
+		else if (target_enum == VX_TARGET_STRING) {
+			if (!target_string) {
+				status = VX_ERROR_INVALID_REFERENCE;
+			}
+			else if (!_stricmp(target_string, "any")) {
+				status = VX_SUCCESS;
+			}
+			else if (!_stricmp(target_string, "cpu")) {
+				if (node->attr_affinity.device_type == 0) {
+					node->attr_affinity.device_type = AGO_TARGET_AFFINITY_CPU;
+					status = VX_SUCCESS;
+				}
+			}
+			else if (!_stricmp(target_string, "gpu")) {
+				if (node->attr_affinity.device_type == 0) {
+					node->attr_affinity.device_type = AGO_TARGET_AFFINITY_GPU;
+					status = VX_SUCCESS;
+				}
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Creates replicas of the same node first_node to process a set of objects
+* stored in <tt>\ref vx_pyramid</tt> or <tt>\ref vx_object_array</tt>.
+* first_node needs to have as parameter levels 0 of a <tt>\ref vx_pyramid</tt> or the index 0 of a <tt>\ref vx_object_array</tt>.
+* Replica nodes are not accessible by the application through any means. An application request for removal of
+* first_node from the graph will result in removal of all replicas. Any change of parameter or attribute of
+* first_node will be propagated to the replicas. <tt>\ref vxVerifyGraph</tt> shall enforce consistency of parameters and attributes
+* in the replicas.
+* \param [in] graph The reference to the graph.
+* \param [in] first_node The reference to the node in the graph that will be replicated.
+* \param [in] replicate an array of size equal to the number of node parameters, vx_true_e for the parameters
+* that should be iterated over (should be a reference to a vx_pyramid or a vx_object_array),
+* vx_false_e for the parameters that should be the same across replicated nodes and for optional
+* parameters that are not used. Should be vx_true_e for all output and bidirectional parameters.
+* \param [in] number_of_parameters number of elements in the replicate array
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE If the first_node is not a <tt>\ref vx_node</tt>, or it is not the first child of a vx_pyramid.
+* \retval VX_ERROR_NOT_COMPATIBLE At least one of replicated parameters is not of level 0 of a pyramid or at index 0 of an object array.
+* \retval VX_FAILURE If the node does not belong to the graph, or the number of objects in the parent objects of inputs and output are not the same.
+* \ingroup group_node
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxReplicateNode(vx_graph graph, vx_node first_node, vx_bool replicate[], vx_uint32 number_of_parameters)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidGraph(graph) && agoIsValidNode(first_node)) {
+		status = VX_FAILURE;
+		if (first_node->ref.scope == &graph->ref && first_node->paramCount == number_of_parameters) {
+			status = VX_SUCCESS;
+			AgoData ** paramList = first_node->paramList;
+			vx_uint32 num_levels = 0;
+			for (vx_uint32 i = 0; i < number_of_parameters; i++) {
+				if (replicate[i]) {
+					if (paramList[i] && paramList[i]->parent && paramList[i]->siblingIndex == 0 && paramList[i]->parent->ref.type == VX_TYPE_PYRAMID) {
+						if (num_levels != paramList[i]->parent->numChildren) {
+							if (num_levels == 0) {
+								num_levels = paramList[i]->parent->numChildren;
+							}
+							else {
+								status = VX_FAILURE;
+								break;
+							}
+						}
+					}
+					else {
+						status = VX_ERROR_NOT_COMPATIBLE;
+						break;
+					}
+				}
+			}
+			if (num_levels < 2)
+				status = VX_ERROR_NOT_COMPATIBLE;
+			for (vx_uint32 level = 1; level < num_levels && status == VX_SUCCESS; level++) {
+				vx_node node = vxCreateGenericNode(graph, first_node->akernel);
+				status = vxGetStatus((vx_reference)node);
+				if (status == VX_SUCCESS) {
+					for (vx_uint32 i = 0; i < number_of_parameters && status == VX_SUCCESS; i++) {
+						if (replicate[i]) {
+							AgoData * param = paramList[i]->parent->children[level];
+							if (param) {
+								status = vxSetParameterByIndex(node, i, &paramList[i]->parent->children[level]->ref);
+							}
+							else {
+								status = VX_FAILURE;
+							}
+						}
+						else if (paramList[i]) {
+							status = vxSetParameterByIndex(node, i, &paramList[i]->ref);
+						}
+					}
+				}
+			}
+		}
+	}
+	return status;
+}
+
 /*==============================================================================
 PARAMETER
 =============================================================================*/
@@ -2248,8 +3105,10 @@ VX_API_ENTRY vx_parameter VX_API_CALL vxGetParameterByIndex(vx_node node, vx_uin
 {
 	vx_parameter parameter = NULL;
 	if (agoIsValidNode(node) && (index < node->paramCount)) {
-		parameter = &node->parameters[index];
-		parameter->ref.external_count++;
+		if (agoUpdateDelaySlots(node) == VX_SUCCESS) {
+			parameter = &node->parameters[index];
+			parameter->ref.external_count++;
+		}
 	}
 	return parameter;
 }
@@ -2290,7 +3149,13 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetParameterByIndex(vx_node node, vx_uint32
 	if (agoIsValidNode(node)) {
 		status = VX_ERROR_INVALID_PARAMETERS;
 		vx_graph graph = (AgoGraph *)node->ref.scope;
-		if (!graph->verified && (index < node->paramCount) && (!node->parameters[index].type || node->parameters[index].type == value->type)) {
+		if (graph->verified) {
+			status = VX_ERROR_NOT_SUPPORTED;
+		}
+		else if (node->parameters[index].state == VX_PARAMETER_STATE_REQUIRED && !value) {
+			status = VX_ERROR_INVALID_REFERENCE;
+		}
+		else if ((index < node->paramCount) && (!node->parameters[index].type || !value || node->parameters[index].type == value->type)) {
 			if (node->paramList[index]) {
 				agoReleaseData(node->paramList[index], false);
 			}
@@ -2744,6 +3609,43 @@ VX_API_ENTRY vx_status VX_API_CALL vxWriteScalarValue(vx_scalar ref, const void 
 	return status;
 }
 
+/*! \brief Allows the application to copy from/into a scalar object.
+* \param [in] scalar The reference to the scalar object that is the source or the
+* destination of the copy.
+* \param [in] user_ptr The address of the memory location where to store the requested data
+* if the copy was requested in read mode, or from where to get the data to store into the
+* scalar object if the copy was requested in write mode. In the user memory, the scalar is
+* a variable of the type corresponding to <tt>\ref VX_SCALAR_TYPE</tt>.
+* The accessible memory must be large enough to contain this variable.
+* \param [in] usage This declares the effect of the copy with regard to the scalar object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY
+* are supported:
+* \arg VX_READ_ONLY means that data are copied from the scalar object into the user memory.
+* \arg VX_WRITE_ONLY means that data are copied into the scalar object from the user memory.
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The scalar reference is not actually a scalar reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_scalar
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyScalar(vx_scalar scalar_, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * scalar = (AgoData *)scalar_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(scalar, VX_TYPE_SCALAR))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr) {
+			if (usage == VX_READ_ONLY)
+				status = vxReadScalarValue(scalar_, user_ptr);
+			else if (usage == VX_WRITE_ONLY)
+				status = vxWriteScalarValue(scalar_, user_ptr);
+		}
+	}
+	return status;
+}
+
 /*==============================================================================
 REFERENCE
 =============================================================================*/
@@ -2781,6 +3683,135 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryReference(vx_reference ref, vx_enum at
 				break;
 			}
 		}
+	}
+	return status;
+}
+
+/*! \brief Releases a reference. The reference may potentially refer to multiple OpenVX objects of different types.
+* This function can be used instead of calling a specific release function for each individual object type
+* (e.g. vxRelease<object>). The object will not be destroyed until its total reference count is zero.
+* \note After returning from this function the reference is zeroed.
+* \param [in] ref_ptr The pointer to the reference of the object to release.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE If the reference is not valid.
+* \ingroup group_reference
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxReleaseReference(vx_reference* ref_ptr)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (ref_ptr) {
+		vx_reference ref = *ref_ptr;
+		if (agoIsValidReference(ref)) {
+			switch (ref->type) {
+			case VX_TYPE_CONTEXT:
+				status = vxReleaseContext((vx_context *)ref_ptr);
+				break;
+			case VX_TYPE_GRAPH:
+				status = vxReleaseGraph((vx_graph *)ref_ptr);
+				break;
+			case VX_TYPE_NODE:
+				status = vxReleaseNode((vx_node *)ref_ptr);
+				break;
+			case VX_TYPE_KERNEL:
+				status = vxReleaseKernel((vx_kernel *)ref_ptr);
+				break;
+			case VX_TYPE_PARAMETER:
+				status = vxReleaseParameter((vx_parameter *)ref_ptr);
+				break;
+			case VX_TYPE_DELAY:
+				status = vxReleaseDelay((vx_delay *)ref_ptr);
+				break;
+			case VX_TYPE_LUT:
+				status = vxReleaseLUT((vx_lut *)ref_ptr);
+				break;
+			case VX_TYPE_DISTRIBUTION:
+				status = vxReleaseDistribution((vx_distribution *)ref_ptr);
+				break;
+			case VX_TYPE_PYRAMID:
+				status = vxReleasePyramid((vx_pyramid *)ref_ptr);
+				break;
+			case VX_TYPE_THRESHOLD:
+				status = vxReleaseThreshold((vx_threshold *)ref_ptr);
+				break;
+			case VX_TYPE_MATRIX:
+				status = vxReleaseMatrix((vx_matrix *)ref_ptr);
+				break;
+			case VX_TYPE_CONVOLUTION:
+				status = vxReleaseConvolution((vx_convolution *)ref_ptr);
+				break;
+			case VX_TYPE_SCALAR:
+				status = vxReleaseScalar((vx_scalar *)ref_ptr);
+				break;
+			case VX_TYPE_ARRAY:
+				status = vxReleaseArray((vx_array *)ref_ptr);
+				break;
+			case VX_TYPE_IMAGE:
+				status = vxReleaseImage((vx_image *)ref_ptr);
+				break;
+			case VX_TYPE_REMAP:
+				status = vxReleaseRemap((vx_remap *)ref_ptr);
+				break;
+			default:
+				status = VX_ERROR_NOT_SUPPORTED;
+				break;
+			}
+		}
+	}
+	return status;
+}
+
+/*!
+* \brief Increments the reference counter of an object
+* This function is used to express the fact that the OpenVX object is referenced
+* multiple times by an application. Each time this function is called for
+* an object, the application will need to release the object one additional
+* time before it can be destructed
+* \param [in] ref The reference to retain.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+* \ingroup group_reference
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxRetainReference(vx_reference ref)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidReference(ref)) {
+		ref->external_count++;
+		status = VX_SUCCESS;
+	}
+	return status;
+}
+
+/*! \brief Name a reference
+* \ingroup group_reference
+*
+* This function is used to associate a name to a referenced object. This name
+* can be used by the OpenVX implementation in log messages and any
+* other reporting mechanisms.
+*
+* The OpenVX implementation will not check if the name is unique in
+* the reference scope (context or graph). Several references can then
+* have the same name.
+*
+* \param [in] ref The reference to the object to be named.
+* \param [in] name Pointer to the '\0' terminated string that identifies
+*             the referenced object.
+*             The string is copied by the function so that it
+*             stays the property of the caller.
+*             NULL means that the reference is not named.
+*             The length of the string shall be lower than VX_MAX_REFERENCE_NAME bytes.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE If reference is not valid.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetReferenceName(vx_reference ref, const vx_char *name)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidReference(ref) && ((ref->type >= VX_TYPE_DELAY && ref->type <= VX_TYPE_REMAP) || (ref->type >= VX_TYPE_VENDOR_OBJECT_START && ref->type <= VX_TYPE_VENDOR_OBJECT_END))) {
+		AgoData * data = (AgoData *)ref;
+		data->name = name;
+		status = VX_SUCCESS;
 	}
 	return status;
 }
@@ -2925,19 +3956,51 @@ VX_API_ENTRY vx_status VX_API_CALL vxAgeDelay(vx_delay delay)
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	AgoData * data = (AgoData *)delay;
 	if (agoIsValidData(data, VX_TYPE_DELAY)) {
-		status = VX_SUCCESS;
-		// cycle through all the pointers by swapping
-		CAgoLock lock(data->ref.context->cs);
-		AgoData * childLast = data->children[data->u.delay.count - 1];
-		for (vx_int32 i = (vx_int32)data->u.delay.count-1; i > 0; i--) {
-			data->children[i] = data->children[i-1];
-		}
-		data->children[0] = childLast;
-		data->u.delay.age++;
+		status = agoAgeDelay(data);
 	}
 	return status;
 }
 
+/*! \brief Register a delay for auto-aging.
+*
+* This function registers a delay object to be auto-aged by the graph.
+* This delay object will be automatically aged after each successful completion of
+* this graph. Aging of a delay object cannot be called during graph execution.
+* A graph abandoned due to a node callback will trigger an auto-aging.
+*
+* If a delay is registered for auto-aging multiple times in a same graph,
+* the delay will be only aged a single time at each graph completion.
+* If a delay is registered for auto-aging in multiple graphs, this delay will
+* aged automatically after each successful completion of any of these graphs.
+*
+* \param [in] graph The graph to which the delay is registered for auto-aging.
+* \param [in] delay The delay to automatically age.
+*
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS                   No errors.
+* \retval VX_ERROR_INVALID_REFERENCE   If the \p graph or \p delay is not a valid reference
+* \ingroup group_graph
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxRegisterAutoAging(vx_graph graph, vx_delay delay_)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	AgoData * delay = (AgoData *)delay_;
+	if (agoIsValidGraph(graph) && agoIsValidData(delay, VX_TYPE_DELAY))
+	{
+		for (auto it = graph->autoAgeDelayList.begin(); it != graph->autoAgeDelayList.end(); it++) {
+			if (*it == delay) {
+				delay = nullptr;
+				break;
+			}
+		}
+		if (delay) {
+			delay->ref.internal_count++;
+			graph->autoAgeDelayList.push_back(delay);
+		}
+		status = VX_SUCCESS;
+	}
+	return status;
+}
 
 /*==============================================================================
 LOGGING
@@ -2979,30 +4042,30 @@ VX_API_ENTRY void VX_API_CALL vxAddLogEntry(vx_reference ref, vx_status status, 
 */
 VX_API_ENTRY void VX_API_CALL vxRegisterLogCallback(vx_context context, vx_log_callback_f callback, vx_bool reentrant)
 {
-	if (agoIsValidContext(context)) {
-		context->callback_log = callback;
-		context->callback_reentrant = reentrant;
-	}
+	agoRegisterLogCallback(context, callback, reentrant);
 }
 
 /*==============================================================================
 LUT
 =============================================================================*/
 
-/*! \brief Creates LUT object of a given type.
+/*! \brief Creates LUT object of a given type. The value of <tt>\ref VX_LUT_OFFSET</tt> is equal to 0
+* for data_type = <tt>\ref VX_TYPE_UINT8</tt>, and (vx_uint32)(count/2) for <tt>\ref VX_TYPE_INT16</tt>.
 * \param [in] context The reference to the context.
 * \param [in] data_type The type of data stored in the LUT.
 * \param [in] count The number of entries desired.
 * \if OPENVX_STRICT_1_0
-* \note For OpenVX 1.0, count must be equal to 256 and data_type can only be \ref VX_TYPE_UINT8.
+* \note For OpenVX 1.0, data_type can only be \ref VX_TYPE_UINT8 or \ref VX_TYPE_INT16. If data_type
+* is \ref VX_TYPE_UINT8, count should be not greater than 256. If data_type is \ref VX_TYPE_INT16,
+* count should not be greater than 65536.
 * \endif
-* \return <tt>\ref vx_lut</tt>
+* \returns An LUT reference <tt>\ref vx_lut</tt>. Any possible errors preventing a successful creation should be checked using <tt>\ref vxGetStatus</tt>.
 * \ingroup group_lut
 */
 VX_API_ENTRY vx_lut VX_API_CALL vxCreateLUT(vx_context context, vx_enum data_type, vx_size count)
 {
 	AgoData * data = NULL;
-	if (agoIsValidContext(context) && data_type == VX_TYPE_UINT8 && count == 256) {
+	if (agoIsValidContext(context)) {
 		CAgoLock lock(context->cs);
 		char desc[512]; sprintf(desc, "lut:%s," VX_FMT_SIZE "", agoEnum2Name(data_type), count);
 		data = agoCreateDataFromDescription(context, NULL, desc, true);
@@ -3052,21 +4115,27 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryLUT(vx_lut lut, vx_enum attribute, voi
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_LUT_ATTRIBUTE_TYPE:
+			case VX_LUT_TYPE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = data->u.lut.type;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_LUT_ATTRIBUTE_COUNT:
+			case VX_LUT_COUNT:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->u.lut.count;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_LUT_ATTRIBUTE_SIZE:
+			case VX_LUT_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->size;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_LUT_OFFSET:
+				if (size == sizeof(vx_uint32)) {
+					*(vx_uint32 *)ptr = data->u.lut.offset;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -3126,7 +4195,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessLUT(vx_lut lut, void **ptr, vx_enum u
 				}
 			}
 			if (status == VX_SUCCESS) {
-				MappedData item = { ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false };
+				MappedData item = { data->nextMapId++, ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false };
 				data->mapped.push_back(item);
 				*ptr = ptr_returned;
 				if (usage == VX_READ_ONLY || usage == VX_READ_AND_WRITE) {
@@ -3205,6 +4274,174 @@ VX_API_ENTRY vx_status VX_API_CALL vxCommitLUT(vx_lut lut, const void *ptr)
 					data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 					data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
 				}
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to copy from/into a LUT object.
+* \param [in] lut The reference to the LUT object that is the source or the
+* destination of the copy.
+* \param [in] user_ptr The address of the memory location where to store the requested data
+* if the copy was requested in read mode, or from where to get the data to store into the LUT
+* object if the copy was requested in write mode. In the user memory, the LUT is
+* represented as a array with elements of the type corresponding to
+* <tt>\ref VX_LUT_TYPE</tt>, and with a number of elements equal to the value
+* returned via tt>\ref VX_LUT_COUNT</tt>. The accessible memory must be large enough
+* to contain this array:
+* accessible memory in bytes >= sizeof(data_element) * count.
+* \param [in] usage This declares the effect of the copy with regard to the LUT object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY
+* are supported:
+* \arg VX_READ_ONLY means that data are copied from the LUT object into the user memory.
+* \arg VX_WRITE_ONLY means that data are copied into the LUT object from the user memory.
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The LUT reference is not actually a LUT reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_lut
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyLUT(vx_lut lut, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * data = (AgoData *)lut;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_LUT))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr && (usage == VX_READ_ONLY || usage == VX_WRITE_ONLY)) {
+			status = vxAccessLUT(lut, &user_ptr, usage);
+			if (status == VX_SUCCESS) {
+				status = vxCommitLUT(lut, user_ptr);
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to get direct access to LUT object.
+* \param [in] lut The reference to the LUT object to map.
+* \param [out] map_id The address of a vx_map_id variable where the function
+* returns a map identifier.
+* \arg (*map_id) must eventually be provided as the map_id parameter of a call to
+* <tt>\ref vxUnmapLUT</tt>.
+* \param [out] ptr The address of a pointer that the function sets to the
+* address where the requested data can be accessed. In the mapped memory area,
+* the LUT data are structured as an array with elements of the type corresponding
+* to <tt>\ref VX_LUT_TYPE</tt>, with a number of elements equal to
+* the value returned via tt>\ref VX_LUT_COUNT</tt>. Accessing the
+* memory out of the bound of this array is forbidden and has an undefined behavior.
+* The returned (*ptr) address is only valid between the call to the function and
+* the corresponding call to <tt>\ref vxUnmapLUT</tt>.
+* \param [in] usage This declares the access mode for the LUT, using
+* the <tt>\ref vx_accessor_e</tt> enumeration.
+* \arg VX_READ_ONLY: after the function call, the content of the memory location
+* pointed by (*ptr) contains the LUT data. Writing into this memory location
+* is forbidden and its behavior is undefined.
+* \arg VX_READ_AND_WRITE : after the function call, the content of the memory
+* location pointed by (*ptr) contains the LUT data; writing into this memory
+* is allowed only for the location of entries and will result in a modification
+* of the affected entries in the LUT object once the LUT is unmapped.
+* \arg VX_WRITE_ONLY: after the function call, the memory location pointed by(*ptr)
+* contains undefined data; writing each entry of LUT is required prior to
+* unmapping. Entries not written by the application before unmap will become
+* undefined after unmap, even if they were well defined before map.
+* \param [in] mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that
+* specifies the type of the memory where the LUT is requested to be mapped.
+* \param [in] flags An integer that allows passing options to the map operation.
+* Use 0 for this option.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The LUT reference is not actually a LUT
+* reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_lut
+* \post <tt>\ref vxUnmapLUTRange </tt> with same (*map_id) value.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxMapLUT(vx_lut lut, vx_map_id *map_id, void **ptr, vx_enum usage, vx_enum mem_type, vx_bitfield flags)
+{
+	AgoData * data = (AgoData *)lut;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_LUT)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (data->isVirtual && !data->buffer) {
+			status = VX_ERROR_OPTIMIZED_AWAY;
+		}
+		else if (ptr) {
+			if (!data->buffer) {
+				CAgoLock lock(data->ref.context->cs);
+				if (agoAllocData(data)) {
+					return VX_FAILURE;
+				}
+			}
+			vx_uint8 * ptr_returned = data->buffer;
+			status = VX_SUCCESS;
+			for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+				if (i->ptr == ptr_returned) {
+					// can't support vxAccessXXX() more than once with same pointer, the application
+					// needs to call vxCommitXXX() before calling vxAccessXXX()
+					status = VX_FAILURE;
+				}
+			}
+			if (status == VX_SUCCESS) {
+#if ENABLE_OPENCL
+				if (usage == VX_READ_ONLY || usage == VX_READ_AND_WRITE) {
+					if (data->opencl_buffer && !(data->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+						// make sure dirty OpenCL buffers are synched before giving access for read
+						if (data->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+							size_t origin[3] = { 0, 0, 0 };
+							size_t region[3] = { 256, 1, 1 };
+							cl_int err = clEnqueueReadImage(data->ref.context->opencl_cmdq, data->opencl_buffer, CL_TRUE, origin, region, 256, 0, data->buffer, 0, NULL, NULL);
+							if (err) {
+								status = VX_FAILURE;
+								agoAddLogEntry(&data->ref, status, "ERROR: vxMapLUT: clEnqueueWriteImage() => %d\n", err);
+								return status;
+							}
+							data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+						}
+					}
+				}
+#endif
+				MappedData item = { data->nextMapId++, ptr_returned, usage, false };
+				data->mapped.push_back(item);
+				*map_id = item.map_id;
+				*ptr = ptr_returned;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Unmap and commit potential changes to LUT object that was previously mapped.
+* Unmapping a LUT invalidates the memory location from which the LUT data could
+* be accessed by the application. Accessing this memory location after the unmap function
+* completes has an undefined behavior.
+* \param [in] lut The reference to the LUT object to unmap.
+* \param [out] map_id The unique map identifier that was returned when calling
+* <tt>\ref vxMapLUT</tt> .
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The LUT reference is not actually a LUT reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_lut
+* \pre <tt>\ref vxMapLUT</tt> returning the same map_id value
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxUnmapLUT(vx_lut lut, vx_map_id map_id)
+{
+	AgoData * data = (AgoData *)lut;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_LUT)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+			if (i->map_id == map_id) {
+				vx_enum usage = i->usage;
+				data->mapped.erase(i);
+				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
+					// update sync flags
+					data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+				}
+				status = VX_SUCCESS;
+				break;
 			}
 		}
 	}
@@ -3363,7 +4600,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessDistribution(vx_distribution distribu
 				}
 			}
 			if (status == VX_SUCCESS) {
-				MappedData item = { ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false };
+				MappedData item = { data->nextMapId++, ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false };
 				data->mapped.push_back(item);
 				*ptr = ptr_returned;
 				if (item.used_external_ptr && (usage == VX_READ_ONLY || usage == VX_READ_AND_WRITE)) {
@@ -3416,6 +4653,157 @@ VX_API_ENTRY vx_status VX_API_CALL vxCommitDistribution(vx_distribution distribu
 						HafCpu_BinaryCopy_U8_U8(data->size, data->buffer, (vx_uint8 *)ptr);
 					}
 				}
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to copy from/into a distribution object.
+* \param [in] distribution The reference to the distribution object that is the source or the
+* destination of the copy.
+* \param [in] user_ptr The address of the memory location where to store the requested data
+* if the copy was requested in read mode, or from where to get the data to store into the distribution
+* object if the copy was requested in write mode. In the user memory, the distribution is
+* represented as a <tt>\ref vx_uint32</tt> array with a number of elements equal to the value returned via
+* <tt>\ref VX_DISTRIBUTION_BINS</tt>. The accessible memory must be large enough
+* to contain this vx_uint32 array:
+* accessible memory in bytes >= sizeof(vx_uint32) * num_bins.
+* \param [in] usage This declares the effect of the copy with regard to the distribution object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY
+* are supported:
+* \arg VX_READ_ONLY means that data are copied from the distribution object into the user memory.
+* \arg VX_WRITE_ONLY means that data are copied into the distribution object from the user memory.
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The distribution reference is not actually a distribution reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_distribution
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyDistribution(vx_distribution distribution, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * data = (AgoData *)distribution;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_DISTRIBUTION))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr && (usage == VX_READ_ONLY || usage == VX_WRITE_ONLY)) {
+			status = vxAccessDistribution(distribution, &user_ptr, usage);
+			if (status == VX_SUCCESS) {
+				status = vxCommitDistribution(distribution, user_ptr);
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to get direct access to distribution object.
+* \param [in] distribution The reference to the distribution object to map.
+* \param [out] map_id The address of a vx_map_id variable where the function
+* returns a map identifier.
+* \arg (*map_id) must eventually be provided as the map_id parameter of a call to
+* <tt>\ref vxUnmapDistribution</tt>.
+* \param [out] ptr The address of a pointer that the function sets to the
+* address where the requested data can be accessed. In the mapped memory area,
+* data are structured as a vx_uint32 array with a number of elements equal to
+* the value returned via <tt>\ref VX_DISTRIBUTION_BINS</tt>. Each
+* element of this array corresponds to a bin of the distribution, with a range-major
+* ordering. Accessing the memory out of the bound of this array
+* is forbidden and has an undefined behavior. The returned (*ptr) address
+* is only valid between the call to the function and the corresponding call to
+* <tt>\ref vxUnmapDistribution</tt>.
+* \param [in] usage This declares the access mode for the distribution, using
+* the <tt>\ref vx_accessor_e</tt> enumeration.
+* \arg VX_READ_ONLY: after the function call, the content of the memory location
+* pointed by (*ptr) contains the distribution data. Writing into this memory location
+* is forbidden and its behavior is undefined.
+* \arg VX_READ_AND_WRITE : after the function call, the content of the memory
+* location pointed by (*ptr) contains the distribution data; writing into this memory
+* is allowed only for the location of bins and will result in a modification of the
+* affected bins in the distribution object once the distribution is unmapped.
+* \arg VX_WRITE_ONLY: after the function call, the memory location pointed by (*ptr)
+* contains undefined data; writing each bin of distribution is required prior to
+* unmapping. Bins not written by the application before unmap will become
+* undefined after unmap, even if they were well defined before map.
+* \param [in] mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that
+* specifies the type of the memory where the distribution is requested to be mapped.
+* \param [in] flags An integer that allows passing options to the map operation.
+* Use 0 for this option.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The distribution reference is not actually a distribution
+* reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_distribution
+* \post <tt>\ref vxUnmapDistributionRange </tt> with same (*map_id) value.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxMapDistribution(vx_distribution distribution, vx_map_id *map_id, void **ptr, vx_enum usage, vx_enum mem_type, vx_bitfield flags)
+{
+	AgoData * data = (AgoData *)distribution;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_DISTRIBUTION)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (data->isVirtual && !data->buffer) {
+			status = VX_ERROR_OPTIMIZED_AWAY;
+		}
+		else if (ptr) {
+			if (!data->buffer) {
+				CAgoLock lock(data->ref.context->cs);
+				if (agoAllocData(data)) {
+					return VX_FAILURE;
+				}
+			}
+			vx_uint8 * ptr_returned = data->buffer;
+			// save the pointer and usage for use in vxCommitXXX
+			status = VX_SUCCESS;
+			for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+				if (i->ptr == ptr_returned) {
+					// can't support vxAccessXXX() more than once with same pointer, the application
+					// needs to call vxCommitXXX() before calling vxAccessXXX()
+					status = VX_FAILURE;
+				}
+			}
+			if (status == VX_SUCCESS) {
+				MappedData item = { data->nextMapId++, ptr_returned, usage, false };
+				data->mapped.push_back(item);
+				*map_id = item.map_id;
+				*ptr = ptr_returned;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Unmap and commit potential changes to distribution object that was previously mapped.
+* Unmapping a distribution invalidates the memory location from which the distribution data
+* could be accessed by the application. Accessing this memory location after the unmap
+* function completes has an undefined behavior.
+* \param [in] distribution The reference to the distribution object to unmap.
+* \param [out] map_id The unique map identifier that was returned when calling
+* <tt>\ref vxMapDistribution</tt> .
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The distribution reference is not actually a distribution reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_distribution
+* \pre <tt>\ref vxMapDistribution</tt> returning the same map_id value
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxUnmapDistribution(vx_distribution distribution, vx_map_id map_id)
+{
+	AgoData * data = (AgoData *)distribution;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_DISTRIBUTION)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+			if (i->map_id == map_id) {
+				vx_enum usage = i->usage;
+				data->mapped.erase(i);
+				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
+					// update sync flags
+					data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+				}
+				status = VX_SUCCESS;
+				break;
 			}
 		}
 	}
@@ -3592,16 +4980,17 @@ MATRIX
 
 /*! \brief Creates a reference to a matrix object.
 * \param [in] c The reference to the overall context.
-* \param [in] data_type The unit format of the matrix. <tt>\ref VX_TYPE_INT32</tt> or <tt>\ref VX_TYPE_FLOAT32</tt>.
+* \param [in] data_type The unit format of the matrix. <tt>\ref VX_TYPE_UINT8</tt> or <tt>\ref VX_TYPE_INT32</tt> or <tt>\ref VX_TYPE_FLOAT32</tt>.
 * \param [in] columns The first dimensionality.
 * \param [in] rows The second dimensionality.
-* \return <tt>\ref vx_matrix</tt>
+* \returns An matrix reference <tt>\ref vx_matrix</tt>. Any possible errors preventing a
+* successful creation should be checked using <tt>\ref vxGetStatus</tt>.
 * \ingroup group_matrix
 */
 VX_API_ENTRY vx_matrix VX_API_CALL vxCreateMatrix(vx_context context, vx_enum data_type, vx_size columns, vx_size rows)
 {
 	AgoData * data = NULL;
-	if (agoIsValidContext(context) && (data_type == VX_TYPE_INT32 || data_type == VX_TYPE_FLOAT32) && columns > 0 && rows > 0) {
+	if (agoIsValidContext(context) && (data_type == VX_TYPE_INT32 || data_type == VX_TYPE_FLOAT32 || data_type == VX_TYPE_UINT8) && columns > 0 && rows > 0) {
 		CAgoLock lock(context->cs);
 		char desc[512]; sprintf(desc, "matrix:%s," VX_FMT_SIZE "," VX_FMT_SIZE "", agoEnum2Name(data_type), columns, rows);
 		data = agoCreateDataFromDescription(context, NULL, desc, true);
@@ -3651,27 +5040,39 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryMatrix(vx_matrix mat, vx_enum attribut
 		if (ptr) {
 			switch (attribute)
 			{
-			case VX_MATRIX_ATTRIBUTE_TYPE:
+			case VX_MATRIX_TYPE:
 				if (size == sizeof(vx_enum)) {
 					*(vx_enum *)ptr = data->u.mat.type;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_ROWS:
+			case VX_MATRIX_ROWS:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->u.mat.rows;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_COLUMNS:
+			case VX_MATRIX_COLUMNS:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->u.mat.columns;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_MATRIX_ATTRIBUTE_SIZE:
+			case VX_MATRIX_SIZE:
 				if (size == sizeof(vx_size)) {
 					*(vx_size *)ptr = data->size;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_PATTERN:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = data->u.mat.pattern ? data->u.mat.pattern : VX_PATTERN_OTHER;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_ORIGIN:
+				if (size == sizeof(vx_coordinates2d_t)) {
+					*(vx_coordinates2d_t *)ptr = data->u.mat.origin;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -3710,6 +5111,24 @@ VX_API_ENTRY vx_status VX_API_CALL vxReadMatrix(vx_matrix mat, void *array)
 						return VX_FAILURE;
 					}
 				}
+#if ENABLE_OPENCL
+				if (data->opencl_buffer && !(data->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+					// make sure dirty OpenCL buffers are synched before giving access for read
+					if (data->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+						// transfer only valid data
+						vx_size size = data->size;
+						if (size > 0) {
+							cl_int err = clEnqueueReadBuffer(data->ref.context->opencl_cmdq, data->opencl_buffer, CL_TRUE, 0, size, data->buffer, 0, NULL, NULL);
+							if (err) {
+								status = VX_FAILURE;
+								agoAddLogEntry(&data->ref, status, "ERROR: vxReadMatrix: clEnqueueReadBuffer() => %d\n", err);
+								return status;
+							}
+						}
+						data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+					}
+				}
+#endif
 				// copy to external buffer
 				HafCpu_BinaryCopy_U8_U8(data->size, (vx_uint8 *)array, data->buffer);
 			}
@@ -3750,11 +5169,137 @@ VX_API_ENTRY vx_status VX_API_CALL vxWriteMatrix(vx_matrix mat, const void *arra
 				}
 				// copy from external buffer
 				HafCpu_BinaryCopy_U8_U8(data->size, data->buffer, (vx_uint8 *)array);
+				// update sync flags
+				data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
 			}
 			status = VX_SUCCESS;
 		}
 	}
 	return status;
+}
+
+/*! \brief Allows the application to copy from/into a matrix object.
+* \param [in] matrix The reference to the matrix object that is the source or the
+* destination of the copy.
+* \param [in] user_ptr The address of the memory location where to store the requested data
+* if the copy was requested in read mode, or from where to get the data to store into the matrix
+* object if the copy was requested in write mode. In the user memory, the matrix is
+* structured as a row-major 2D array with elements of the type corresponding to
+* <tt>\ref VX_MATRIX_TYPE</tt>, with a number of rows corresponding to
+* <tt>\ref VX_MATRIX_ROWS</tt> and a number of columns corresponding to
+* <tt>\ref VX_MATRIX_COLUMNS</tt>. The accessible memory must be large
+* enough to contain this 2D array:
+* accessible memory in bytes >= sizeof(data_element) * rows * columns.
+* \param [in] usage This declares the effect of the copy with regard to the matrix object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY
+* are supported:
+* \arg VX_READ_ONLY means that data are copied from the matrix object into the user memory.
+* \arg VX_WRITE_ONLY means that data are copied into the matrix object from the user memory.
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The matrix reference is not actually a matrix reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_matrix
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyMatrix(vx_matrix matrix, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * data = (AgoData *)matrix;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_MATRIX))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr) {
+			if (usage == VX_READ_ONLY)
+				status = vxReadMatrix(matrix, user_ptr);
+			else if (usage == VX_WRITE_ONLY)
+				status = vxWriteMatrix(matrix, user_ptr);
+		}
+	}
+	return status;
+}
+
+/*! \brief Creates a reference to a matrix object from a boolean pattern.
+*
+* The matrix created by this function is of type <tt>\ref vx_uint8</tt>, with the value 0 representing False,
+* and the value 255 representing True. It supports patterns described below. See <tt>\ref vx_pattern_e</tt>.
+* - VX_PATTERN_BOX is a matrix with dimensions equal to the given number of rows and columns, and all cells equal to 255.
+*   Dimensions of 3x3 and 5x5 must be supported.
+* - VX_PATTERN_CROSS is a matrix with dimensions equal to the given number of rows and columns, which both must be odd numbers.
+*   All cells in the center row and center column are equal to 255, and the rest are equal to zero.
+*   Dimensions of 3x3 and 5x5 must be supported.
+* - VX_PATTERN_DISK is an RxC matrix, where R and C are odd and cell (c, r) is 255 if: \n
+*   (r-R/2 + 0.5)^2 / (R/2)^2 + (c-C/2 + 0.5)^2/(C/2)^2 is less than or equal to 1,\n and 0 otherwise.
+* - VX_PATTERN_OTHER is any other pattern than the above (matrix created is still binary, with a value of 0 or 255).
+*
+* If the matrix was created via <tt>\ref vxCreateMatrixFromPattern</tt>, this attribute must be set to the
+* appropriate pattern enum. Otherwise the attribute must be set to VX_PATTERN_OTHER.
+* The vx_matrix objects returned by this function are read-only. The behavior when attempting to modify such a matrix is undefined.
+*
+* \param [in] context The reference to the overall context.
+* \param [in] pattern The pattern of the matrix. See <tt>\ref VX_MATRIX_PATTERN</tt>.
+* \param [in] columns The first dimensionality.
+* \param [in] rows The second dimensionality.
+* \returns An matrix reference <tt>\ref vx_matrix</tt> of type <tt>\ref vx_uint8</tt>. Any possible errors preventing a
+* successful creation should be checked using <tt>\ref vxGetStatus</tt>.
+* \ingroup group_matrix
+*/
+VX_API_ENTRY vx_matrix VX_API_CALL vxCreateMatrixFromPattern(vx_context context, vx_enum pattern, vx_size columns, vx_size rows)
+{
+	vx_matrix mat = nullptr;
+	// check for supported patterns
+	if (pattern == VX_PATTERN_BOX || pattern == VX_PATTERN_CROSS || pattern == VX_PATTERN_DISK || pattern == VX_PATTERN_OTHER)
+	{
+		// create a matrix object
+		mat = vxCreateMatrix(context, VX_TYPE_UINT8, columns, rows);
+		vx_status status = vxGetStatus((vx_reference)mat);
+		if (status == VX_SUCCESS) {
+			// initialize with the pattern and mark it
+			AgoData * data = (AgoData *)mat;
+			data->u.mat.pattern = pattern;
+			if (pattern != VX_PATTERN_OTHER) {
+				vx_uint8 * buf = new vx_uint8[columns * rows];
+				if (!buf) {
+					vxReleaseMatrix(&mat);
+					return mat;
+				}
+				if (pattern == VX_PATTERN_CROSS) {
+					// cross pattern
+					memset(buf, 0, columns * rows);
+					for (vx_size x = 0; x < columns; x++)
+						buf[columns * (rows / 2) + x] = 255;
+					for (vx_size y = 0; y < rows; y++)
+						buf[(columns / 2) + y * columns] = 255;
+				}
+				else if (pattern == VX_PATTERN_DISK) {
+					// disk pattern
+					for (vx_size r = 0; r < rows; r++) {
+						float y = ((r - rows*0.5f + 0.5f) / (rows*0.5f));
+						float y2 = y * y;
+						for (vx_size c = 0; c < columns; c++) {
+							float x = ((c - columns*0.5f + 0.5f) / (columns*0.5f));
+							float x2 = x * x;
+							buf[c + r * columns] = ((x2 + y2) <= 1.0f) ? 255 : 0;
+						}
+					}
+				}
+				else {
+					// box pattern
+					memset(buf, 255, columns * rows);
+				}
+				status = vxCopyMatrix(mat, buf, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+				if (status) {
+					vxReleaseMatrix(&mat);
+					return mat;
+				}
+				delete[] buf;
+			}
+			// mark the matrix read-only
+			data->ref.read_only = true;
+		}
+	}
+	return mat;
 }
 
 /*==============================================================================
@@ -3981,8 +5526,52 @@ VX_API_ENTRY vx_status VX_API_CALL vxWriteConvolutionCoefficients(vx_convolution
 					for (vx_uint32 i = 0; i < N; i++)
 						pf[N - 1 - i] = scale * ps[i]; // NOTE: the reversing of coefficients order required to be able to re-use linear filter
 				}
+				// update sync flags
+				data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
 			}
 			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to copy coefficients from/into a convolution object.
+* \param [in] convolution The reference to the convolution object that is the source or the destination of the copy.
+* \param [in] user_ptr The address of the memory location where to store the requested
+* coefficient data if the copy was requested in read mode, or from where to get the
+* coefficient data to store into the convolution object if the copy was requested in
+* write mode. In the user memory, the convolution coefficient data is structured as a
+* row-major 2D array with elements of the type corresponding
+* to <tt>\ref VX_TYPE_CONVOLUTION</tt>, with a number of rows corresponding to
+* <tt>\ref VX_CONVOLUTION_ROWS</tt> and a number of columns corresponding to
+* <tt>\ref VX_CONVOLUTION_COLUMNS</tt>. The accessible memory must be large
+* enough to contain this 2D array:
+* accessible memory in bytes >= sizeof(data_element) * rows * columns.
+* \param [in] usage This declares the effect of the copy with regard to the convolution object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY
+* are supported:
+* \arg VX_READ_ONLY means that data are copied from the convolution object into the user memory.
+* \arg VX_WRITE_ONLY means that data are copied into the convolution object from the user memory.
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The convolution reference is not actually a convolution reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_convolution
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyConvolutionCoefficients(vx_convolution conv, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * data = (AgoData *)conv;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_CONVOLUTION))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr) {
+			if (usage == VX_READ_ONLY)
+				status = vxReadConvolutionCoefficients(conv, (vx_int16 *)user_ptr);
+			else if (usage == VX_WRITE_ONLY)
+				status = vxWriteConvolutionCoefficients(conv, (const vx_int16 *)user_ptr);
 		}
 	}
 	return status;
@@ -4581,8 +6170,25 @@ VX_API_ENTRY vx_status VX_API_CALL vxAddArrayItems(vx_array arr, vx_size count, 
 					return VX_FAILURE;
 				}
 			}
-			if (stride == 0) stride = data->u.arr.itemsize; // TBD remove -- this needs to be removed. The spec does not specify to compute stride here, conformance expects it though
 			if (count > 0) {
+#if ENABLE_OPENCL
+				if (data->opencl_buffer && !(data->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+					// make sure dirty OpenCL buffers are synched before giving access for read
+					if (data->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+						// transfer only valid data
+						vx_size size = data->u.arr.itemsize * data->u.arr.numitems;
+						if (size > 0) {
+							cl_int err = clEnqueueReadBuffer(data->ref.context->opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, size, data->buffer, 0, NULL, NULL);
+							if (err) {
+								status = VX_FAILURE;
+								agoAddLogEntry(&data->ref, status, "ERROR: vxAccessArrayRange: clEnqueueReadBuffer() => %d\n", err);
+								return status;
+							}
+						}
+						data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+					}
+				}
+#endif
 				// add items at the end of the array
 				vx_uint8 * pSrc = (vx_uint8 *)ptr;
 				vx_uint8 * pDst = data->buffer + data->u.arr.itemsize * data->u.arr.numitems;
@@ -4595,6 +6201,9 @@ VX_API_ENTRY vx_status VX_API_CALL vxAddArrayItems(vx_array arr, vx_size count, 
 					}
 				}
 				data->u.arr.numitems += count;
+				// update sync flags
+				data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
 			}
 			status = VX_SUCCESS;
 		}
@@ -4679,7 +6288,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessArrayRange(vx_array arr, vx_size star
 				}
 			}
 			if (status == VX_SUCCESS) {
-				MappedData item = { ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false, (ptr_returned != ptr_internal) ? *stride : data->u.arr.itemsize };
+				MappedData item = { data->nextMapId++, ptr_returned, usage, (ptr_returned != ptr_internal) ? true : false, (ptr_returned != ptr_internal) ? *stride : data->u.arr.itemsize };
 				data->mapped.push_back(item);
 				*ptr = ptr_returned;
 				*stride = item.stride;
@@ -4792,114 +6401,341 @@ VX_API_ENTRY vx_status VX_API_CALL vxCommitArrayRange(vx_array arr, vx_size star
 	return status;
 }
 
+/*! \brief Allows the application to copy a range from/into an array object.
+* \param [in] array The reference to the array object that is the source or the
+* destination of the copy.
+* \param [in] range_start The index of the first item of the array object to copy.
+* \param [in] range_end The index of the item following the last item of the
+* array object to copy. (range_end range_start) items are copied from index
+* range_start included. The range must be within the bounds of the array:
+* 0 <= range_start < range_end <= number of items in the array.
+* \param [in] user_stride The number of bytes between the beginning of two consecutive
+* items in the user memory pointed by user_ptr. The layout of the user memory must
+* follow an item major order:
+* user_stride >= element size in bytes.
+* \param [in] user_ptr The address of the memory location where to store the requested data
+* if the copy was requested in read mode, or from where to get the data to store into the array
+* object if the copy was requested in write mode. The accessible memory must be large enough
+* to contain the specified range with the specified stride:
+* accessible memory in bytes >= (range_end range_start) * user_stride.
+* \param [in] usage This declares the effect of the copy with regard to the array object
+* using the <tt>\ref vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY
+* are supported:
+* \arg VX_READ_ONLY means that data are copied from the array object into the user memory.
+* \arg VX_WRITE_ONLY means that data are copied into the array object from the user memory.
+* \param [in] user_mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that specifies
+* the memory type of the memory referenced by the user_addr.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_OPTIMIZED_AWAY This is a reference to a virtual array that cannot be
+* accessed by the application.
+* \retval VX_ERROR_INVALID_REFERENCE The array reference is not actually an array reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_array
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxCopyArrayRange(vx_array array, vx_size range_start, vx_size range_end, vx_size user_stride, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * data = (AgoData *)array;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_ARRAY))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr && (usage == VX_READ_ONLY || usage == VX_WRITE_ONLY)) {
+			status = vxAccessArrayRange(array, range_start, range_end, &user_stride, &user_ptr, usage);
+			if (status == VX_SUCCESS) {
+				status = vxCommitArrayRange(array, range_start, range_end, user_ptr);
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to get direct access to a range of an array object.
+* \param [in] array The reference to the array object that contains the range to map.
+* \param [in] range_start The index of the first item of the array object to map.
+* \param [in] range_end The index of the item following the last item of the
+* array object to map. (range_end range_start) items are mapped, starting from index
+* range_start included. The range must be within the bounds of the array:
+* Must be 0 <= range_start < range_end <= number of items.
+* \param [out] map_id The address of a vx_map_id variable where the function
+* returns a map identifier.
+* \arg (*map_id) must eventually be provided as the map_id parameter of a call to
+* <tt>\ref vxUnmapArrayRange</tt>.
+* \param [out] stride The address of a vx_size variable where the function
+* returns the memory layout of the mapped array range. The function sets (*stride)
+* to the number of bytes between the beginning of two consecutive items.
+* The application must consult (*stride) to access the array items starting from
+* address (*ptr). The layout of the mapped array follows an item major order:
+* (*stride) >= item size in bytes.
+* \param [out] ptr The address of a pointer that the function sets to the
+* address where the requested data can be accessed. The returned (*ptr) address
+* is only valid between the call to the function and the corresponding call to
+* <tt>\ref vxUnmapArrayRange</tt>.
+* \param [in] usage This declares the access mode for the array range, using
+* the <tt>\ref vx_accessor_e</tt> enumeration.
+* \arg VX_READ_ONLY: after the function call, the content of the memory location
+* pointed by (*ptr) contains the array range data. Writing into this memory location
+* is forbidden and its behavior is undefined.
+* \arg VX_READ_AND_WRITE : after the function call, the content of the memory
+* location pointed by (*ptr) contains the array range data; writing into this memory
+* is allowed only for the location of items and will result in a modification of the
+* affected items in the array object once the range is unmapped. Writing into
+* a gap between items (when (*stride) > item size in bytes) is forbidden and its
+* behavior is undefined.
+* \arg VX_WRITE_ONLY: after the function call, the memory location pointed by (*ptr)
+* contains undefined data; writing each item of the range is required prior to
+* unmapping. Items not written by the application before unmap will become
+* undefined after unmap, even if they were well defined before map. Like for
+* VX_READ_AND_WRITE, writing into a gap between items is forbidden and its behavior
+* is undefined.
+* \param [in] mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that
+* specifies the type of the memory where the array range is requested to be mapped.
+* \param [in] flags An integer that allows passing options to the map operation.
+* Use the <tt>\ref vx_map_flag_e</tt> enumeration.
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_OPTIMIZED_AWAY This is a reference to a virtual array that cannot be
+* accessed by the application.
+* \retval VX_ERROR_INVALID_REFERENCE The array reference is not actually an array
+* reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_array
+* \post <tt>\ref vxUnmapArrayRange </tt> with same (*map_id) value.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxMapArrayRange(vx_array array, vx_size range_start, vx_size range_end, vx_map_id *map_id, vx_size *stride, void **ptr, vx_enum usage, vx_enum mem_type, vx_uint32 flags)
+{
+	AgoData * data = (AgoData *)array;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_ARRAY)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (data->isVirtual && !data->buffer) {
+			status = VX_ERROR_OPTIMIZED_AWAY;
+		}
+		else if (ptr && stride && range_start < range_end && range_end <= data->u.arr.numitems) {
+			if (!data->buffer) {
+				CAgoLock lock(data->ref.context->cs);
+				if (agoAllocData(data)) {
+					return VX_FAILURE;
+				}
+			}
+			vx_uint8 * ptr_returned = data->buffer + data->u.arr.itemsize * range_start;
+			// save the pointer and usage for use in vxCommitXXX
+			status = VX_SUCCESS;
+			for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+				if (i->ptr == ptr_returned) {
+					// can't support vxAccessXXX() more than once with same pointer
+					// the application needs to call vxCommitXXX() before calling vxAccessXXX()
+					status = VX_FAILURE;
+				}
+			}
+			if (status == VX_SUCCESS) {
+#if ENABLE_OPENCL
+				if (data->opencl_buffer && !(data->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+					// make sure dirty OpenCL buffers are synched before giving access for read
+					if (data->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+						// transfer only valid data
+						vx_size size = data->u.arr.itemsize * data->u.arr.numitems;
+						if (size > 0) {
+							cl_int err = clEnqueueReadBuffer(data->ref.context->opencl_cmdq, data->opencl_buffer, CL_TRUE, data->opencl_buffer_offset, size, data->buffer, 0, NULL, NULL);
+							if (err) {
+								status = VX_FAILURE;
+								agoAddLogEntry(&data->ref, status, "ERROR: vxMapArrayRange: clEnqueueReadBuffer() => %d\n", err);
+								return status;
+							}
+						}
+						data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+					}
+				}
+#endif
+				MappedData item = { data->nextMapId++, ptr_returned, usage, false, data->u.arr.itemsize };
+				data->mapped.push_back(item);
+				*map_id = item.map_id;
+				*ptr = ptr_returned;
+				*stride = item.stride;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Unmap and commit potential changes to an array object range that was previously mapped.
+* Unmapping an array range invalidates the memory location from which the range could
+* be accessed by the application. Accessing this memory location after the unmap function
+* completes has an undefined behavior.
+* \param [in] array The reference to the array object to unmap.
+* \param [out] map_id The unique map identifier that was returned when calling
+* <tt>\ref vxMapArrayRange</tt> .
+* \return A <tt>\ref vx_status_e</tt> enumeration.
+* \retval VX_ERROR_INVALID_REFERENCE The array reference is not actually an array reference.
+* \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+* \ingroup group_array
+* \pre <tt>\ref vxMapArrayRange</tt> returning the same map_id value
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxUnmapArrayRange(vx_array array, vx_map_id map_id)
+{
+	AgoData * data = (AgoData *)array;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_ARRAY)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+			if (i->map_id == map_id) {
+				vx_enum usage = i->usage;
+				data->mapped.erase(i);
+				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
+					// update sync flags
+					data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+				}
+				status = VX_SUCCESS;
+				break;
+			}
+		}
+	}
+	return status;
+}
+
 /*==============================================================================
 META FORMAT
 =============================================================================*/
 
-/*! \brief Allows a user to set the attributes of a <tt>\ref vx_meta_format</tt> object in a kernel output validator.
-* \param [in] meta The reference to the <tt>\ref vx_meta_format</tt> object to set.
-* \param [in] attribute Use attributes from other objects that match the parameter type or from <tt>\ref vx_meta_format_attribute_e</tt>.
-* \param [in] ptr The input pointer of the value to set on the meta format object.
-* \param [in] size The size of the object to which \a ptr points.
-* \ingroup group_user_kernels
-* \return A <tt>\ref vx_status_e</tt> enumeration.
-* \retval VX_SUCCESS The attribute was set.
-* \retval VX_ERROR_INVALID_REFERENCE meta was not a <tt>\ref vx_meta_format</tt>.
-* \retval VX_ERROR_INVALID_PARAMETER size was not correct for the type needed.
-* \retval VX_ERROR_NOT_SUPPORTED the object attribute was not supported on the meta format object.
-* \retval VX_ERROR_INVALID_TYPE attribute type did not match known meta format type.
-*/
+/*! \brief This function allows a user to set the attributes of a <tt>\ref vx_meta_format</tt> object in a kernel output validator.
+ * 
+ * The \ref vx_meta_format object contains two types of information : data object meta data and 
+ * some specific information that defines how the valid region of an image changes
+ *
+ * The meta data attributes that can be set are identified by this list:
+ * - \ref vx_image : \ref VX_IMAGE_FORMAT, \ref VX_IMAGE_HEIGHT, \ref VX_IMAGE_WIDTH
+ * - \ref vx_array : \ref VX_ARRAY_CAPACITY, \ref VX_ARRAY_ITEMTYPE
+ * - \ref vx_pyramid : \ref VX_PYRAMID_FORMAT, \ref VX_PYRAMID_HEIGHT, \ref VX_PYRAMID_WIDTH, \ref VX_PYRAMID_LEVELS, \ref VX_PYRAMID_SCALE
+ * - \ref vx_scalar : \ref VX_SCALAR_TYPE
+ * - \ref vx_matrix : \ref VX_MATRIX_TYPE, \ref VX_MATRIX_ROWS, \ref VX_MATRIX_COLUMNS
+ * - \ref vx_distribution : \ref VX_DISTRIBUTION_BINS, \ref VX_DISTRIBUTION_OFFSET, \ref VX_DISTRIBUTION_RANGE
+ * - \ref vx_remap : \ref VX_REMAP_SOURCE_WIDTH, \ref VX_REMAP_SOURCE_HEIGHT, \ref VX_REMAP_DESTINATION_WIDTH, \ref VX_REMAP_DESTINATION_HEIGHT
+ * - \ref vx_lut : \ref VX_LUT_TYPE, \ref VX_LUT_COUNT
+ * - \ref vx_threshold : \ref VX_THRESHOLD_TYPE
+ * - \ref VX_VALID_RECT_CALLBACK
+ * \note For vx_image, a specific attribute can be used to specify the valid region evolution. This information is not a meta data.
+ *
+ * \param [in] meta The reference to the \ref vx_meta_format struct to set 
+ * \param [in] attribute Use the subset of data object attributes that define the meta data of this object or attributes from <tt>\ref vx_meta_format</tt>.
+ * \param [in] ptr The input pointer of the value to set on the meta format object.
+ * \param [in] size The size in bytes of the object to which \a ptr points.
+ * \ingroup group_user_kernels
+ * \return A <tt>\ref vx_status_e</tt> enumeration.
+ * \retval VX_SUCCESS The attribute was set.
+ * \retval VX_ERROR_INVALID_REFERENCE meta was not a <tt>\ref vx_meta_format</tt>.
+ * \retval VX_ERROR_INVALID_PARAMETER size was not correct for the type needed.
+ * \retval VX_ERROR_NOT_SUPPORTED the object attribute was not supported on the meta format object.
+ * \retval VX_ERROR_INVALID_TYPE attribute type did not match known meta format type.
+ */
 VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatAttribute(vx_meta_format meta, vx_enum attribute, const void *ptr, vx_size size)
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
-	if (meta && meta->type == VX_TYPE_META_FORMAT && agoIsValidReference(&meta->data.ref)) {
-		AgoData * data = &meta->data;
+	if (meta && agoIsValidReference(&meta->data.ref)) {
 		status = VX_ERROR_INVALID_PARAMETERS;
 		if (ptr) {
 			switch (attribute)
 			{
 			/**********************************************************************/
-			case VX_META_FORMAT_ATTRIBUTE_DELTA_RECTANGLE:
-				if (size == sizeof(vx_delta_rectangle_t)) {
-					data->delta = *(vx_delta_rectangle_t *)ptr;
+			case VX_VALID_RECT_CALLBACK:
+				if (size == sizeof(vx_kernel_image_valid_rectangle_f)) {
+					meta->data.u.img.format = *(vx_df_image *)ptr;
 					status = VX_SUCCESS;
+					meta->set_valid_rectangle_callback = *(vx_kernel_image_valid_rectangle_f)ptr;
 				}
 				break;
 			/**********************************************************************/
-			case VX_IMAGE_ATTRIBUTE_FORMAT:
-				if (size == sizeof(vx_df_image) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.format = *(vx_df_image *)ptr;
+			case VX_IMAGE_FORMAT:
+				if (size == sizeof(vx_df_image) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.format = *(vx_df_image *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_HEIGHT:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.height = *(vx_uint32 *)ptr;
+			case VX_IMAGE_HEIGHT:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.height = *(vx_uint32 *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_IMAGE_ATTRIBUTE_WIDTH:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.width = *(vx_uint32 *)ptr;
+			case VX_IMAGE_WIDTH:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.width = *(vx_uint32 *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 #if ENABLE_OPENCL
 			case VX_IMAGE_ATTRIBUTE_AMD_ENABLE_USER_BUFFER_OPENCL:
-				if (size == sizeof(vx_bool) && data->ref.type == VX_TYPE_IMAGE) {
-					data->u.img.enableUserBufferOpenCL = *(vx_bool *)ptr;
+				if (size == sizeof(vx_bool) && meta->data.ref.type == VX_TYPE_IMAGE) {
+					meta->data.u.img.enableUserBufferOpenCL = *(vx_bool *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 #endif
 			/**********************************************************************/
-			case VX_ARRAY_ATTRIBUTE_CAPACITY:
-				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_ARRAY) {
-					data->u.arr.capacity = *(vx_size *)ptr;
+			case VX_ARRAY_CAPACITY:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_ARRAY) {
+					meta->data.u.arr.capacity = *(vx_size *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
-			case VX_ARRAY_ATTRIBUTE_ITEMTYPE:
-				if (size == sizeof(vx_enum) && data->ref.type == VX_TYPE_ARRAY) {
-					data->u.arr.itemtype = *(vx_enum *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			/**********************************************************************/
-			case VX_PYRAMID_ATTRIBUTE_FORMAT:
-				if (size == sizeof(vx_df_image) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.format = *(vx_df_image *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_HEIGHT:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.height = *(vx_uint32 *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_WIDTH:
-				if (size == sizeof(vx_uint32) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.width = *(vx_uint32 *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_LEVELS:
-				if (size == sizeof(vx_size) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.levels = *(vx_size *)ptr;
-					status = VX_SUCCESS;
-				}
-				break;
-			case VX_PYRAMID_ATTRIBUTE_SCALE:
-				if (size == sizeof(vx_float32) && data->ref.type == VX_TYPE_PYRAMID) {
-					data->u.pyr.scale = *(vx_float32 *)ptr;
+			case VX_ARRAY_ITEMTYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_ARRAY) {
+					meta->data.u.arr.itemtype = *(vx_enum *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
 			/**********************************************************************/
-			case VX_SCALAR_ATTRIBUTE_TYPE:
-				if (size == sizeof(vx_enum) && data->ref.type == VX_TYPE_SCALAR) {
-					data->u.scalar.type = *(vx_enum *)ptr;
+			case VX_PYRAMID_FORMAT:
+				if (size == sizeof(vx_df_image) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.format = *(vx_df_image *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_HEIGHT:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.height = *(vx_uint32 *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_WIDTH:
+				if (size == sizeof(vx_uint32) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.width = *(vx_uint32 *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_LEVELS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.levels = *(vx_size *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_PYRAMID_SCALE:
+				if (size == sizeof(vx_float32) && meta->data.ref.type == VX_TYPE_PYRAMID) {
+					meta->data.u.pyr.scale = *(vx_float32 *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			/**********************************************************************/
+			case VX_SCALAR_TYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_SCALAR) {
+					meta->data.u.scalar.type = *(vx_enum *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			/**********************************************************************/
+			case VX_MATRIX_TYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_MATRIX) {
+					meta->data.u.mat.type = *(vx_enum *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_COLUMNS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_MATRIX) {
+					meta->data.u.mat.columns = *(vx_size *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_MATRIX_ROWS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_MATRIX) {
+					meta->data.u.mat.rows = *(vx_size *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -4913,16 +6749,55 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatAttribute(vx_meta_format meta,
 	return status;
 }
 
-VX_API_ENTRY vx_status VX_API_CALL vxSetReferenceName(vx_reference ref, const char *name)
+/*! \brief Set a meta format object from an exemplar data object reference
+*
+* This function sets a \ref vx_meta_format object from the meta data of the exemplar
+*
+* \param [in] meta The meta format object to set
+* \param [in] exemplar The exemplar data object.
+* \ingroup group_user_kernels
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS The meta format was correctly set.
+* \retval VX_ERROR_INVALID_REFERENCE the reference was not a reference to a data object
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatFromReference(vx_meta_format meta, vx_reference exemplar)
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
-	if (agoIsValidReference(ref) && ((ref->type >= VX_TYPE_DELAY && ref->type <= VX_TYPE_REMAP) || (ref->type >= VX_TYPE_VENDOR_OBJECT_START && ref->type <= VX_TYPE_VENDOR_OBJECT_END))) {
-		AgoData * data = (AgoData *)ref;
-		data->name = name;
+	if (meta && agoIsValidReference(&meta->data.ref) && agoIsValidReference(exemplar)) {
+		AgoData * ref = (AgoData *)exemplar;
 		status = VX_SUCCESS;
+		switch (exemplar->type)
+		{
+		case VX_TYPE_IMAGE:
+			meta->data.u.img.width = ref->u.img.width;
+			meta->data.u.img.height = ref->u.img.height;
+			meta->data.u.img.format = ref->u.img.format;
+			break;
+		case VX_TYPE_ARRAY:
+			meta->data.u.arr.capacity = ref->u.arr.capacity;
+			meta->data.u.arr.itemtype = ref->u.arr.itemtype;
+			break;
+		case VX_TYPE_PYRAMID:
+			meta->data.u.pyr.levels = ref->u.pyr.levels;
+			meta->data.u.pyr.scale = ref->u.pyr.scale;
+			meta->data.u.pyr.width = ref->u.pyr.width;
+			meta->data.u.pyr.height = ref->u.pyr.height;
+			meta->data.u.pyr.format = ref->u.pyr.format;
+			break;
+		case VX_TYPE_SCALAR:
+			meta->data.u.scalar.type = ref->u.scalar.type;
+			break;
+		default:
+			status = VX_ERROR_INVALID_REFERENCE;
+			break;
+		}
 	}
 	return status;
 }
+
+/*==============================================================================
+MISCELLANEOUS
+=============================================================================*/
 
 VX_API_ENTRY vx_status VX_API_CALL vxGetReferenceName(vx_reference ref, vx_char name[], vx_size size)
 {
@@ -4972,4 +6847,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetModuleInternalData(vx_context context, c
 		}
 	}
 	return status;
+}
+
+//! \brief Create context from specified platform -- needed for ICD support
+extern "C" VX_API_ENTRY vx_context VX_API_CALL vxCreateContextFromPlatform(struct _vx_platform * platform);
+VX_API_ENTRY vx_context VX_API_CALL vxCreateContextFromPlatform(struct _vx_platform * platform)
+{
+	vx_context context = agoCreateContextFromPlatform(platform);
+	return context;
 }
