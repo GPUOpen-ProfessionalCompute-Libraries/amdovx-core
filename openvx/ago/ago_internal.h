@@ -34,7 +34,7 @@ THE SOFTWARE.
 //
 
 // version
-#define AGO_VERSION "0.9.4"
+#define AGO_VERSION "0.9.5"
 
 // debug configuration
 #define ENABLE_DEBUG_MESSAGES                 0 // 0:disable 1:enable
@@ -103,6 +103,7 @@ THE SOFTWARE.
 // AGO limites
 #define AGO_MAX_CONVOLUTION_DIM               9 // maximum size of convolution matrix
 #define AGO_OPTICALFLOWPYRLK_MAX_DIM         15 // maximum size of opticalflow block size
+#define AGO_MAX_TENSOR_DIMENSIONS             4 // maximum dimensions supported by tensor
 
 // AGO remap data precision
 #define AGO_REMAP_FRACTIONAL_BITS             3 // number of fractional bits in re-map locations
@@ -327,6 +328,17 @@ struct AgoConfigThreshold {
 	vx_int32 threshold_lower, threshold_upper;
 	vx_int32 true_value, false_value;
 };
+struct AgoConfigTensor {
+	vx_size num_dims;
+	vx_size dims[AGO_MAX_TENSOR_DIMENSIONS];
+	vx_enum data_type;
+	vx_uint32 fixed_point_pos;
+	vx_size stride[AGO_MAX_TENSOR_DIMENSIONS];
+	vx_size offset;
+	AgoData * roiMaster;
+	vx_size start[AGO_MAX_TENSOR_DIMENSIONS];
+	vx_size end[AGO_MAX_TENSOR_DIMENSIONS];
+};
 struct AgoConfigCannyStack {
 	vx_uint32 count;
 	vx_uint32 stackTop;
@@ -369,6 +381,7 @@ struct AgoData {
 		AgoConfigThreshold thr;
 		AgoConfigCannyStack cannystack;
 		AgoConfigScaleMatrix scalemat;
+		AgoConfigTensor tensor;
 	} u;
 	vx_size size;
 	vx_enum import_type;

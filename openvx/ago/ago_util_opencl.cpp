@@ -449,6 +449,24 @@ int agoGpuOclAllocBuffer(AgoData * data)
 			data->opencl_buffer_offset = 0;
 		}
 	}
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		AgoData * dataMaster = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data; // to handle tensor ROI
+		if (!dataMaster->opencl_buffer) {
+			cl_int err = -1;
+			dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, dataMaster->size, NULL, &err);
+			if (err) {
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Tensor)\n", context->opencl_context, (int)dataMaster->size, err);
+				return -1;
+			}
+			dataMaster->opencl_buffer_offset = 0;
+		}
+		if (data != dataMaster) {
+			// special handling for tensor ROI
+			data->opencl_buffer = dataMaster->opencl_buffer;
+			data->opencl_svm_buffer = dataMaster->opencl_svm_buffer;
+			data->opencl_buffer_offset = (vx_uint32)data->u.tensor.offset;
+		}
+	}
 	else if (data->numChildren > 0) {
 		for (vx_uint32 child = 0; child < data->numChildren; child++) {
 			if (agoGpuOclAllocBuffer(data->children[child]) < 0) {
@@ -535,6 +553,7 @@ static const char * agoGpuImageFormat2RegType(vx_df_image format)
 	else if (format == VX_DF_IMAGE_UYVY) reg_type = "U16";
 	else if (format == VX_DF_IMAGE_YUYV) reg_type = "U16";
 	else if (format == VX_DF_IMAGE_F32_AMD) reg_type = "F32";
+	else if (format == VX_DF_IMAGE_F16_AMD) reg_type = "F16";
 	return reg_type;
 }
 
@@ -649,7 +668,7 @@ static int agoGpuOclSetKernelArgs(cl_kernel opencl_kernel, vx_uint32& kernelArgI
 		kernelArgIndex++;
 	}
 	else if (data->ref.type == VX_TYPE_SCALAR) {
-		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(cl_uint), &data->u.scalar.u.u);
+		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, (data->u.scalar.type == VX_TYPE_FLOAT16) ? sizeof(vx_uint16) : sizeof(vx_uint32), &data->u.scalar.u.u);
 		if (err) { 
 			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,scalar) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
 			return -1; 
@@ -736,15 +755,18 @@ static int agoGpuOclSetKernelArgs(cl_kernel opencl_kernel, vx_uint32& kernelArgI
 		vx_uint32 stride = data->u.remap.dst_width * sizeof(vx_uint32);
 		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(stride), &stride);
 		if (err) { 
-			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,stride) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,remap.stride) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
 			return -1; 
 		}
 		kernelArgIndex++;
 	}
-	else if (data->ref.type == VX_TYPE_SCALAR) {
-		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(data->u.scalar.u.i), &data->u.scalar.u.i);
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		if (agoGpuOclDataSetBufferAsKernelArg(data, opencl_kernel, kernelArgIndex, group) < 0)
+			return -1;
+		kernelArgIndex++;
+		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(vx_uint32), &data->u.tensor.offset);
 		if (err) { 
-			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,scalar) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,tensor.offset) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
 			return -1; 
 		}
 		kernelArgIndex++;
@@ -880,10 +902,10 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 		kernelArgIndex++;
 	}
 	else if (data->ref.type == VX_TYPE_SCALAR) {
-		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(data->u.scalar.u.i), &data->u.scalar.u.i);
-		if (err) { 
+		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, (data->u.scalar.type == VX_TYPE_FLOAT16) ? sizeof(vx_uint16) : sizeof(vx_uint32), &data->u.scalar.u.u);
+		if (err) {
 			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,scalar) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
-			return -1; 
+			return -1;
 		}
 		kernelArgIndex++;
 	}
@@ -1008,6 +1030,36 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 			}
 		}
 	}
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		if (data->isDelayed) {
+			// needs to set opencl_buffer everytime when the buffer is part of a delay object
+			if (agoGpuOclDataSetBufferAsKernelArg(data, opencl_kernel, kernelArgIndex, group) < 0)
+				return -1;
+		}
+		kernelArgIndex += 2;
+		if (need_read_access) {
+			auto dataToSync = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data;
+			if (!(dataToSync->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+				if (dataToSync->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE | AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT)) {
+					int64_t stime = agoGetClockCounter();
+					if (dataToSync->opencl_buffer) {
+						cl_int err = clEnqueueWriteBuffer(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, dataToSync->size, dataToSync->buffer, 0, NULL, NULL);
+						if (err) {
+							agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clEnqueueWriteBuffer() => %d (tensor)\n", err);
+							return -1;
+						}
+					}
+					dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+					int64_t etime = agoGetClockCounter();
+					graph->opencl_perf.buffer_write += etime - stime;
+#if ENABLE_DEBUG_DUMP_CL_BUFFERS
+					char fileName[128]; sprintf(fileName, "input_%%04d_tensor.raw");
+					clDumpBuffer(fileName, opencl_cmdq, dataToSync);
+#endif
+				}
+			}
+		}
+	}
 	else {
 		agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGpuOclDataSyncInputs: doesn't support object type %s in group#%d for kernel arg setting\n", agoEnum2Name(data->ref.type), group);
 		return -1;
@@ -1031,6 +1083,15 @@ static int agoGpuOclDataOutputMarkDirty(AgoGraph * graph, AgoData * data, bool n
 			if (need_write_access) {
 				data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 				data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
+			}
+		}
+	}
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		if (need_access) { // only use tensor objects that need write access
+			if (need_write_access) {
+				auto dataToSync = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data;
+				dataToSync->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
 			}
 		}
 	}
@@ -1956,6 +2017,15 @@ int agoGpuOclSingleNodeWait(AgoGraph * graph, AgoNode * node)
 				if (need_write_access) {
 					auto dataToSync = node->paramList[index]->u.img.isROI ? node->paramList[index]->u.img.roiMasterImage : node->paramList[index];
 					char fileName[128]; sprintf(fileName, "input_%%04d_%dx%d.yuv", dataToSync->u.img.width, dataToSync->u.img.height);
+					cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
+					clDumpBuffer(fileName, opencl_cmdq, node->paramList[index]);
+					//printf("Press ENTER to continue... ");  char line[256]; gets(line);
+				}
+			}
+			else if (node->paramList[index]->ref.type == VX_TYPE_TENSOR) {
+				if (need_write_access) {
+					auto dataToSync = node->paramList[index]->u.tensor.roiMaster ? node->paramList[index]->u.tensor.roiMaster : node->paramList[index];
+					char fileName[128]; sprintf(fileName, "input_%%04d_tensor.raw");
 					cl_command_queue opencl_cmdq = graph->opencl_cmdq ? graph->opencl_cmdq : graph->ref.context->opencl_cmdq;
 					clDumpBuffer(fileName, opencl_cmdq, node->paramList[index]);
 					//printf("Press ENTER to continue... ");  char line[256]; gets(line);

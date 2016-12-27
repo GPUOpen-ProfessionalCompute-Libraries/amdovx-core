@@ -100,7 +100,7 @@ int CVxEngine::Initialize(int argCount, int defaultTargetAffinity, int defaultTa
 	char name[VX_MAX_IMPLEMENTATION_NAME];
 	ovxStatus = vxQueryContext(m_context, VX_CONTEXT_ATTRIBUTE_IMPLEMENTATION, name, VX_MAX_IMPLEMENTATION_NAME);
 	if (ovxStatus) {
-		printf("ERROR: vxQueryContext)VX_CONTEXT_ATTRIBUTE_IMPLEMENTATION) failed (%d:%s)\n", ovxStatus, ovxEnum2Name(ovxStatus));
+		printf("ERROR: vxQueryContext(VX_CONTEXT_ATTRIBUTE_IMPLEMENTATION) failed (%d:%s)\n", ovxStatus, ovxEnum2Name(ovxStatus));
 		return -1;
 	}
 	printf("OK: using %s\n", name);
@@ -1241,14 +1241,18 @@ void PrintHelpGDF(const char * command)
 		"          remap:<srcWidth>,<srcHeight>,<dstWidth>,<dstHeight>\n"
 		"          scalar:<data-type>,<value>\n"
 		"          threshold:<thresh-type>,<data-type>\n"
+		"          tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>\n"
+		"          tensor-from-roi:<master-tensor>,<num-of-dims>,{<start0>,<start1>,...},{<end0>,<end1>,...}\n"
 		"      For virtual object in default graph use the below syntax for\n"
 		"      <data-description>:\n"
 		"          virtual-array:<data-type>,<capacity>\n"
 		"          virtual-image:<width>,<height>,<image-format>\n"
 		"          virtual-pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>\n"
+		"          virtual-tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>\n"
 		"\n"
 		"      where:\n"
 		"          <master-image> can be name of a image data object (including $1, $2, ...)\n"
+		"          <master-tensor> can be name of a tensor data object (including $1, $2, ...)\n"
 		"          <exemplar> can be name of a data object (including $1, $2, ...)\n"
 		"          <thresh-type> can be BINARY,RANGE\n"
 		"          <uniform-pixel-value> can be an integer or {<byte>;<byte>;...}\n"

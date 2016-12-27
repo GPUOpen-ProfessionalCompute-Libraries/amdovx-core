@@ -78,6 +78,7 @@ static struct { const char * name; vx_enum value; vx_size size; } s_table_consta
 		{ "UINT8", VX_TYPE_UINT8, sizeof(vx_uint8) },
 		{ "INT8", VX_TYPE_INT8, sizeof(vx_int8) },
 		{ "CHAR", VX_TYPE_CHAR, sizeof(vx_int8) },
+		{ "FLOAT16", VX_TYPE_FLOAT16, sizeof(vx_int16) },
 		{ "FLOAT32", VX_TYPE_FLOAT32, sizeof(vx_float32) },
 		{ "FLOAT64", VX_TYPE_FLOAT64, sizeof(vx_float64) },
 		{ "SIZE", VX_TYPE_SIZE, sizeof(vx_size) },
@@ -95,6 +96,7 @@ static struct { const char * name; vx_enum value; vx_size size; } s_table_consta
 		{ "VX_TYPE_ARRAY", VX_TYPE_ARRAY },
 		{ "VX_TYPE_IMAGE", VX_TYPE_IMAGE },
 		{ "VX_TYPE_REMAP", VX_TYPE_REMAP },
+		{ "VX_TYPE_TENSOR", VX_TYPE_TENSOR },
 		{ "VX_TYPE_STRING", VX_TYPE_STRING_AMD },
 		{ "AGO_TYPE_MEANSTDDEV_DATA", AGO_TYPE_MEANSTDDEV_DATA },
 		{ "AGO_TYPE_MINMAXLOC_DATA", AGO_TYPE_MINMAXLOC_DATA },
@@ -848,6 +850,7 @@ void agoGetDescriptionFromData(AgoContext * acontext, char * desc, AgoData * dat
 		else if (data->u.scalar.type == VX_TYPE_INT64) sprintf(desc + strlen(desc), "scalar%s:INT64,%" PRId64, virt, data->u.scalar.u.i64);
 		else if (data->u.scalar.type == VX_TYPE_UINT64) sprintf(desc + strlen(desc), "scalar%s:UINT64,%" PRIu64, virt, data->u.scalar.u.u64);
 		else if (data->u.scalar.type == VX_TYPE_STRING_AMD) sprintf(desc + strlen(desc), "scalar%s:STRING,%s", virt, data->buffer ? (const char *)data->buffer : "");
+		else if (data->u.scalar.type == VX_TYPE_FLOAT16) sprintf(desc + strlen(desc), "scalar%s:FLOAT16,%u", virt, data->u.scalar.u.u & 0xffff);
 		else sprintf(desc + strlen(desc), "scalar%s:UNSUPPORTED,NULL", virt);
 	}
 	else if (data->ref.type == VX_TYPE_DISTRIBUTION) {
@@ -874,6 +877,12 @@ void agoGetDescriptionFromData(AgoContext * acontext, char * desc, AgoData * dat
 	else if (data->ref.type == VX_TYPE_REMAP) {
 		sprintf(desc + strlen(desc), "remap%s:%u,%u,%u,%u", virt, data->u.remap.src_width, data->u.remap.src_height, data->u.remap.dst_width, data->u.remap.dst_height);
 	}
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		char dims[64] = "";
+		for (vx_size i = 0; i < data->u.tensor.num_dims; i++)
+			sprintf(dims + strlen(dims), "%s%u", i ? "," : "", (vx_uint32)data->u.tensor.dims[i]);
+		sprintf(desc + strlen(desc), "tensor%s:%u,{%s},%s,%u", virt, (vx_uint32)data->u.tensor.num_dims, dims, agoEnum2Name(data->u.tensor.data_type), (vx_uint32)data->u.tensor.fixed_point_pos);
+	}
 	else if (data->ref.type == AGO_TYPE_MEANSTDDEV_DATA) {
 		sprintf(desc + strlen(desc), "ago-meanstddev-data%s:", virt);
 	}
@@ -887,6 +896,50 @@ void agoGetDescriptionFromData(AgoContext * acontext, char * desc, AgoData * dat
 		sprintf(desc + strlen(desc), "ago-scale-matrix%s:%.12e,%.12e,%.12e,%.12e", virt, data->u.scalemat.xscale, data->u.scalemat.yscale, data->u.scalemat.xoffset, data->u.scalemat.yoffset);
 	}
 	else sprintf(desc + strlen(desc), "UNSUPPORTED%s:0x%08x", virt, data->ref.type);
+}
+
+int agoParseWordFromDescription(const char *& desc, vx_size size, char * word)
+{
+	for (vx_uint32 i = 0; i < (size - 1) && *desc && *desc != ',' && *desc != '}'; i++) {
+		*word++ = *desc++;
+	}
+	*word = 0;
+	return 0;
+}
+
+int agoParseValueFromDescription(const char *& desc, vx_uint32& value)
+{
+	char word[32];
+	if (agoParseWordFromDescription(desc, sizeof(word), word) < 0)
+		return -1;
+	value = atoi(word);
+	return 0;
+}
+
+int agoParseValueFromDescription(const char *& desc, vx_size& value)
+{
+	char word[32];
+	if (agoParseWordFromDescription(desc, sizeof(word), word) < 0)
+		return -1;
+	value = atoi(word);
+	return 0;
+}
+
+int agoParseListFromDescription(const char *& desc, vx_size num_dims, vx_size * dims)
+{
+	if (*desc != '{')
+		return -1;
+	for (vx_uint32 i = 0; i < num_dims; i++) {
+		if (*desc != '{' && *desc != ',')
+			return -1;
+		desc++;
+		if (agoParseValueFromDescription(desc, dims[i]) < 0)
+			return -1;
+	}
+	if (*desc != '}')
+		return -1;
+	desc++;
+	return 0;
 }
 
 int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData * data, const char * desc)
@@ -1447,6 +1500,11 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 			if (sscanf(s, "%g", &data->u.scalar.u.f) == 1)
 				data->isInitialized = vx_true_e;
 		}
+		else if (data->u.scalar.type == VX_TYPE_FLOAT16) {
+			data->u.scalar.itemsize = sizeof(vx_uint16);
+			if (sscanf(s, "%g", &data->u.scalar.u.u) == 1)
+				data->isInitialized = vx_true_e;
+		}
 		else if (data->u.scalar.type == VX_TYPE_BOOL) {
 			data->u.scalar.itemsize = sizeof(vx_bool);
 			if (sscanf(s, "%d", &data->u.scalar.u.i) == 1)
@@ -1509,6 +1567,127 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		// sanity check and update
 		if (agoDataSanityCheckAndUpdate(data)) {
 			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: agoDataSanityCheckAndUpdate failed for scalar\n");
+			return -1;
+		}
+		return 0;
+	}
+	else if (!strncmp(desc, "tensor:", 7) || !strncmp(desc, "tensor-virtual:", 7 + 8)) {
+		data->isVirtual = !strncmp(desc, "tensor-virtual:", 7 + 8) ? vx_true_e : vx_false_e;
+		desc += 7 + (data->isVirtual ? 8 : 0);
+		// get configuration
+		data->ref.type = VX_TYPE_TENSOR;
+		if (agoParseValueFromDescription(desc, data->u.tensor.num_dims) < 0)
+			return -1;
+		if (*desc++ != ',') return -1;
+		if (data->u.tensor.num_dims < 1 || data->u.tensor.num_dims > AGO_MAX_TENSOR_DIMENSIONS)
+			return -1;
+		if (agoParseListFromDescription(desc, data->u.tensor.num_dims, data->u.tensor.dims) < 0)
+			return -1;
+		if (*desc++ != ',') return -1;
+		char data_type[64] = { 0 };
+		if (agoParseWordFromDescription(desc, sizeof(data_type), data_type) < 0)
+			return -1;
+		data->u.tensor.data_type = agoName2Enum(data_type);
+		if (data->u.tensor.data_type != VX_TYPE_INT16 && data->u.tensor.data_type != VX_TYPE_FLOAT32 && data->u.tensor.data_type != VX_TYPE_FLOAT16) {
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: invalid data_type for tensor: %s\n", data_type);
+			return -1;
+		}
+		data->u.tensor.fixed_point_pos = 0;
+		if (data->u.tensor.data_type == VX_TYPE_INT16) {
+			if (*desc++ != ',') return -1;
+			if (agoParseValueFromDescription(desc, data->u.tensor.fixed_point_pos) < 0)
+				return -1;
+		}
+		vx_size elem_size = agoType2Size(data->ref.context, data->u.tensor.data_type);
+		data->u.tensor.offset = 0;
+		data->size = elem_size;
+		for (vx_size i = 0; i < data->u.tensor.num_dims; i++) {
+			data->u.tensor.start[i] = 0;
+			data->u.tensor.end[i] = data->u.tensor.dims[i];
+			data->u.tensor.stride[i] = data->size;
+			data->size *= data->u.tensor.dims[i];
+			// make sure that the size and stride[1] are multiple of 4
+			if (i == 0 && (data->size & 3)) {
+				data->size = (data->size + 3) & ~3;
+			}
+		}
+		for (vx_size i = data->u.tensor.num_dims; i < AGO_MAX_TENSOR_DIMENSIONS; i++) {
+			data->u.tensor.start[i] = 0;
+			data->u.tensor.end[i] = 1;
+			data->u.tensor.dims[i] = 1;
+			data->u.tensor.stride[i] = data->u.tensor.stride[data->u.tensor.num_dims - 1];
+		}
+		if (!data->size)
+			return -1;
+		// sanity check and update
+		if (agoDataSanityCheckAndUpdate(data)) {
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: agoDataSanityCheckAndUpdate failed for tensor\n");
+			return -1;
+		}
+		return 0;
+	}
+	else if (!strncmp(desc, "tensor-from-roi:", 16)) {
+		desc += 16;
+		// get configuration
+		data->ref.type = VX_TYPE_TENSOR;
+		char masterName[64];
+		vx_size num_dims, start[AGO_MAX_TENSOR_DIMENSIONS], end[AGO_MAX_TENSOR_DIMENSIONS];
+		if (agoParseWordFromDescription(desc, sizeof(masterName), masterName) < 0)
+			return -1;
+		AgoData * dataMaster = agoFindDataByName(acontext, agraph, masterName);
+		if (!dataMaster || dataMaster->ref.type != VX_TYPE_TENSOR) {
+			agoAddLogEntry(&dataMaster->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: tensor-from-roi: master tensor is invalid: %s\n", masterName);
+			return -1;
+		}
+		if (*desc++ != ',') return -1;
+		if (agoParseValueFromDescription(desc, num_dims) < 0)
+			return -1;
+		if (num_dims != dataMaster->u.tensor.num_dims) {
+			agoAddLogEntry(&dataMaster->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: tensor-from-roi: num_of_dims (%u) doesn't match master\n", (vx_uint32)num_dims);
+			return -1;
+		}
+		if (*desc++ != ',') return -1;
+		if (agoParseListFromDescription(desc, num_dims, start) < 0)
+			return -1;
+		if (*desc++ != ',') return -1;
+		if (agoParseListFromDescription(desc, num_dims, end) < 0)
+			return -1;
+		while (dataMaster && dataMaster->ref.type == VX_TYPE_TENSOR && dataMaster->u.tensor.roiMaster) {
+			for (vx_size i = 0; i < num_dims; i++) {
+				start[i] += dataMaster->u.tensor.start[i];
+				end[i] += dataMaster->u.tensor.start[i];
+			}
+			dataMaster = dataMaster->u.tensor.roiMaster;
+		}
+		if (!dataMaster || dataMaster->ref.type != VX_TYPE_TENSOR) {
+			agoAddLogEntry(&dataMaster->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: tensor-from-roi: master tensor is invalid: %s\n", masterName);
+			return -1;
+		}
+		data->isVirtual = dataMaster->isVirtual;
+		data->isInitialized = dataMaster->isInitialized;
+		data->u.tensor.num_dims = dataMaster->u.tensor.num_dims;
+		data->u.tensor.data_type = dataMaster->u.tensor.data_type;
+		data->u.tensor.fixed_point_pos = dataMaster->u.tensor.fixed_point_pos;
+		data->u.tensor.roiMaster = dataMaster;
+		data->u.tensor.offset = 0;
+		data->size = data->u.tensor.stride[0];
+		for (vx_size i = 0; i < data->u.tensor.num_dims; i++) {
+			data->u.tensor.start[i] = start[i];
+			data->u.tensor.end[i] = end[i];
+			data->u.tensor.dims[i] = end[i] - start[i];
+			data->u.tensor.stride[i] = dataMaster->u.tensor.stride[i];
+			data->u.tensor.offset += start[i] * dataMaster->u.tensor.stride[i];
+			data->size *= data->u.tensor.dims[i];
+		}
+		for (vx_size i = data->u.tensor.num_dims; i < AGO_MAX_TENSOR_DIMENSIONS; i++) {
+			data->u.tensor.start[i] = 0;
+			data->u.tensor.end[i] = 1;
+			data->u.tensor.dims[i] = 1;
+			data->u.tensor.stride[i] = data->u.tensor.stride[data->u.tensor.num_dims - 1];
+		}
+		// sanity check and update
+		if (agoDataSanityCheckAndUpdate(data)) {
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGetDataFromDescription: agoDataSanityCheckAndUpdate failed for tensor-from-view\n");
 			return -1;
 		}
 		return 0;
@@ -1632,6 +1811,7 @@ int agoInitializeImageComponentsAndPlanes(AgoContext * acontext)
 	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F32x3_AMD, 3, 1, 3 * 32, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
 	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F32_AMD, 1, 1, 32, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
 	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F64_AMD, 1, 1, 64, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F16_AMD, 1, 1, 16, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
 	return 0;
 }
 
@@ -1998,6 +2178,9 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 		if (!data->size) 
 			return -1;
 	}
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		// nothing to check yet
+	}
 	else if (data->ref.type == VX_TYPE_DISTRIBUTION) {
 		// calculate other attributes and buffer size
 		data->size = data->u.dist.numbins * sizeof(vx_uint32);
@@ -2290,6 +2473,24 @@ int agoAllocData(AgoData * data)
 	}
 	else if (data->ref.type == AGO_TYPE_SCALE_MATRIX) {
 		// nothing to do
+	}
+	else if (data->ref.type == VX_TYPE_TENSOR) {
+		if (data->u.tensor.roiMaster) {
+            // make sure that the master image has been allocated
+			if (!data->u.tensor.roiMaster->buffer) {
+				if (agoAllocData(data->u.tensor.roiMaster) < 0) {
+					return -1;
+				}
+			}
+			// get the region from master image
+			data->buffer = data->u.tensor.roiMaster->buffer + data->u.tensor.offset;
+		}
+		else {
+			// allocate buffer and get aligned buffer with 16-byte alignment
+			data->buffer = data->buffer_allocated = (vx_uint8 *)agoAllocMemory(data->size);
+			if (!data->buffer_allocated)
+				return -1;
+		}
 	}
 	else return -1;
 	return 0;

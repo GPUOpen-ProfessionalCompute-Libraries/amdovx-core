@@ -70,6 +70,7 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "INT16|VX_TYPE_INT16", VX_TYPE_INT16 },
 	{ "UINT8|VX_TYPE_UINT8", VX_TYPE_UINT8 },
 	{ "INT8|VX_TYPE_INT8", VX_TYPE_INT8 },
+	{ "FLOAT16|VX_TYPE_FLOAT16", VX_TYPE_FLOAT16 },
 	{ "FLOAT32|VX_TYPE_FLOAT32", VX_TYPE_FLOAT32 },
 	{ "FLOAT64|VX_TYPE_FLOAT64", VX_TYPE_FLOAT64 },
 	{ "SIZE|VX_TYPE_SIZE", VX_TYPE_SIZE },
@@ -127,6 +128,7 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "VX_TYPE_ARRAY", VX_TYPE_ARRAY },
 	{ "VX_TYPE_IMAGE", VX_TYPE_IMAGE },
 	{ "VX_TYPE_REMAP", VX_TYPE_REMAP },
+	{ "VX_TYPE_TENSOR", VX_TYPE_TENSOR },
 	{ "VX_TYPE_INVALID", VX_TYPE_INVALID },
 	{ "VX_TYPE_STRING", VX_TYPE_STRING_AMD },
 	{ "AGO_TYPE_MEANSTDDEV_DATA", AGO_TYPE_MEANSTDDEV_DATA },
@@ -609,6 +611,11 @@ int GetScalarValueFromString(vx_enum type, const char str[], vx_uint64 * value)
 	else if (type == VX_TYPE_FLOAT64) {
 		double v = 0; (void)sscanf(str, "%lg", &v);
 		*(double *)value = v;
+	}
+	else if (type == VX_TYPE_FLOAT16) {
+		float v = 0; (void)sscanf(str, "%g", &v);
+		vx_uint32 f = *(vx_uint32 *)&v;
+		*(vx_uint16 *)value = ((f >> 16) & 0x8000) | ((((f & 0x7f800000) - 0x38000000) >> 13) & 0x7c00) | ((f >> 13) & 0x03ff);
 	}
 	else if (type == VX_TYPE_SIZE) {
 		vx_size v = 0; (void)sscanf(str, VX_FMT_SIZE, &v);
