@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 #define ENABLE_LOCAL_DEBUG_MESSAGES                       0
 #define ENABLE_DEBUG_DUMP_CL_BUFFERS                      0
-
+bool isVendorAmd = true;
 #if ENABLE_DEBUG_DUMP_CL_BUFFERS
 static void clDumpBuffer(const char * fileNameFormat, cl_command_queue opencl_cmdq, AgoData * data)
 {
@@ -161,12 +161,13 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 				platform_id = platform_list[i];
 				break;
 			}
+			else{
+				platform_id = platform_list[i];
+				isVendorAmd = false;
+				break;
+			}
 		}
 		delete [] platform_list;
-		if (!platform_id) {
-			agoAddLogEntry(NULL, VX_FAILURE, "ERROR: Could not find a valid AMD platform\n");
-			return -1;
-		}
 		// set context properties
 		cl_context_properties ctxprop[] = {
 			CL_CONTEXT_PLATFORM, (cl_context_properties)platform_id,
@@ -1254,6 +1255,94 @@ static std::string agoGpuOclData2Decl(AgoData * data, vx_uint32 index, vx_uint32
 	return code;
 }
 
+std::string replaceString(std::string str, const std::string& from, const std::string& to){
+	size_t start_pos = 0;
+	while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+		str.replace(start_pos, from.length(), to);
+		start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+	}
+	return str;
+}
+
+//Emulate the built in functions.
+std::string emulateBuiltinFunctions(std::string code){
+
+
+	// Check if the Vendor is AMD or not.
+	if (!isVendorAmd) {
+
+		// Replace pragma with built in functions.
+		if (code.find("#pragma OPENCL EXTENSION cl_amd_media_ops : enable") != std::string::npos){
+			std::string nonamdcode = OPENCL_FORMAT(
+				"uint amd_pack(float4 src){\n"
+				"	uint dst =  ((uint)(clamp (src.s0,0.0f,255.0f))     )\n"
+				"			  + ((uint)(clamp (src.s1,0.0f,255.0f))<< 8 ) \n"
+				"			  + ((uint)(clamp (src.s2,0.0f,255.0f))<< 16) \n"
+				"			  + ((uint)(clamp (src.s3,0.0f,255.0f))<< 24); \n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"float amd_unpack3(uint src){\n"
+				"	float dst=  (float)((src >> 24) & 0xff);\n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"float amd_unpack2(uint src){\n"
+				"	float dst=  (float)((src >> 16) & 0xff);\n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"float amd_unpack1(uint src){\n"
+				"	float dst= (float)((src >> 8) & 0xff);\n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"float amd_unpack0(uint src){\n"
+				"	float dst=  (float)((src)& 0xff);\n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"uint amd_bitalign(uint src0,uint src1, uint src2){\n"
+				"	uint dst = (uint)(as_ulong((uint2)(src1,src0)) >> (src2 & 31));\n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"uint amd_bytealign(uint src0,uint src1, uint src2){\n"
+				"	uint dst = (uint)(as_ulong((uint2)(src1,src0)) >> (src2 & 31) * 8 );\n"
+				"	return dst;\n"
+				"}\n"
+				"\n"
+				"uint amd_min3(uint src0, uint src1, uint src2) { \n"
+				"	uint dst = (uint)(min(src0, min(src1,src2)));\n"
+				"   return dst;\n "
+				"}\n"
+				"\n"
+				"uint amd_bfe(uint src0, uint src1, uint src2) { \n"
+				"   uint dst;"
+				"	uint offset = src1 & 31;\n"
+				"	uint width  = src2 & 31;\n"
+				"   if ( width == 0 )\n"
+				"       dst=0;\n"
+				"   else if((offset + width) < 32) "
+				"       dst = (src0 << (32 - offset - width)) >> (32 - width);\n"
+				"   else \n"
+				"       dst = src0 >> offset;\n"
+				"   return dst;\n"
+				"}\n"
+				"\n"
+				);
+
+			nonamdcode = replaceString(code, "#pragma OPENCL EXTENSION cl_amd_media_ops : enable", nonamdcode);
+			nonamdcode = replaceString(nonamdcode, "#pragma OPENCL EXTENSION cl_amd_media_ops2 : enable", "");
+
+			code = nonamdcode;
+
+		}
+
+	}
+	return code;
+}
+
 int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 {
 	// make sure that all output images have same dimensions
@@ -1706,6 +1795,7 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 	}
 	// generate code: end of function and save
 	code += "\t}\n}\n";
+	code = emulateBuiltinFunctions(code);
 	supernode->opencl_code = code;
 	const char * opencl_code = supernode->opencl_code.c_str();
 
@@ -1855,7 +1945,8 @@ int agoGpuOclSuperNodeWait(AgoGraph * graph, AgoSuperNode * supernode)
 
 int agoGpuOclSingleNodeFinalize(AgoGraph * graph, AgoNode * node)
 {
-	const char * opencl_code = node->opencl_code.c_str();
+	std::string code = emulateBuiltinFunctions(node->opencl_code);
+	const char * opencl_code = code.c_str();
 
 	// dump OpenCL kernel if environment variable AGO_DUMP_GPU is specified with dump file path prefix
 	// the output file name will be "$(AGO_DUMP_GPU)-0.<counter>.cl"
