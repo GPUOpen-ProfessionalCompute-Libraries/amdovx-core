@@ -26,7 +26,6 @@ THE SOFTWARE.
 
 #define ENABLE_LOCAL_DEBUG_MESSAGES                       0
 #define ENABLE_DEBUG_DUMP_CL_BUFFERS                      0
-bool isVendorAmd = true;
 #if ENABLE_DEBUG_DUMP_CL_BUFFERS
 static void clDumpBuffer(const char * fileNameFormat, cl_command_queue opencl_cmdq, AgoData * data)
 {
@@ -159,11 +158,11 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 			}
 			if (!strcmp(vendor, "Advanced Micro Devices, Inc.")) {
 				platform_id = platform_list[i];
+				context->isVendorAmd = true;
 				break;
-			}
-			else{
+			}else{
 				platform_id = platform_list[i];
-				isVendorAmd = false;
+				context->isVendorAmd = false;
 				break;
 			}
 		}
@@ -1255,25 +1254,20 @@ static std::string agoGpuOclData2Decl(AgoData * data, vx_uint32 index, vx_uint32
 	return code;
 }
 
-std::string replaceString(std::string str, const std::string& from, const std::string& to){
+void replaceString(std::string& str, const std::string& from, const std::string& to){
 	size_t start_pos = 0;
 	while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
 		str.replace(start_pos, from.length(), to);
 		start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
 	}
-	return str;
 }
 
 //Emulate the built in functions.
-std::string emulateBuiltinFunctions(std::string code){
-
-
-	// Check if the Vendor is AMD or not.
-	if (!isVendorAmd) {
+void emulateBuiltinFunctions(std::string& code){
 
 		// Replace pragma with built in functions.
 		if (code.find("#pragma OPENCL EXTENSION cl_amd_media_ops : enable") != std::string::npos){
-			std::string nonamdcode = OPENCL_FORMAT(
+			std::string clmediaopscode = OPENCL_FORMAT(
 				"uint amd_pack(float4 src){\n"
 				"	uint dst =  ((uint)(clamp (src.s0,0.0f,255.0f))     )\n"
 				"			  + ((uint)(clamp (src.s1,0.0f,255.0f))<< 8 ) \n"
@@ -1312,9 +1306,103 @@ std::string emulateBuiltinFunctions(std::string code){
 				"	return dst;\n"
 				"}\n"
 				"\n"
-				"uint amd_min3(uint src0, uint src1, uint src2) { \n"
-				"	uint dst = (uint)(min(src0, min(src1,src2)));\n"
-				"   return dst;\n "
+				"uint amd_lerp(uint src0, uint src1, uint src2) {\n"
+				"	uint dst = (((((src0 >>  0) & 0xff) + ((src1 >>  0) & 0xff) + ((src2 >>  0) & 1)) >> 1) <<  0) + \n"
+				"			   (((((src0 >>  8) & 0xff) + ((src1 >>  8) & 0xff) + ((src2 >>  8) & 1)) >> 1) <<  8) + \n"
+				"			   (((((src0 >> 16) & 0xff) + ((src1 >> 16) & 0xff) + ((src2 >> 16) & 1)) >> 1) << 16) + \n"
+				"			   (((((src0 >> 24) & 0xff) + ((src1 >> 24) & 0xff) + ((src2 >> 24) & 1)) >> 1) << 24); \n"
+				"	return dst;"
+				"}\n"
+				"\n"
+				"uint amd_sad(uint src0, uint src1, uint src2){ \n"
+				"	uint dst = src2 + \n"
+				"			   abs(((src0 >>  0) & 0xff) - ((src1 >>  0) & 0xff)) + \n"
+				"			   abs(((src0 >>  8) & 0xff) - ((src1 >>  8) & 0xff)) + \n"
+				"			   abs(((src0 >> 16) & 0xff) - ((src1 >> 16) & 0xff)) + \n"
+				"			   abs(((src0 >> 24) & 0xff) - ((src1 >> 24) & 0xff));  \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"uint amd_sadhi(uint src0, uint src1, uint src2){ \n"
+				"	uint dst = src2 + \n"
+				"			   (abs(((src0 >>  0) & 0xff) - ((src1 >>  0) & 0xff)) << 16) + \n"
+				"			   (abs(((src0 >>  8) & 0xff) - ((src1 >>  8) & 0xff)) << 16) + \n"
+				"			   (abs(((src0 >> 16) & 0xff) - ((src1 >> 16) & 0xff)) << 16) + \n"
+				"			   (abs(((src0 >> 24) & 0xff) - ((src1 >> 24) & 0xff)) << 16);  \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"uint amd_sad4(uint4 src0, uint4 src1, uint src2) { \n"
+				"	uint dst = src2 + \n"
+				"			   abs(((src0.s0 >>  0) & 0xff) - ((src1.s0 >>  0) & 0xff)) + \n"
+				"              abs(((src0.s0 >>  8) & 0xff) - ((src1.s0 >>  8) & 0xff)) + \n"
+				"              abs(((src0.s0 >> 16) & 0xff) - ((src1.s0 >> 16) & 0xff)) + \n"
+				"              abs(((src0.s0 >> 24) & 0xff) - ((src1.s0 >> 24) & 0xff)) + \n"
+				"              abs(((src0.s1 >>  0) & 0xff) - ((src1.s0 >>  0) & 0xff)) + \n"
+				"              abs(((src0.s1 >>  8) & 0xff) - ((src1.s1 >>  8) & 0xff)) + \n"
+				"              abs(((src0.s1 >> 16) & 0xff) - ((src1.s1 >> 16) & 0xff)) + \n"
+				"              abs(((src0.s1 >> 24) & 0xff) - ((src1.s1 >> 24) & 0xff)) + \n"
+				"              abs(((src0.s2 >>  0) & 0xff) - ((src1.s2 >>  0) & 0xff)) + \n"
+				"              abs(((src0.s2 >>  8) & 0xff) - ((src1.s2 >>  8) & 0xff)) + \n"
+				"              abs(((src0.s2 >> 16) & 0xff) - ((src1.s2 >> 16) & 0xff)) + \n"
+				"              abs(((src0.s2 >> 24) & 0xff) - ((src1.s2 >> 24) & 0xff)) + \n"
+				"              abs(((src0.s3 >>  0) & 0xff) - ((src1.s3 >>  0) & 0xff)) + \n"
+				"              abs(((src0.s3 >>  8) & 0xff) - ((src1.s3 >>  8) & 0xff)) + \n"
+				"              abs(((src0.s3 >> 16) & 0xff) - ((src1.s3 >> 16) & 0xff)) + \n"
+				"              abs(((src0.s3 >> 24) & 0xff) - ((src1.s3 >> 24) & 0xff));  \n"
+				"	return dst;	\n"
+				"}\n"
+				"\n"
+				);
+
+			std::string clmediaops2code = OPENCL_FORMAT(
+				"uint amd_msad(uint src0, uint src1, uint src2){ \n"
+				"	uchar4 src0u8 = as_uchar4(src0); \n"
+				"	uchar4 src1u8 = as_uchar4(src1); \n"
+				"	uint dst = src2 + \n"
+				"			   ((src1u8.s0 == 0) ? 0 : abs(src0u8.s0 - src1u8.s0)) + \n"
+				"			   ((src1u8.s1 == 0) ? 0 : abs(src0u8.s1 - src1u8.s1)) + \n"
+				"			   ((src1u8.s2 == 0) ? 0 : abs(src0u8.s2 - src1u8.s2)) + \n"
+				"			   ((src1u8.s3 == 0) ? 0 : abs(src0u8.s3 - src1u8.s3));  \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"ulong amd_qsad(ulong src0, uint src1, ulong src2) { \n"
+				"	uchar8 src0u8 = as_uchar8(src0); \n"
+				"	ushort4 src2u16 = as_ushort4(src2); \n"
+				"	ushort4 dstu16; \n"
+				"	dstu16.s0 = amd_sad(as_uint(src0u8.s0123), src1, src2u16.s0); \n"
+				"	dstu16.s1 = amd_sad(as_uint(src0u8.s1234), src1, src2u16.s1); \n"
+				"	dstu16.s2 = amd_sad(as_uint(src0u8.s2345), src1, src2u16.s2); \n"
+				"	dstu16.s3 = amd_sad(as_uint(src0u8.s3456), src1, src2u16.s3); \n"
+				"	ulong dst = as_ulong(dstu16); \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"ulong amd_mqsad(ulong src0, uint src1, ulong src2) { \n"
+				"	uchar8 src0u8 = as_uchar8(src0); \n"
+				"	ushort4 src2u16 = as_ushort4(src2); \n"
+				"   ushort4 dstu16; \n"
+				"   dstu16.s0 = amd_msad(as_uint(src0u8.s0123), src1, src2u16.s0); \n"
+				"   dstu16.s1 = amd_msad(as_uint(src0u8.s1234), src1, src2u16.s1); \n"
+				"   dstu16.s2 = amd_msad(as_uint(src0u8.s2345), src1, src2u16.s2); \n"
+				"   dstu16.s3 = amd_msad(as_uint(src0u8.s3456), src1, src2u16.s3);"
+				"   ulong dst = as_ulong(dstu16); \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"uint amd_sadw(uint src0, uint src1, uint src2) { \n"
+				"	  ushort2 src0u16 = as_ushort2(src0); \n"
+				"     ushort2 src1u16 = as_ushort2(src1); \n"
+				"     uint dst = src2 + \n"
+				"                abs(src0u16.s0 - src1u16.s0) + \n"
+				"                abs(src0u16.s1 - src1u16.s1); \n"
+				"	  return dst; \n"
+				"}\n"
+				"\n"
+				"uint amd_sadd(uint src0, uint src1, uint src2) { \n"
+				"	   uint dst = src2 +  abs(src0 - src1); \n"
+				"	   return dst; \n"
 				"}\n"
 				"\n"
 				"uint amd_bfe(uint src0, uint src1, uint src2) { \n"
@@ -1330,17 +1418,30 @@ std::string emulateBuiltinFunctions(std::string code){
 				"   return dst;\n"
 				"}\n"
 				"\n"
-				);
-
-			nonamdcode = replaceString(code, "#pragma OPENCL EXTENSION cl_amd_media_ops : enable", nonamdcode);
-			nonamdcode = replaceString(nonamdcode, "#pragma OPENCL EXTENSION cl_amd_media_ops2 : enable", "");
-
-			code = nonamdcode;
-
+				"uint amd_bfm(uint src0 , uint src1){ \n"
+				"	uint dst = ((1 << (src0 & 0x1f)) - 1) << (src1 & 0x1f); \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"uint amd_min3(uint src0, uint src1, uint src2) { \n"
+				"	uint dst = min(src0, min(src1,src2));\n"
+				"   return dst;\n "
+				"}\n"
+				"\n"
+				"uint amd_max3(uint src0, uint src1, uint src2) { \n"
+				"	uint dst = max(src0, max(src1,src2)); \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+				"uint amd_median3(uint src0, uint src1, uint src2){ \n"
+				"	uint dst = max(min(src0,src1), min(max(src0,src1),src2)); \n"
+				"	return dst; \n"
+				"}\n"
+				"\n"
+			);
+			replaceString(code, "#pragma OPENCL EXTENSION cl_amd_media_ops : enable", clmediaopscode);
+			replaceString(code, "#pragma OPENCL EXTENSION cl_amd_media_ops2 : enable", clmediaops2code);
 		}
-
-	}
-	return code;
 }
 
 int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
@@ -1795,7 +1896,10 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 	}
 	// generate code: end of function and save
 	code += "\t}\n}\n";
-	code = emulateBuiltinFunctions(code);
+	// Emulate the code if the vendor is not AMD.
+	if (!(graph->ref.context->isVendorAmd)){
+		emulateBuiltinFunctions(code);
+	}
 	supernode->opencl_code = code;
 	const char * opencl_code = supernode->opencl_code.c_str();
 
@@ -1945,7 +2049,11 @@ int agoGpuOclSuperNodeWait(AgoGraph * graph, AgoSuperNode * supernode)
 
 int agoGpuOclSingleNodeFinalize(AgoGraph * graph, AgoNode * node)
 {
-	std::string code = emulateBuiltinFunctions(node->opencl_code);
+	std::string code = node->opencl_code;
+	// Emulate the code if the vendor is not AMD.
+	if (!(graph->ref.context->isVendorAmd)){
+		emulateBuiltinFunctions(code);
+	}
 	const char * opencl_code = code.c_str();
 
 	// dump OpenCL kernel if environment variable AGO_DUMP_GPU is specified with dump file path prefix
