@@ -673,6 +673,7 @@ struct AgoContext {
 	cl_uint      opencl_num_devices;
 	cl_device_id opencl_device_list[16];
 	char opencl_build_options[256];
+	bool isVendorAmd;
 #endif
 	AgoTargetAffinityInfo_ attr_affinity;
 public:
