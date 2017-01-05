@@ -1502,7 +1502,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		}
 		else if (data->u.scalar.type == VX_TYPE_FLOAT16) {
 			data->u.scalar.itemsize = sizeof(vx_uint16);
-			if (sscanf(s, "%g", &data->u.scalar.u.u) == 1)
+			if (sscanf(s, "%d", &data->u.scalar.u.u) == 1)
 				data->isInitialized = vx_true_e;
 		}
 		else if (data->u.scalar.type == VX_TYPE_BOOL) {

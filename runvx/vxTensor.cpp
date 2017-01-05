@@ -128,7 +128,7 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		m_size *= m_dims[i];
 	}
 	m_data = new vx_uint8[m_size];
-	if (!m_data) ReportError("ERROR: memory allocation failed for tensor: %u\n", m_size);
+	if (!m_data) ReportError("ERROR: memory allocation failed for tensor: %u\n", (vx_uint32)m_size);
 
 	// process I/O parameters
 	if (*io_params == ':') io_params++;
@@ -227,7 +227,7 @@ int CVxParamTensor::ReadFrame(int frameNumber)
 		}
 	}
 	if (fread(m_data, 1, m_size, fp) != m_size)
-		ReportError("ERROR: not enough data (%d bytes) in %s\n", m_size, fileName);
+		ReportError("ERROR: not enough data (%d bytes) in %s\n", (vx_uint32)m_size, fileName);
 	vx_status status = vxCopyTensorPatch(m_tensor, m_num_of_dims, nullptr, nullptr, m_stride, m_data, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
 	fclose(fp);
 	if (status != VX_SUCCESS)
@@ -271,7 +271,7 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 		ReportError("ERROR: Unable to open: %s\n", fileName);
 	}
 	if (fread(m_data, 1, m_size, fp) != m_size)
-		ReportError("ERROR: not enough data (%d bytes) in %s\n", m_size, fileName);
+		ReportError("ERROR: not enough data (%d bytes) in %s\n", (vx_uint32)m_size, fileName);
 	fclose(fp);
 
 	// compare
@@ -339,9 +339,9 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 		mismatchDetected = (maxError > m_maxErrorLimit) ? true : false;
 		mismatchDetected = (avgError > m_avgErrorLimit) ? true : mismatchDetected;
 		if (mismatchDetected)
-			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %d] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
+			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %.6f] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 		else if (m_verbose)
-			printf("OK: tensor COMPARE MATCHED [max-err: %d] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
+			printf("OK: tensor COMPARE MATCHED [max-err: %.6f] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 	}
 	else if (m_data_type == VX_TYPE_FLOAT16) {
 		vx_float32 maxError = 0;
@@ -373,9 +373,9 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 		mismatchDetected = (maxError > m_maxErrorLimit) ? true : false;
 		mismatchDetected = (avgError > m_avgErrorLimit) ? true : mismatchDetected;
 		if (mismatchDetected)
-			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %d] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
+			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %.6f] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 		else if (m_verbose)
-			printf("OK: tensor COMPARE MATCHED [max-err: %d] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
+			printf("OK: tensor COMPARE MATCHED [max-err: %.6f] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 	}
 	else {
 		for (vx_size d3 = 0; d3 < m_dims[3]; d3++) {

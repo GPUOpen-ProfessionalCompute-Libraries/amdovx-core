@@ -136,7 +136,6 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 		// use the given OpenCL context 
 		context->opencl_context_imported = true;
 		context->opencl_context = opencl_context;
-		// TBD: need to check devices in the context and set context->isVendorAmd accordingly
 	}
 	else {
 		// get AMD platform (if available)
@@ -151,17 +150,26 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 			agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clGetPlatformIDs(%d,*,0) => %d (failed)\n", num_platforms, status);
 			return -1;
 		}
-		cl_platform_id platform_id = platform_list[0];
-		for (int i = 0; i < (int)num_platforms; i++) {
-			char vendor[128] = { 0 };
-			if ((status = clGetPlatformInfo(platform_list[i], CL_PLATFORM_VENDOR, sizeof(vendor), vendor, NULL)) != CL_SUCCESS) {
-				agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clGetPlatformInfo([%d],...) => %d (failed)\n", i, status);
-				return -1;
+		cl_platform_id platform_id = nullptr;
+		char opencl_platform_override[64] = "";
+		if(agoGetEnvironmentVariable("AGO_OPENCL_PLATFORM", opencl_platform_override, sizeof(opencl_platform_override))) {
+			cl_uint index = (cl_uint)atoi(opencl_platform_override);
+			if(index < num_platforms) {
+				platform_id = platform_list[index];
 			}
-			if (!strcmp(vendor, "Advanced Micro Devices, Inc.")) {
-				platform_id = platform_list[i];
-				context->isVendorAmd = true;
-				break;
+		}
+		if(!platform_id) {
+			platform_id = platform_list[0];
+			for (int i = 0; i < (int)num_platforms; i++) {
+				char vendor[128] = { 0 };
+				if ((status = clGetPlatformInfo(platform_list[i], CL_PLATFORM_VENDOR, sizeof(vendor), vendor, NULL)) != CL_SUCCESS) {
+					agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clGetPlatformInfo([%d],...) => %d (failed)\n", i, status);
+					return -1;
+				}
+				if (!strcmp(vendor, "Advanced Micro Devices, Inc.")) {
+					platform_id = platform_list[i];
+					break;
+				}
 			}
 		}
 		delete [] platform_list;
