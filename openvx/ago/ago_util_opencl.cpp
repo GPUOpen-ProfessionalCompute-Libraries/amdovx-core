@@ -136,6 +136,7 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 		// use the given OpenCL context 
 		context->opencl_context_imported = true;
 		context->opencl_context = opencl_context;
+		// TBD: need to check devices in the context and set context->isVendorAmd accordingly
 	}
 	else {
 		// get AMD platform (if available)
@@ -159,6 +160,7 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 			}
 			if (!strcmp(vendor, "Advanced Micro Devices, Inc.")) {
 				platform_id = platform_list[i];
+				context->isVendorAmd = true;
 				break;
 			}
 		}
@@ -1903,7 +1905,6 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 	if (!(graph->ref.context->isAmdMediaOpsSupported)) {
 		agoEmulateAmdMediaOpsInOpenCL(code);
 	}
-
 	supernode->opencl_code = code;
 	const char * opencl_code = supernode->opencl_code.c_str();
 
