@@ -152,7 +152,6 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 			return -1;
 		}
 		cl_platform_id platform_id = platform_list[0];
-		context->isVendorAmd = false;
 		for (int i = 0; i < (int)num_platforms; i++) {
 			char vendor[128] = { 0 };
 			if ((status = clGetPlatformInfo(platform_list[i], CL_PLATFORM_VENDOR, sizeof(vendor), vendor, NULL)) != CL_SUCCESS) {
@@ -215,6 +214,13 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clGetDeviceInfo(%p,CL_DEVICE_NAME) => %d\n", context->opencl_device_list[device_id], status);
 		return -1; 
 	}
+	char extensions[2048] = { 0 };
+	status = clGetDeviceInfo(context->opencl_device_list[device_id], CL_DEVICE_EXTENSIONS, sizeof(extensions) - 1, extensions, NULL);
+	if (status) {
+		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clGetDeviceInfo(%p,CL_DEVICE_EXTENSIONS) => %d\n", context->opencl_device_list[device_id], status);
+		return -1;
+	}
+	context->isAmdMediaOpsSupported = strstr(extensions, "cl_amd_media_ops") ? true : false;
 	agoAddLogEntry(&context->ref, VX_SUCCESS, "OK: OpenVX using GPU device#%d (%s) [%s] [SvmCaps " VX_FMT_SIZE " %d]\n", device_id, deviceName, deviceVersion, context->opencl_svmcaps, context->opencl_config_flags);
 	memset(context->opencl_extensions, 0, sizeof(context->opencl_extensions));
 	status = clGetDeviceInfo(context->opencl_device_list[device_id], CL_DEVICE_EXTENSIONS, sizeof(context->opencl_extensions), context->opencl_extensions, NULL);
@@ -1896,7 +1902,7 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 	}
 	// generate code: end of function and save
 	code += "\t}\n}\n";
-	if (!(graph->ref.context->isVendorAmd)) {
+	if (!(graph->ref.context->isAmdMediaOpsSupported)) {
 		agoEmulateAmdMediaOpsInOpenCL(code);
 	}
 	supernode->opencl_code = code;
@@ -2048,7 +2054,7 @@ int agoGpuOclSuperNodeWait(AgoGraph * graph, AgoSuperNode * supernode)
 
 int agoGpuOclSingleNodeFinalize(AgoGraph * graph, AgoNode * node)
 {
-	if (!(graph->ref.context->isVendorAmd)) {
+	if (!(graph->ref.context->isAmdMediaOpsSupported)) {
 		agoEmulateAmdMediaOpsInOpenCL(node->opencl_code);
 	}
 	const char * opencl_code = node->opencl_code.c_str();

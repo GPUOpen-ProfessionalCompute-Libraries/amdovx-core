@@ -3069,7 +3069,7 @@ AgoContext::AgoContext()
 	  num_active_modules{ 0 }, num_active_references{ 0 }, callback_log{ nullptr }, callback_reentrant{ vx_false_e },
 	  thread_config{ CONFIG_THREAD_DEFAULT }, importing_module_index_plus1{ 0 }, graph_garbage_data{ nullptr }, graph_garbage_node{ nullptr }, graph_garbage_list{ nullptr }
 #if ENABLE_OPENCL
-	, opencl_context_imported{ false }, opencl_context{ nullptr }, opencl_cmdq{ nullptr }, opencl_config_flags{ 0 }, opencl_svmcaps{ 0 }, opencl_num_devices{ 0 }, isVendorAmd{ true }
+	, opencl_context_imported{ false }, opencl_context{ nullptr }, opencl_cmdq{ nullptr }, opencl_config_flags{ 0 }, opencl_svmcaps{ 0 }, opencl_num_devices{ 0 }, isAmdMediaOpsSupported{ true }
 #endif
 {
 	memset(&kernelList, 0, sizeof(kernelList));
