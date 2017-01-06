@@ -58,7 +58,7 @@ THE SOFTWARE.
 enum ago_type_public_e {
 	/*! \brief AMD data types
 	*/
-    VX_TYPE_FLOAT16             = 0x00F,                     // 16-bit float data type
+	VX_TYPE_FLOAT16             = 0x00F,                     // 16-bit float data type
 	VX_TYPE_STRING_AMD          = VX_TYPE_SCALAR_MAX,        // scalar data type for string
 
 	/*! \brief AMD data structs

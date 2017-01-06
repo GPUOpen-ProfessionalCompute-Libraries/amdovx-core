@@ -138,7 +138,6 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 		// use the given OpenCL context 
 		context->opencl_context_imported = true;
 		context->opencl_context = opencl_context;
-		// TBD: need to check devices in the context and set context->isVendorAmd accordingly
 	}
 	else {
 		// get AMD platform (if available)
@@ -155,13 +154,13 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 		}
 		cl_platform_id platform_id = nullptr;
 		char opencl_platform_override[64] = "";
-		if (agoGetEnvironmentVariable("AGO_OPENCL_PLATFORM", opencl_platform_override, sizeof(opencl_platform_override))) {
+		if(agoGetEnvironmentVariable("AGO_OPENCL_PLATFORM", opencl_platform_override, sizeof(opencl_platform_override))) {
 			cl_uint index = (cl_uint)atoi(opencl_platform_override);
-			if (index < num_platforms) {
+			if(index < num_platforms) {
 				platform_id = platform_list[index];
 			}
 		}
-		if (!platform_id) {
+		if(!platform_id) {
 			platform_id = platform_list[0];
 			for (int i = 0; i < (int)num_platforms; i++) {
 				char vendor[128] = { 0 };
