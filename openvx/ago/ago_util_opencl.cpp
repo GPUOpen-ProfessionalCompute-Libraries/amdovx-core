@@ -115,6 +115,7 @@ int agoGpuOclReleaseData(AgoData * data)
 		clReleaseMemObject(data->opencl_buffer_allocated);
 		data->opencl_buffer_allocated = NULL;
 	}
+#if defined(CL_VERSION_2_0)
 	if (data->opencl_svm_buffer_allocated) {
 		if (data->ref.context->opencl_config_flags & CONFIG_OPENCL_SVM_AS_FGS) {
 			agoReleaseMemory(data->opencl_svm_buffer_allocated);
@@ -124,8 +125,9 @@ int agoGpuOclReleaseData(AgoData * data)
 		}
 		data->opencl_svm_buffer_allocated = NULL;
 	}
-	data->opencl_buffer = NULL;
 	data->opencl_svm_buffer = NULL;
+#endif
+	data->opencl_buffer = NULL;
 	data->opencl_buffer_offset = 0;
 	return 0;
 }
@@ -229,19 +231,25 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 		return -1;
 	}
 	context->isAmdMediaOpsSupported = strstr(extensions, "cl_amd_media_ops") ? true : false;
+#if defined(CL_VERSION_2_0)
 	agoAddLogEntry(&context->ref, VX_SUCCESS, "OK: OpenVX using GPU device#%d (%s) [%s] [SvmCaps " VX_FMT_SIZE " %d]\n", device_id, deviceName, deviceVersion, context->opencl_svmcaps, context->opencl_config_flags);
+#else
+	agoAddLogEntry(&context->ref, VX_SUCCESS, "OK: OpenVX using GPU device#%d (%s) [%s] [%d]\n", device_id, deviceName, deviceVersion, context->opencl_config_flags);
+#endif
 	memset(context->opencl_extensions, 0, sizeof(context->opencl_extensions));
 	status = clGetDeviceInfo(context->opencl_device_list[device_id], CL_DEVICE_EXTENSIONS, sizeof(context->opencl_extensions), context->opencl_extensions, NULL);
 	if (status) { 
 		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clGetDeviceInfo(%p,CL_DEVICE_EXTENSIONS) => %d\n", context->opencl_device_list[device_id], status);
 		return -1; 
 	}
+#if defined(CL_VERSION_2_0)
 	context->opencl_svmcaps = 0;
 	status = clGetDeviceInfo(context->opencl_device_list[device_id], CL_DEVICE_SVM_CAPABILITIES, sizeof(context->opencl_svmcaps), &context->opencl_svmcaps, NULL);
 	if (status) { 
 		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clGetDeviceInfo(%p,CL_DEVICE_SVM_CAPABILITIES) => %d\n", context->opencl_device_list[device_id], status);
 		return -1; 
 	}
+#endif
 	// get default OpenCL build options
 	strcpy(context->opencl_build_options, (context->opencl_config_flags & CONFIG_OPENCL_USE_1_2) ? "-cl-std=CL1.2" : "-cl-std=CL2.0");
 	// override build options with environment variable
@@ -254,6 +262,7 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 	}
 
 	// decide SVM features
+#if defined(CL_VERSION_2_0)
 	if (context->opencl_svmcaps & (CL_DEVICE_SVM_FINE_GRAIN_BUFFER | CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)) {
 		context->opencl_config_flags &= ~CONFIG_OPENCL_SVM_MASK;
 		if (context->attr_affinity.device_info & AGO_TARGET_AFFINITY_GPU_INFO_SVM_MASK) {
@@ -280,8 +289,13 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 			}
 		}
 	}
+#endif
 	// create command queue for buffer sync
+#if defined(CL_VERSION_2_0)
 	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], NULL, &status);
+#else
+	context->opencl_cmdq = clCreateCommandQueue(context->opencl_context, context->opencl_device_list[device_id], 0, &status);
+#endif
 	if (status) {
 		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateCommandQueueWithProperties(%p,%p,0,*) => %d\n", context->opencl_context, context->opencl_device_list[device_id], status);
 		return -1;
@@ -302,6 +316,7 @@ int agoGpuOclAllocBuffer(AgoData * data)
 		AgoData * dataMaster = data->u.img.roiMasterImage ? data->u.img.roiMasterImage : data; // to handle image ROI
 		if (!dataMaster->opencl_buffer && !dataMaster->u.img.enableUserBufferOpenCL && !(dataMaster->import_type == VX_MEMORY_TYPE_OPENCL)) {
 			cl_int err = CL_SUCCESS;
+#if defined(CL_VERSION_2_0)
 			if (!dataMaster->buffer && !dataMaster->u.img.isUniform) {
 				if (context->opencl_config_flags & CONFIG_OPENCL_SVM_ENABLE) {
 					if (context->opencl_config_flags & CONFIG_OPENCL_SVM_AS_FGS) {
@@ -330,7 +345,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 					dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, dataMaster->size + dataMaster->opencl_buffer_offset, dataMaster->opencl_svm_buffer_allocated, &err);
 				}
 			}
-			else {
+			else
+#endif
+			{
 				// allocate normal opencl_buffer
 				dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, dataMaster->size + dataMaster->opencl_buffer_offset, NULL, &err);
 			}
@@ -357,13 +374,16 @@ int agoGpuOclAllocBuffer(AgoData * data)
 		if (data != dataMaster) {
 			// special handling for image ROI
 			data->opencl_buffer = dataMaster->opencl_buffer;
+#if defined(CL_VERSION_2_0)
 			data->opencl_svm_buffer = dataMaster->opencl_svm_buffer;
+#endif
 		}
 	}
 	else if (data->ref.type == VX_TYPE_ARRAY || data->ref.type == AGO_TYPE_CANNY_STACK) {
 		if (!data->opencl_buffer) {
 			data->opencl_buffer_offset = DATA_OPENCL_ARRAY_OFFSET; // first few bytes reserved for numitems/stacktop
 			cl_int err = CL_SUCCESS;
+#if defined(CL_VERSION_2_0)
 			if (!data->buffer) {
 				if (context->opencl_config_flags & CONFIG_OPENCL_SVM_ENABLE) {
 					if (context->opencl_config_flags & CONFIG_OPENCL_SVM_AS_FGS) {
@@ -395,7 +415,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 					data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, data->size + data->opencl_buffer_offset, data->opencl_svm_buffer_allocated, &err);
 				}
 			}
-			else {
+			else
+#endif
+			{
 				// normal opencl_buffer allocation
 				data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, data->size + data->opencl_buffer_offset, NULL, &err);
 				if (data->opencl_buffer) {
@@ -476,7 +498,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 		if (data != dataMaster) {
 			// special handling for tensor ROI
 			data->opencl_buffer = dataMaster->opencl_buffer;
+#if defined(CL_VERSION_2_0)
 			data->opencl_svm_buffer = dataMaster->opencl_svm_buffer;
+#endif
 			data->opencl_buffer_offset = (vx_uint32)data->u.tensor.offset;
 		}
 	}
@@ -579,6 +603,7 @@ int agoGpuOclDataSetBufferAsKernelArg(AgoData * data, cl_kernel opencl_kernel, v
 			return -1;
 		}
 	}
+#if defined(CL_VERSION_2_0)
 	else if (data->opencl_svm_buffer) {
 		cl_int err = clSetKernelArgSVMPointer(opencl_kernel, (cl_uint)kernelArgIndex, data->opencl_svm_buffer);
 		if (err) {
@@ -586,6 +611,7 @@ int agoGpuOclDataSetBufferAsKernelArg(AgoData * data, cl_kernel opencl_kernel, v
 			return -1;
 		}
 	}
+#endif
 	else if (data->import_type != VX_MEMORY_TYPE_OPENCL && !(data->ref.type == VX_TYPE_IMAGE && data->u.img.enableUserBufferOpenCL)) {
 		agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGpuOclDataSetBufferAsKernelArg(supernode,%d) OpenCL buffer not allocated for group#%d\n", (cl_uint)kernelArgIndex, group);
 		return -1;
@@ -1123,7 +1149,11 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 		// update number of items
 		cl_int err = CL_SUCCESS;
 		int64_t stime = agoGetClockCounter();
+#if defined(CL_VERSION_2_0)
 		vx_uint32 * pNumItems = (vx_uint32 *)data->opencl_svm_buffer;
+#else
+		vx_uint32 * pNumItems = nullptr;
+#endif
 		if (data->opencl_buffer) {
 			pNumItems = (vx_uint32 *)clEnqueueMapBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(vx_uint32), 0, NULL, NULL, &err);
 			if (err) { 
@@ -1152,7 +1182,11 @@ static int agoGpuOclDataOutputAtomicSync(AgoGraph * graph, AgoData * data)
 		// update number of items and reset it for next use
 		int64_t stime = agoGetClockCounter();
 		cl_int err = CL_SUCCESS;
+#if defined(CL_VERSION_2_0)
 		vx_uint8 * stack = data->opencl_svm_buffer;
+#else
+		vx_uint8 * stack = nullptr;
+#endif
 		if (data->opencl_buffer) {
 			stack = (vx_uint8 *)clEnqueueMapBuffer(opencl_cmdq, data->opencl_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(vx_uint32), 0, NULL, NULL, &err);
 			if (err) { 

@@ -1020,7 +1020,11 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 						*(cl_mem *)ptr = image->opencl_buffer;
 					}
 					else {
+#if defined(CL_VERSION_2_0)
 						*(vx_uint8 **)ptr = image->opencl_svm_buffer;
+#else
+						*(vx_uint8 **)ptr = NULL;
+#endif
 					}
 					status = VX_SUCCESS;
 				}

@@ -84,7 +84,11 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 			// create command queue: for now use device#0 -- TBD: this needs to be changed in future
 			cl_int err = -1;
 			graph->opencl_device = context->opencl_device_list[0];
+#if defined(CL_VERSION_2_0)
 			graph->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, graph->opencl_device, NULL, &err);
+#else
+			graph->opencl_cmdq = clCreateCommandQueue(context->opencl_context, graph->opencl_device, 0, &err);
+#endif
 			if (err) {
 				agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clCreateCommandQueueWithProperties(%p,%p,0,*) => %d\n", context->opencl_context, graph->opencl_device, err);
 				return -1;
