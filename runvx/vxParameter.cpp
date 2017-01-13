@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "vxRemap.h"
 #include "vxScalar.h"
 #include "vxThreshold.h"
+#include "vxTensor.h"
 
 #define VX_MAX_FILE_NAME 128
 
@@ -324,6 +325,15 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_delay;
 	}
+	else if (!_strnicmp(desc, "tensor:", 7) || !_strnicmp(desc, "virtual-tensor:", 15) || !_strnicmp(desc, "tensor-from-roi:", 16)){
+		CVxParamTensor *this_tensor = new CVxParamTensor();
+		this_tensor->SetParamMap(m_paramMap);
+		this_tensor->SetCaptureFrameStart(captureFrameStart);
+		int status = this_tensor->Initialize(context, graph, desc);
+		if (status)
+			return NULL;
+		return this_tensor;
+	}
 	else return nullptr;
 }
 
@@ -468,6 +478,54 @@ const char * ScanParameters(const char * s_, const char * syntax, const char * f
 					// 64-bit integer
 					*(va_arg(argp, int64_t *)) = value;
 				}
+			}
+			else if (*fmt == 'l') { // list of 32-bit integer in decimal or hexadecimal
+				vx_uint32 count = *va_arg(argp, vx_uint32 *);
+				vx_uint32 * ptr = va_arg(argp, vx_uint32 *);
+				if (*s != '{') {
+					printf("ERROR: ScanParameters: missing '{' for list: syntax=[%s] fmt=[%s] s=[%s]\n", syntax, fmt_, s_);
+					throw - 1;
+				}
+				s++;
+				for (vx_uint32 i = 0; i < count; i++) {
+					if (i > 0) {
+						if (*s != ',') {
+							printf("ERROR: ScanParameters: missing ',' in list: syntax=[%s] fmt=[%s] s=[%s]\n", syntax, fmt_, s_);
+							throw - 1;
+						}
+						s++;
+					}
+					s = ScanParameters(s, "value", "d", &ptr[i]);
+				}
+				if (*s != '}') {
+					printf("ERROR: ScanParameters: missing '}' for list: syntax=[%s] fmt=[%s] s=[%s]\n", syntax, fmt_, s_);
+					throw - 1;
+				}
+				s++;
+			}
+			else if (*fmt == 'L') { // list of 64-bit integer in decimal or hexadecimal
+				vx_size count = *va_arg(argp, vx_size *);
+				vx_size * ptr = va_arg(argp, vx_size *);
+				if (*s != '{') {
+					printf("ERROR: ScanParameters: missing '{' for list: syntax=[%s] fmt=[%s] s=[%s]\n", syntax, fmt_, s_);
+					throw - 1;
+				}
+				s++;
+				for (vx_size i = 0; i < count; i++) {
+					if (i > 0) {
+						if (*s != ',') {
+							printf("ERROR: ScanParameters: missing ',' in list: syntax=[%s] fmt=[%s] s=[%s]\n", syntax, fmt_, s_);
+							throw - 1;
+						}
+						s++;
+					}
+					s = ScanParameters(s, "value", "D", &ptr[i]);
+				}
+				if (*s != '}') {
+					printf("ERROR: ScanParameters: missing '}' for list: syntax=[%s] fmt=[%s] s=[%s]\n", syntax, fmt_, s_);
+					throw - 1;
+				}
+				s++;
 			}
 			else if (*fmt == 'f' || *fmt == 'F') { // 32-bit/64-bit floating-point
 				char buf[64] = { 0 };

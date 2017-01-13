@@ -34,7 +34,7 @@ THE SOFTWARE.
 //
 
 // version
-#define AGO_VERSION "0.9.4"
+#define AGO_VERSION "0.9.5"
 
 // debug configuration
 #define ENABLE_DEBUG_MESSAGES                 0 // 0:disable 1:enable
@@ -103,6 +103,7 @@ THE SOFTWARE.
 // AGO limites
 #define AGO_MAX_CONVOLUTION_DIM               9 // maximum size of convolution matrix
 #define AGO_OPTICALFLOWPYRLK_MAX_DIM         15 // maximum size of opticalflow block size
+#define AGO_MAX_TENSOR_DIMENSIONS             4 // maximum dimensions supported by tensor
 
 // AGO remap data precision
 #define AGO_REMAP_FRACTIONAL_BITS             3 // number of fractional bits in re-map locations
@@ -143,10 +144,12 @@ THE SOFTWARE.
 #define DATA_OPENCL_ARRAY_OFFSET             16  // first 16 bytes of array buffer will be used for numitems
 // opencl configuration flags
 #define CONFIG_OPENCL_USE_1_2              0x0001  // use OpenCL 1.2
+#if defined(CL_VERSION_2_0)
 #define CONFIG_OPENCL_SVM_MASK             0x00F0  // OpenCL SVM flags mask
 #define CONFIG_OPENCL_SVM_ENABLE           0x0010  // use OpenCL SVM
 #define CONFIG_OPENCL_SVM_AS_FGS           0x0020  // use OpenCL SVM as fine grain system
 #define CONFIG_OPENCL_SVM_AS_CLMEM         0x0040  // use OpenCL SVM as cl_mem
+#endif
 #endif
 // opencl image fixed byte offset
 #define OPENCL_IMAGE_FIXED_OFFSET             256
@@ -327,6 +330,17 @@ struct AgoConfigThreshold {
 	vx_int32 threshold_lower, threshold_upper;
 	vx_int32 true_value, false_value;
 };
+struct AgoConfigTensor {
+	vx_size num_dims;
+	vx_size dims[AGO_MAX_TENSOR_DIMENSIONS];
+	vx_enum data_type;
+	vx_uint32 fixed_point_pos;
+	vx_size stride[AGO_MAX_TENSOR_DIMENSIONS];
+	vx_size offset;
+	AgoData * roiMaster;
+	vx_size start[AGO_MAX_TENSOR_DIMENSIONS];
+	vx_size end[AGO_MAX_TENSOR_DIMENSIONS];
+};
 struct AgoConfigCannyStack {
 	vx_uint32 count;
 	vx_uint32 stackTop;
@@ -369,6 +383,7 @@ struct AgoData {
 		AgoConfigThreshold thr;
 		AgoConfigCannyStack cannystack;
 		AgoConfigScaleMatrix scalemat;
+		AgoConfigTensor tensor;
 	} u;
 	vx_size size;
 	vx_enum import_type;
@@ -380,9 +395,11 @@ struct AgoData {
 #if ENABLE_OPENCL
 	cl_mem     opencl_buffer;
 	cl_mem     opencl_buffer_allocated;
-#endif
+#if defined(CL_VERSION_2_0)
 	vx_uint8 * opencl_svm_buffer;
 	vx_uint8 * opencl_svm_buffer_allocated;
+#endif
+#endif
 	vx_uint32  opencl_buffer_offset;
 	vx_bool isVirtual;
 	vx_bool isDelayed;
@@ -656,10 +673,13 @@ struct AgoContext {
 	cl_command_queue opencl_cmdq;
 	vx_uint32 opencl_config_flags;
 	char opencl_extensions[1024];
+#if defined(CL_VERSION_2_0)
 	cl_device_svm_capabilities opencl_svmcaps;
+#endif
 	cl_uint      opencl_num_devices;
 	cl_device_id opencl_device_list[16];
 	char opencl_build_options[256];
+	bool isAmdMediaOpsSupported;
 #endif
 	AgoTargetAffinityInfo_ attr_affinity;
 public:

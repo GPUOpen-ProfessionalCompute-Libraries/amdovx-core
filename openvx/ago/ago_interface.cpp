@@ -1457,7 +1457,7 @@ vx_status agoVerifyNode(AgoNode * node)
 					}
 					// make sure that the data come from output validator matches with object
 					if (data->u.arr.itemtype != meta->data.u.arr.itemtype) {
-						agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_TYPE, "ERROR: agoVerifyGraph: kernel %s: invalid type for argument#%d\n", kernel->name, arg);
+						agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_TYPE, "ERROR: agoVerifyGraph: kernel %s: invalid array type for argument#%d\n", kernel->name, arg);
 						return VX_ERROR_INVALID_TYPE;
 					}
 					else if (!data->u.arr.capacity || (meta->data.u.arr.capacity && meta->data.u.arr.capacity > data->u.arr.capacity)) {
@@ -1484,7 +1484,7 @@ vx_status agoVerifyNode(AgoNode * node)
 				else if (meta->data.ref.type == VX_TYPE_MATRIX) {
 					// make sure that the data come from output validator matches with object
 					if ((data->u.mat.type != meta->data.u.mat.type) || (data->u.mat.columns != meta->data.u.mat.columns) || (data->u.mat.rows != meta->data.u.mat.rows)) {
-						agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_TYPE, "ERROR: agoVerifyGraph: kernel %s: invalid type for argument#%d\n", kernel->name, arg);
+						agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_TYPE, "ERROR: agoVerifyGraph: kernel %s: invalid matrix meta for argument#%d\n", kernel->name, arg);
 						return VX_ERROR_INVALID_TYPE;
 					}
 				}
@@ -1496,6 +1496,21 @@ vx_status agoVerifyNode(AgoNode * node)
 				}
 				else if (meta->data.ref.type == VX_TYPE_REMAP) {
 					// nothing to do
+				}
+				else if (meta->data.ref.type == VX_TYPE_TENSOR) {
+					// make sure that the data come from output validator matches with object
+					bool mismatched = false;
+					if ((data->u.tensor.num_dims != meta->data.u.tensor.num_dims) || (data->u.tensor.data_type != meta->data.u.tensor.data_type) || (data->u.tensor.fixed_point_pos != meta->data.u.tensor.fixed_point_pos)) {
+						mismatched = true;
+					}
+					for (vx_size i = 0; i < data->u.tensor.num_dims; i++) {
+						if (data->u.tensor.dims[i] != meta->data.u.tensor.dims[i])
+							mismatched = true;
+					}
+					if (mismatched) {
+						agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_TYPE, "ERROR: agoVerifyGraph: kernel %s: invalid tensor meta for argument#%d\n", kernel->name, arg);
+						return VX_ERROR_INVALID_TYPE;
+					}
 				}
 				else if (meta->data.ref.type == AGO_TYPE_CANNY_STACK) {
 					// nothing to do

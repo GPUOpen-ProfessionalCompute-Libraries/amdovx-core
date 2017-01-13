@@ -101,14 +101,18 @@ This project uses OpenCV for camera capture and image display.
               remap:<srcWidth>,<srcHeight>,<dstWidth>,<dstHeight>
               scalar:<data-type>,<value>
               threshold:<thresh-type>,<data-type>
+              tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>
+              tensor-from-roi:<master-tensor>,<num-of-dims>,{<start0>,<start1>,...},{<end0>,<end1>,...}
           For virtual object in default graph use the below syntax for
           <data-description>:
               virtual-array:<data-type>,<capacity>
               virtual-image:<width>,<height>,<image-format>
               virtual-pyramid:<numLevels>,half|orb|<scale-factor>,<width>,<height>,<image-format>
+              virtual-tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>
 
           where:
               <master-image> can be name of a image data object (including $1, $2, ...)
+              <master-tensor> can be name of a tensor data object (including $1, $2, ...)
               <exemplar> can be name of a data object (including $1, $2, ...)
               <thresh-type> can be BINARY,RANGE
               <uniform-pixel-value> can be an integer or {<byte>;<byte>;...}
@@ -349,9 +353,9 @@ File **skintonedetect.gdf**:
     data and3   = image-virtual:0,0,U008
     
     # extract R,G,B channels and compute R-G and R-B
-    node org.khronos.openvx.channel_extract input !CHANNEL_B R # extract R channel
+    node org.khronos.openvx.channel_extract input !CHANNEL_R R # extract R channel
     node org.khronos.openvx.channel_extract input !CHANNEL_G G # extract G channel
-    node org.khronos.openvx.channel_extract input !CHANNEL_R B # extract B channel
+    node org.khronos.openvx.channel_extract input !CHANNEL_B B # extract B channel
     node org.khronos.openvx.subtract R   G   !SATURATE RmG  # compute R-G
     node org.khronos.openvx.subtract R   B   !SATURATE RmB  # compute R-B
     

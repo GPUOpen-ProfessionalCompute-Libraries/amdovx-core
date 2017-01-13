@@ -104,6 +104,7 @@
     <ClCompile Include="vxPyramid.cpp" />
     <ClCompile Include="vxRemap.cpp" />
     <ClCompile Include="vxScalar.cpp" />
+    <ClCompile Include="vxTensor.cpp" />
     <ClCompile Include="vxThreshold.cpp" />
     <ClCompile Include="vxUtils.cpp" />
   </ItemGroup>
@@ -121,6 +122,7 @@
     <ClInclude Include="vxPyramid.h" />
     <ClInclude Include="vxRemap.h" />
     <ClInclude Include="vxScalar.h" />
+    <ClInclude Include="vxTensor.h" />
     <ClInclude Include="vxThreshold.h" />
     <ClInclude Include="vxUtils.h" />
   </ItemGroup>

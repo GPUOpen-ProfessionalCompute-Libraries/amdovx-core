@@ -144,7 +144,7 @@ int CVxParamImage::Shutdown(void)
 		delete (VideoCapture *)m_cvCapDev;
 		m_cvCapDev = NULL;
 	}
-	if (m_cvImage){
+	if (m_cvImage) {
 		g_numCvUse--;
 		changed_numCvUse = true;
 		delete (Mat *)m_cvImage;
@@ -318,7 +318,7 @@ int CVxParamImage::Initialize(vx_context context, vx_graph graph, const char * d
 	}
 	else ReportError("ERROR: unsupported image type: %s\n", desc);
 	vx_status ovxStatus = vxGetStatus((vx_reference)m_image);
-	if (ovxStatus != VX_SUCCESS){
+	if (ovxStatus != VX_SUCCESS) {
 		printf("ERROR: image creation failed => %d (%s)\n", ovxStatus, ovxEnum2Name(ovxStatus));
 		if (m_image) vxReleaseImage(&m_image);
 		throw - 1;
@@ -668,7 +668,7 @@ int CVxParamImage::ReadFrame(int frameNumber)
 		Mat * pMat = (Mat *)m_cvCapMat;
 		int timeout = 0;
 		*pCap >> *pMat;
-		if (!pMat->data){
+		if (!pMat->data) {
 			// no data available, report that no more frames available
 			m_cvReadEofOccured = true;
 			return 1;
@@ -697,18 +697,32 @@ int CVxParamImage::ReadFrame(int frameNumber)
 			ERROR_CHECK(vxAccessImagePatch(m_image, &rect, 0, &addr, (void **)&dst, VX_WRITE_ONLY));
 			vx_int32 rowSize = ((vx_int32)pMat->step < addr.stride_y) ? (vx_int32)pMat->step : addr.stride_y;
 			for (vx_uint32 y = 0; y < rect.end_y; y++) {
-				memcpy(dst + y * addr.stride_y, pMat->data + y * pMat->step, rowSize);
+				if (m_format == VX_DF_IMAGE_RGB) {
+					// convert BGR to RGB
+					vx_uint8 * pDst = (vx_uint8 *)dst + y * addr.stride_y;
+					vx_uint8 * pSrc = (vx_uint8 *)pMat->data + y * pMat->step;
+					for (vx_uint32 x = 0; x < m_width; x++) {
+						pDst[0] = pSrc[2];
+						pDst[1] = pSrc[1];
+						pDst[2] = pSrc[0];
+						pDst += 3;
+						pSrc += 3;
+					}
+				}
+				else {
+					memcpy(dst + y * addr.stride_y, pMat->data + y * pMat->step, rowSize);
+				}
 			}
 			ERROR_CHECK(vxCommitImagePatch(m_image, &rect, 0, &addr, dst));
 		}
 	}
-	else if (m_cvImage){
+	else if (m_cvImage) {
 		// read image from camera
 		VideoCapture * pCap = (VideoCapture *)m_cvCapDev;
 		Mat * pMat = (Mat *)m_cvImage;
 		int timeout = 0;
 		*pCap >> *pMat;
-		if (!pMat->data){
+		if (!pMat->data) {
 			printf("ERROR: Can't read camera input. Camera is not supported.\n");
 			return -1;
 		}
@@ -1020,7 +1034,7 @@ int CVxParamImage::ViewFrame(int frameNumber)
 				FILE * fp = fopen(fileName, "r");
 				if (!fp) ReportError("ERROR: unable to open '%s'\n", fileName);
 				char line[256];
-				while (fgets(line, sizeof(line), fp) != NULL){
+				while (fgets(line, sizeof(line), fp) != NULL) {
 					if (sscanf(line, "%d%d%f", &kpItem.x, &kpItem.y, &kpItem.strength) == 3) {
 						kpList.push_back(kpItem);
 					}
@@ -1099,7 +1113,7 @@ int CVxParamImage::WriteFrame(int frameNumber)
 		WriteImage(m_image, &m_rectFull, m_fpWrite);
 
 		// close the file if one frame gets written per file
-		if (m_fileNameForWriteHasIndex && m_fpWrite){
+		if (m_fileNameForWriteHasIndex && m_fpWrite) {
 			fclose(m_fpWrite);
 			m_fpWrite = nullptr;
 		}

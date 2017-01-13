@@ -44,6 +44,7 @@ list(APPEND SOURCES
 	vxRemap.cpp
 	vxScalar.cpp
 	vxThreshold.cpp
+	vxTensor.cpp
 	vxUtils.cpp
 )
 

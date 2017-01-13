@@ -236,6 +236,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 				}
 				break;
 #endif
+			case VX_CONTEXT_MAX_TENSOR_DIMENSIONS:
+				if (size == sizeof(vx_size)) {
+					*(vx_size *)ptr = AGO_MAX_TENSOR_DIMENSIONS;
+					status = VX_SUCCESS;
+				}
+				break;
 			default:
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
@@ -1014,7 +1020,11 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryImage(vx_image image_, vx_enum attribu
 						*(cl_mem *)ptr = image->opencl_buffer;
 					}
 					else {
+#if defined(CL_VERSION_2_0)
 						*(vx_uint8 **)ptr = image->opencl_svm_buffer;
+#else
+						*(vx_uint8 **)ptr = NULL;
+#endif
 					}
 					status = VX_SUCCESS;
 				}
@@ -3326,6 +3336,10 @@ VX_API_ENTRY vx_scalar VX_API_CALL vxCreateScalar(vx_context context, vx_enum da
 				data->u.scalar.itemsize = sizeof(vx_float32);
 				if (ptr) data->u.scalar.u.f = *(vx_float32 *)ptr;
 				break;
+			case VX_TYPE_FLOAT16:
+				data->u.scalar.itemsize = sizeof(vx_uint16);
+				if (ptr) data->u.scalar.u.u = *(vx_uint16 *)ptr;
+				break;
 			case VX_TYPE_SIZE:
 				data->u.scalar.itemsize = sizeof(vx_size);
 				if (ptr) data->u.scalar.u.s = *(vx_size *)ptr;
@@ -3808,7 +3822,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxRetainReference(vx_reference ref)
 VX_API_ENTRY vx_status VX_API_CALL vxSetReferenceName(vx_reference ref, const vx_char *name)
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
-	if (agoIsValidReference(ref) && ((ref->type >= VX_TYPE_DELAY && ref->type <= VX_TYPE_REMAP) || (ref->type >= VX_TYPE_VENDOR_OBJECT_START && ref->type <= VX_TYPE_VENDOR_OBJECT_END))) {
+	if (agoIsValidReference(ref) && ((ref->type >= VX_TYPE_DELAY && ref->type <= VX_TYPE_REMAP) || 
+		(ref->type == VX_TYPE_TENSOR) ||
+		(ref->type >= VX_TYPE_VENDOR_OBJECT_START && ref->type <= VX_TYPE_VENDOR_OBJECT_END)))
+	{
 		AgoData * data = (AgoData *)ref;
 		data->name = name;
 		status = VX_SUCCESS;
@@ -6740,6 +6757,31 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetMetaFormatAttribute(vx_meta_format meta,
 				}
 				break;
 			/**********************************************************************/
+			case VX_TENSOR_NUM_OF_DIMS:
+				if (size == sizeof(vx_size) && meta->data.ref.type == VX_TYPE_TENSOR) {
+					meta->data.u.tensor.num_dims = *(vx_size *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_DIMS:
+				if (size <= AGO_MAX_TENSOR_DIMENSIONS * sizeof(vx_size) && meta->data.ref.type == VX_TYPE_TENSOR) {
+					memcpy(&meta->data.u.tensor.dims, ptr, size);
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_DATA_TYPE:
+				if (size == sizeof(vx_enum) && meta->data.ref.type == VX_TYPE_TENSOR) {
+					meta->data.u.tensor.data_type = *(vx_enum *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_FIXED_POINT_POS:
+				if (size == sizeof(vx_uint8) && meta->data.ref.type == VX_TYPE_TENSOR) {
+					meta->data.u.tensor.fixed_point_pos = *(vx_uint8 *)ptr;
+					status = VX_SUCCESS;
+				}
+				break;
+			/**********************************************************************/
 			default:
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
@@ -6803,7 +6845,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetReferenceName(vx_reference ref, vx_char 
 {
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (agoIsValidReference(ref)) {
-		if ((ref->type >= VX_TYPE_DELAY && ref->type <= VX_TYPE_REMAP) || (ref->type >= VX_TYPE_VENDOR_OBJECT_START && ref->type <= VX_TYPE_VENDOR_OBJECT_END)) {
+		if ((ref->type >= VX_TYPE_DELAY && ref->type <= VX_TYPE_REMAP) || ref->type == VX_TYPE_TENSOR || (ref->type >= VX_TYPE_VENDOR_OBJECT_START && ref->type <= VX_TYPE_VENDOR_OBJECT_END)) {
 			strncpy(name, ((AgoData *)ref)->name.c_str(), size);
 			status = VX_SUCCESS;
 		}
@@ -6855,4 +6897,510 @@ VX_API_ENTRY vx_context VX_API_CALL vxCreateContextFromPlatform(struct _vx_platf
 {
 	vx_context context = agoCreateContextFromPlatform(platform);
 	return context;
+}
+
+/*==============================================================================
+TENSOR DATA FUNCTIONS
+=============================================================================*/
+
+/*! \brief Creates an opaque reference to a tensor data buffer.
+ * \details Not guaranteed to exist until the <tt>vx_graph</tt> containing it has been verified.
+ * \param [in] context The reference to the implementation context.
+ * \param [in] num_of_dims The number of dimensions.
+ * \param [in] dims Dimensions sizes in elements.
+ * \param [in] data_format The <tt>vx_type_t</tt> that represents the data type of the tensor data elements.
+ * \param [in] fixed_point_pos Specifies the fixed point position when the input element type is vx_int16, if 0 calculations are performed in integer math
+ * \return A tensor data reference or zero when an error is encountered.
+ * \ingroup group_tensor
+ */
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensor(vx_context context, vx_size num_of_dims, const vx_size * dims, vx_enum data_format, vx_uint8 fixed_point_pos)
+{
+	AgoData * data = NULL;
+	if (agoIsValidContext(context) && num_of_dims > 0 && num_of_dims <= AGO_MAX_TENSOR_DIMENSIONS) {
+		CAgoLock lock(context->cs);
+		char dimStr[256] = "";
+		for (vx_size i = 0; i < num_of_dims; i++)
+			sprintf(dimStr + strlen(dimStr), "%s%u", i ? "," : "", (vx_uint32)dims[i]);
+		char desc[512];
+		sprintf(desc, "tensor:%u,{%s},%s,%u", (vx_uint32)num_of_dims, dimStr, agoEnum2Name(data_format), fixed_point_pos);
+		data = agoCreateDataFromDescription(context, NULL, desc, true);
+		if (data) {
+			agoGenerateDataName(context, "tensor", data->name);
+			agoAddData(&context->dataList, data);
+		}
+	}
+	return (vx_tensor)data;
+}
+
+/*! \brief Creates an opaque reference to a tensor data buffer with no direct
+ * user access. This function allows setting the tensor data dimensions or data format.
+ * \details Virtual data objects allow users to connect various nodes within a
+ * graph via data references without access to that data, but they also permit the
+ * implementation to take maximum advantage of possible optimizations. Use this
+ * API to create a data reference to link two or more nodes together when the
+ * intermediate data are not required to be accessed by outside entities. This API
+ * in particular allows the user to define the tensor data format of the data without
+ * requiring the exact dimensions. Virtual objects are scoped within the graph
+ * they are declared a part of, and can't be shared outside of this scope.
+ * \param [in] graph The reference to the parent graph.
+ * \param [in] num_of_dims The number of dimensions.
+ * \param [in] dims Dimensions sizes in elements.
+ * \param [in] data_format The <tt>vx_type_t</tt> that represents the data type of the tensor data elements.
+ * \param [in] fixed_point_pos Specifies the fixed point position when the input element type is vx_int16, if 0 calculations are performed in integer math
+ * \return A tensor data reference or zero when an error is encountered.
+ * \note Passing this reference to <tt>\ref vxCopyTensorPatch</tt> will return an error.
+ * \ingroup group_tensor
+ */
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateVirtualTensor(vx_graph graph, vx_size num_of_dims, const vx_size * dims, vx_enum data_format, vx_uint8 fixed_point_pos)
+{
+	AgoData * data = NULL;
+	if (agoIsValidGraph(graph) && num_of_dims > 0 && num_of_dims <= AGO_MAX_TENSOR_DIMENSIONS) {
+		vx_context context = graph->ref.context;
+		CAgoLock lock(context->cs);
+		char dimStr[256] = "";
+		for (vx_size i = 0; i < num_of_dims; i++)
+			sprintf(dimStr + strlen(dimStr), "%s%u", i ? "," : "", (vx_uint32)dims[i]);
+		char desc[512];
+		sprintf(desc, "tensor-virtual:%u,{%s},%s,%u", (vx_uint32)num_of_dims, dimStr, agoEnum2Name(data_format), fixed_point_pos);
+		data = agoCreateDataFromDescription(context, graph, desc, true);
+		if (data) {
+			agoGenerateVirtualDataName(graph, "tensor", data->name);
+			agoAddData(&graph->dataList, data);
+		}
+	}
+	return (vx_tensor)data;
+}
+
+/*! \brief Creates a tensor data from another tensor data given a view. This second
+ * reference refers to the data in the original tensor data. Updates to this tensor data
+ * updates the parent tensor data. The view must be defined within the dimensions
+ * of the parent tensor data.
+ * \param [in] tensor The reference to the parent tensor data.
+ * \param [in] num_of_dims The number of dimensions. Must be same as tensor num_of_dims.
+ * \param [in] roi_start An array of start values of the roi within the bounds of tensor.
+ * \param [in] roi_end An array of end values of the roi within the bounds of tensor.
+ * within the parent tensor data dimensions. <tt>\ref vx_tensor_view</tt>
+ * \return The reference to the sub-tensor or zero if the view is invalid.
+ * \ingroup group_tensor
+ */
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensorFromROI(vx_tensor tensor, vx_size num_of_dims, const vx_size * roi_start, const vx_size * roi_end)
+{
+	AgoData * master_tensor = (AgoData *)tensor;
+	AgoData * data = NULL;
+	if (agoIsValidData(master_tensor, VX_TYPE_TENSOR)) {
+		if (master_tensor->u.tensor.num_dims != num_of_dims) {
+			agoAddLogEntry(&master_tensor->ref, VX_ERROR_INVALID_PARAMETERS, "ERROR: vxCreateTensorFromROI: num_of_dims (%u) doesn't match tensor\n", (vx_uint32)num_of_dims);
+			return NULL;
+		}
+		vx_context context = master_tensor->ref.context;
+		CAgoLock lock(context->cs);
+		char startStr[256] = "", endStr[256] = "";
+		for (vx_size i = 0; i < num_of_dims; i++) {
+			sprintf(startStr + strlen(startStr), "%s%u", i ? "," : "", (vx_uint32)roi_start[i]);
+			sprintf(endStr + strlen(endStr), "%s%u", i ? "," : "", (vx_uint32)roi_end[i]);
+		}
+		char desc[128];
+		sprintf(desc, "tensor-from-roi:%s,%u,{%s},{%s}", master_tensor->name.c_str(), (vx_uint32)num_of_dims, startStr, endStr);
+		if (master_tensor->isVirtual) {
+			vx_graph graph = (vx_graph)master_tensor->ref.scope;
+			data = agoCreateDataFromDescription(context, graph, desc, true);
+			if (data) {
+				agoGenerateVirtualDataName(graph, "tensor-from-roi", data->name);
+				agoAddData(&graph->dataList, data);
+			}
+		}
+		else {
+			data = agoCreateDataFromDescription(context, NULL, desc, true);
+			if (data) {
+				agoGenerateDataName(context, "tensor-from-roi", data->name);
+				agoAddData(&context->dataList, data);
+			}
+		}
+	}
+	return (vx_tensor)data;
+}
+
+/*! \brief Releases a reference to a tensor data object.
+ * The object may not be garbage collected until its total reference count is zero.
+ * \param [in] tensor The pointer to the tensor data to release.
+ * \post After returning from this function the reference is zeroed.
+ * \return A <tt>vx_status_e</tt> enumeration.
+ * \retval VX_SUCCESS No errors.
+ * \retval VX_SUCCESS Success
+ * \retval * An error occurred. See <tt>vx_status_e</tt>.
+ * \ingroup group_tensor
+ */
+VX_API_ENTRY vx_status VX_API_CALL vxReleaseTensor(vx_tensor *tensor)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (tensor && agoIsValidData((AgoData*)*tensor, VX_TYPE_TENSOR)) {
+		if (!agoReleaseData((AgoData*)*tensor, true)) {
+			*tensor = NULL;
+			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+/*! \brief Retrieves various attributes of a tensor data.
+ * \param [in] tensor The reference to the tensor data to query.
+ * \param [in] attribute The attribute to query. Use a <tt>\ref vx_tensor_attribute_e</tt>.
+ * \param [out] ptr The location at which to store the resulting value.
+ * \param [in] size The size of the container to which \a ptr points.
+ * \return A <tt>vx_status_e</tt> enumeration.
+ * \retval VX_SUCCESS No errors.
+ * \retval VX_ERROR_INVALID_REFERENCE If data is not a <tt>\ref vx_tensor</tt>.
+ * \retval VX_ERROR_INVALID_PARAMETERS If any of the other parameters are incorrect.
+ * \ingroup group_tensor
+ */
+VX_API_ENTRY vx_status VX_API_CALL vxQueryTensor(vx_tensor tensor, vx_enum attribute, void *ptr, vx_size size)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	AgoData * data = (AgoData *)tensor;
+	if (agoIsValidData(data, VX_TYPE_TENSOR)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (ptr) {
+			switch (attribute)
+			{
+			case VX_TENSOR_NUM_OF_DIMS:
+				if (size == sizeof(vx_size)) {
+					*(vx_size *)ptr = data->u.tensor.num_dims;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_DIMS:
+				if (size >= sizeof(vx_size)*data->u.tensor.num_dims) {
+					for (vx_size i = 0; i < data->u.tensor.num_dims; i++) {
+						((vx_size *)ptr)[i] = data->u.tensor.dims[i];
+					}
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_DATA_TYPE:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = data->u.tensor.data_type;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_FIXED_POINT_POS:
+				if (size == sizeof(vx_uint8)) {
+					*(vx_uint8 *)ptr = data->u.tensor.fixed_point_pos;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_OFFSET_OPENCL:
+				if (size == sizeof(vx_size)) {
+					*(vx_size *)ptr = data->u.tensor.offset;
+					status = VX_SUCCESS;
+				}
+				break;
+			case VX_TENSOR_STRIDE_OPENCL:
+				if (size >= sizeof(vx_size)*data->u.tensor.num_dims) {
+					for (vx_size i = 0; i < data->u.tensor.num_dims; i++) {
+						((vx_size *)ptr)[i] = data->u.tensor.stride[i];
+					}
+					status = VX_SUCCESS;
+				}
+				break;
+			default:
+				status = VX_ERROR_NOT_SUPPORTED;
+				break;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to copy a view patch from/into an tensor object .
+ * \param [in] tensor The reference to the tensor object that is the source or the
+ * destination of the copy.
+ * \param [in] num_of_dims The number of dimensions. Must be same as tensor num_of_dims.
+ * \param [in] roi_start An array of start values of the roi within the bounds of tensor. This is optional parameter and will be zero when NULL.
+ * \param [in] roi_end An array of end values of the roi within the bounds of tensor. This is optional parameter and will be dims[] of tensor when NULL.
+ * \param [in] user_stride An array of stride in all dimensions in bytes.
+ * \param [in] user_ptr The address of the memory location where to store the requested data
+ * if the copy was requested in read mode, or from where to get the data to store into the tensor
+ * object if the copy was requested in write mode. The accessible memory must be large enough
+ * to contain the specified patch with the specified layout:\n
+ * accessible memory in bytes >= (end[last_dimension] - start[last_dimension]) * stride[last_dimension].
+ * \param [in] usage This declares the effect of the copy with regard to the tensor object
+ * using the <tt>vx_accessor_e</tt> enumeration. Only VX_READ_ONLY and VX_WRITE_ONLY are supported:
+ * \arg VX_READ_ONLY means that data is copied from the tensor object into the application memory
+ * \arg VX_WRITE_ONLY means that data is copied into the tensor object from the application memory
+ * \param [in] user_mem_type A <tt>vx_memory_type_e</tt> enumeration that specifies
+ * the memory type of the memory referenced by the user_addr.
+ * \return A <tt>vx_status_e</tt> enumeration.
+ * \retval VX_ERROR_OPTIMIZED_AWAY This is a reference to a virtual tensor that cannot be
+ * accessed by the application.
+ * \retval VX_ERROR_INVALID_REFERENCE The tensor reference is not actually an tensor reference.
+ * \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+ * \ingroup group_tensor
+ */
+VX_API_ENTRY vx_status VX_API_CALL vxCopyTensorPatch(vx_tensor tensor, vx_size num_of_dims, const vx_size * roi_start, const vx_size * roi_end, const vx_size * user_stride, void * user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * data = (AgoData *)tensor;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_TENSOR))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		bool paramsValid = false;
+		bool singleCopy = true;
+		vx_size size = 0, start[AGO_MAX_TENSOR_DIMENSIONS], end[AGO_MAX_TENSOR_DIMENSIONS];
+		memset(start, 0, sizeof(start));
+		memcpy(end, data->u.tensor.dims, sizeof(end));
+		if (num_of_dims == data->u.tensor.num_dims) {
+			paramsValid = true;
+			size = data->u.tensor.stride[0];
+			for (vx_size i = 0; i < num_of_dims; i++) {
+				if (roi_start)
+					start[i] = roi_start[i];
+				if (roi_end)
+					end[i] = roi_end[i];
+				if (start[i] >= end[i] || end[i] > data->u.tensor.dims[i])
+					paramsValid = false;
+				if (((i == 0) && (user_stride[i] != size)) || ((i > 0) && (user_stride[i] < size)))
+					paramsValid = false; // stride[0] must match and other strides shouldn't be smaller than actual dimensions
+				if (user_stride[i] != data->u.tensor.stride[i] || start[i] != 0 || end[i] != data->u.tensor.dims[i] || data->u.tensor.start[i] != 0 || data->u.tensor.end[i] != data->u.tensor.dims[i])
+					singleCopy = false;
+				size *= (end[i] - start[i]);
+			}
+		}
+		if (data->isVirtual && !data->buffer) {
+			status = VX_ERROR_OPTIMIZED_AWAY;
+		}
+		else if (paramsValid && (user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr && (usage == VX_READ_ONLY || usage == VX_WRITE_ONLY)) {
+			if (!data->buffer) {
+				CAgoLock lock(data->ref.context->cs);
+				if (agoAllocData(data)) {
+					return VX_FAILURE;
+				}
+			}
+			AgoData * dataToSync = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data;
+#if ENABLE_OPENCL
+			if (dataToSync->opencl_buffer && !(dataToSync->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+				// make sure dirty OpenCL buffers are synched before giving access for read
+				if (dataToSync->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+					// transfer only valid data
+					if (dataToSync->size > 0) {
+						cl_int err = clEnqueueReadBuffer(dataToSync->ref.context->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, dataToSync->size, dataToSync->buffer, 0, NULL, NULL);
+						if (err) {
+							status = VX_FAILURE;
+							agoAddLogEntry(&dataToSync->ref, status, "ERROR: vxCopyTensorPatch: clEnqueueReadBuffer() => %d\n", err);
+							return status;
+						}
+					}
+					dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+				}
+			}
+#endif
+			if (usage == VX_READ_ONLY) {
+				if (singleCopy) {
+					memcpy(user_ptr, data->buffer, size);
+				}
+				else {
+					vx_size size0 = data->u.tensor.stride[0] * data->u.tensor.dims[0];
+					for (vx_size d3 = start[3]; d3 < end[3]; d3++) {
+						for (vx_size d2 = start[2]; d2 < end[2]; d2++) {
+							for (vx_size d1 = start[1]; d1 < end[1]; d1++) {
+								vx_size offset =
+									data->u.tensor.stride[3] * d3 +
+									data->u.tensor.stride[2] * d2 +
+									data->u.tensor.stride[1] * d1 +
+									data->u.tensor.stride[0] * start[0];
+								vx_size uoffset =
+									user_stride[3] * d3 +
+									user_stride[2] * d2 +
+									user_stride[1] * d1 +
+									user_stride[0] * start[0];
+								memcpy(((vx_uint8 *)user_ptr) + uoffset, data->buffer + offset, size0);
+							}
+						}
+					}
+				}
+			}
+			else {
+				if (singleCopy) {
+					memcpy(data->buffer, user_ptr, size);
+				}
+				else {
+					vx_size size0 = data->u.tensor.stride[0] * data->u.tensor.dims[0];
+					for (vx_size d3 = start[3]; d3 < end[3]; d3++) {
+						for (vx_size d2 = start[2]; d2 < end[2]; d2++) {
+							for (vx_size d1 = start[1]; d1 < end[1]; d1++) {
+								vx_size offset =
+									data->u.tensor.stride[3] * d3 +
+									data->u.tensor.stride[2] * d2 +
+									data->u.tensor.stride[1] * d1 +
+									data->u.tensor.stride[0] * start[0];
+								vx_size uoffset =
+									user_stride[3] * d3 +
+									user_stride[2] * d2 +
+									user_stride[1] * d1 +
+									user_stride[0] * start[0];
+								memcpy(data->buffer + offset, ((vx_uint8 *)user_ptr) + uoffset, size0);
+							}
+						}
+					}
+				}
+				// update sync flags
+				dataToSync->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+			}
+			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+/*! \brief Allows the application to get direct access to a patch of tensor object.
+ * \param [in] tensor The reference to the tensor object that is the source or the
+ * destination of the copy.
+ * \param [in] num_of_dims The number of dimensions. Must be same as tensor num_of_dims.
+ * \param [in] roi_start An array of start values of the roi within the bounds of tensor. This is optional parameter and will be zero when NULL.
+ * \param [in] roi_end An array of end values of the roi within the bounds of tensor. This is optional parameter and will be dims[] of tensor when NULL.
+ * \param [out] map_id The address of a vx_map_id variable where the function returns a map identifier.
+ * \arg (*map_id) must eventually be provided as the map_id parameter of a call to <tt>\ref vxUnmapTensorPatch</tt>.
+ * \param [out] stride An array of stride in all dimensions in bytes.
+ * \param [out] ptr The address of a pointer that the function sets to the
+ * address where the requested data can be accessed. The returned (*ptr) address
+ * is only valid between the call to the function and the corresponding call to
+ * <tt>\ref vxUnmapTensorPatch</tt>.
+ * \param [in] usage This declares the access mode for the tensor patch, using
+ * the <tt>\ref vx_accessor_e</tt> enumeration.
+ * \arg VX_READ_ONLY: after the function call, the content of the memory location
+ * pointed by (*ptr) contains the tensor patch data. Writing into this memory location
+ * is forbidden and its behavior is undefined.
+ * \arg VX_READ_AND_WRITE : after the function call, the content of the memory
+ * location pointed by (*ptr) contains the tensor patch data; writing into this memory
+ * is allowed only for the location of items and will result in a modification of the
+ * affected items in the tensor object once the range is unmapped. Writing into
+ * a gap between items (when (*stride) > item size in bytes) is forbidden and its
+ * behavior is undefined.
+ * \arg VX_WRITE_ONLY: after the function call, the memory location pointed by (*ptr)
+ * contains undefined data; writing each item of the range is required prior to
+ * unmapping. Items not written by the application before unmap will become
+ * undefined after unmap, even if they were well defined before map. Like for
+ * VX_READ_AND_WRITE, writing into a gap between items is forbidden and its behavior
+ * is undefined.
+ * \param [in] mem_type A <tt>\ref vx_memory_type_e</tt> enumeration that
+ * specifies the type of the memory where the tensor patch is requested to be mapped.
+ * \param [in] flags An integer that allows passing options to the map operation.
+ * Use the <tt>\ref vx_map_flag_e</tt> enumeration.
+ * \return A <tt>\ref vx_status_e</tt> enumeration.
+ * \retval VX_ERROR_OPTIMIZED_AWAY This is a reference to a virtual tensor that cannot be accessed by the application.
+ * \retval VX_ERROR_INVALID_REFERENCE The tensor reference is not actually an tensor reference.
+ * \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+ * \ingroup group_tensor
+ * \post <tt>\ref vxUnmapTensorPatch </tt> with same (*map_id) value.
+ */
+VX_API_ENTRY vx_status VX_API_CALL vxMapTensorPatch(vx_tensor tensor, vx_size num_of_dims, const vx_size * roi_start, const vx_size * roi_end, vx_map_id * map_id, vx_size * stride, void ** ptr, vx_enum usage, vx_enum mem_type, vx_uint32 flags)
+{
+	AgoData * data = (AgoData *)tensor;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_TENSOR)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		bool paramsValid = false;
+		vx_size start[AGO_MAX_TENSOR_DIMENSIONS], end[AGO_MAX_TENSOR_DIMENSIONS];
+		memset(start, 0, sizeof(start));
+		memcpy(end, data->u.tensor.dims, sizeof(end));
+		if (num_of_dims == data->u.tensor.num_dims) {
+			paramsValid = true;
+			for (vx_size i = 0; i < num_of_dims; i++) {
+				if (roi_start)
+					start[i] = roi_start[i];
+				if (roi_end)
+					end[i] = roi_end[i];
+				if (start[i] >= end[i] || end[i] > data->u.tensor.dims[i])
+					paramsValid = false;
+			}
+		}
+		if (data->isVirtual && !data->buffer) {
+			status = VX_ERROR_OPTIMIZED_AWAY;
+		}
+		else if (paramsValid && ptr && stride && map_id) {
+			if (!data->buffer) {
+				CAgoLock lock(data->ref.context->cs);
+				if (agoAllocData(data)) {
+					return VX_FAILURE;
+				}
+			}
+			vx_size offset = 0;
+			for (vx_size i = 0; i < num_of_dims; i++) {
+				stride[i] = data->u.tensor.stride[i];
+				offset += start[i] * stride[i];
+			}
+			vx_uint8 * ptr_returned = data->buffer + offset;
+			// save the pointer and usage for use in vxUnmapTensorPatch
+			status = VX_SUCCESS;
+			for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+				if (i->ptr == ptr_returned) {
+					// can't support vxMapTensorPatch() more than once with same pointer
+					// the application needs to call vxUnmapTensorPatch() before calling vxMapTensorPatch()
+					status = VX_FAILURE;
+				}
+			}
+			if (status == VX_SUCCESS) {
+				AgoData * dataToSync = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data;
+#if ENABLE_OPENCL
+				if (dataToSync->opencl_buffer && !(dataToSync->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
+					// make sure dirty OpenCL buffers are synched before giving access for read
+					if (dataToSync->buffer_sync_flags & (AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL)) {
+						// transfer only valid data
+						if (dataToSync->size > 0) {
+							cl_int err = clEnqueueReadBuffer(dataToSync->ref.context->opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, dataToSync->size, dataToSync->buffer, 0, NULL, NULL);
+							if (err) {
+								status = VX_FAILURE;
+								agoAddLogEntry(&dataToSync->ref, status, "ERROR: vxMapTensorPatch: clEnqueueReadBuffer() => %d\n", err);
+								return status;
+							}
+						}
+						dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED;
+					}
+				}
+#endif
+				MappedData item = { data->nextMapId++, ptr_returned, usage, false };
+				data->mapped.push_back(item);
+				*map_id = item.map_id;
+				*ptr = ptr_returned;
+			}
+		}
+	}
+	return status;
+}
+
+/*! \brief Unmap and commit potential changes to a tensor object patch that was previously mapped.
+ * Unmapping a tensor patch invalidates the memory location from which the patch could
+ * be accessed by the application. Accessing this memory location after the unmap function
+ * completes has an undefined behavior.
+ * \param [in] tensor The reference to the tensor object to unmap.
+ * \param [out] map_id The unique map identifier that was returned when calling
+ * <tt>\ref vxMapTensorPatch</tt> .
+ * \return A <tt>\ref vx_status_e</tt> enumeration.
+ * \retval VX_ERROR_INVALID_REFERENCE The tensor reference is not actually an tensor reference.
+ * \retval VX_ERROR_INVALID_PARAMETERS An other parameter is incorrect.
+ * \ingroup group_tensor
+ * \pre <tt>\ref vxMapTensorPatch</tt> returning the same map_id value
+ */
+VX_API_ENTRY vx_status VX_API_CALL vxUnmapTensorPatch(vx_tensor tensor, vx_map_id map_id)
+{
+	AgoData * data = (AgoData *)tensor;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_TENSOR)) {
+		status = VX_ERROR_INVALID_PARAMETERS;
+		for (auto i = data->mapped.begin(); i != data->mapped.end(); i++) {
+			if (i->map_id == map_id) {
+				vx_enum usage = i->usage;
+				data->mapped.erase(i);
+				if (usage == VX_WRITE_ONLY || usage == VX_READ_AND_WRITE) {
+					// update sync flags
+					AgoData * dataToSync = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data;
+					dataToSync->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+					dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+				}
+				status = VX_SUCCESS;
+				break;
+			}
+		}
+	}
+	return status;
 }
