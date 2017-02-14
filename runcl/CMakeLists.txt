@@ -19,8 +19,37 @@
 # THE SOFTWARE.
 
 cmake_minimum_required (VERSION 2.8)
-project(amdovx)
+project (runcl)
 
-add_subdirectory(openvx)
-add_subdirectory(runvx)
-add_subdirectory(runcl)
+set (CMAKE_CXX_STANDARD 11)
+
+find_package(OpenCL QUIET)
+
+list(APPEND SOURCES
+	runcl.cpp
+)
+
+add_executable(runcl ${SOURCES})
+
+if (OpenCL_FOUND)
+	target_compile_definitions(runcl PUBLIC ENABLE_OPENCL=1)
+	include_directories(${OpenCL_INCLUDE_DIRS})
+	target_link_libraries(runcl ${OpenCL_LIBRARIES})
+else(OpenCL_FOUND)
+	target_compile_definitions(runcl PUBLIC ENABLE_OPENCL=0)
+endif(OpenCL_FOUND)
+
+if( POLICY CMP0054 )
+  cmake_policy( SET CMP0054 OLD )
+endif()
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+	find_package(OpenSSL QUIET)
+	if(OPENSSL_FOUND)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OpenSSL=1")
+		target_link_libraries(runcl crypto)
+	endif(OPENSSL_FOUND)
+endif()

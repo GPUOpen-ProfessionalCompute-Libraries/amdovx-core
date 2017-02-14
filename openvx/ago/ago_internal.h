@@ -416,6 +416,7 @@ struct AgoData {
 	vx_uint32 hierarchical_life_start;
 	vx_uint32 hierarchical_life_end;
 	struct AgoNode * ownerOfUserBufferOpenCL;
+	std::list<AgoData *> roiDepList;
 public:
 	AgoData();
 	~AgoData();
@@ -680,6 +681,9 @@ struct AgoContext {
 	cl_device_id opencl_device_list[16];
 	char opencl_build_options[256];
 	bool isAmdMediaOpsSupported;
+	vx_size opencl_mem_alloc_size;
+	vx_size opencl_mem_alloc_count;
+	vx_size opencl_mem_release_count;
 #endif
 	AgoTargetAffinityInfo_ attr_affinity;
 public:

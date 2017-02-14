@@ -880,7 +880,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* cons
 						image->children[i]->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 						image->children[i]->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
 					}
-					// TBD: propagate to ROIs
+					// propagate to ROIs
+					for (auto roi = image->children[i]->roiDepList.begin(); roi != image->children[i]->roiDepList.end(); roi++) {
+						(*roi)->buffer = image->children[i]->buffer +
+							image->children[i]->u.img.rect_roi.start_y * image->children[i]->u.img.stride_in_bytes +
+							((image->children[i]->u.img.rect_roi.start_x * image->children[i]->u.img.pixel_size_in_bits) >> 3);
+					}
 				}
 			}
 			else {
@@ -890,7 +895,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* cons
 					image->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 					image->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
 				}
-				// TBD: propagate to ROIs
+				// propagate to ROIs
+				for (auto roi = image->roiDepList.begin(); roi != image->roiDepList.end(); roi++) {
+					(*roi)->buffer = image->buffer +
+						image->u.img.rect_roi.start_y * image->u.img.stride_in_bytes +
+						((image->u.img.rect_roi.start_x * image->u.img.pixel_size_in_bits) >> 3);
+				}
 			}
 		}
 #if ENABLE_OPENCL
@@ -904,7 +914,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* cons
 						image->children[i]->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 						image->children[i]->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
 					}
-					// TBD: propagate to ROIs
+					// propagate to ROIs
+					for (auto roi = image->children[i]->roiDepList.begin(); roi != image->children[i]->roiDepList.end(); roi++) {
+						(*roi)->opencl_buffer = image->children[i]->opencl_buffer;
+					}
 				}
 			}
 			else {
@@ -914,7 +927,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* cons
 					image->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
 					image->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
 				}
-				// TBD: propagate to ROIs
+				// propagate to ROIs
+				for (auto roi = image->roiDepList.begin(); roi != image->roiDepList.end(); roi++) {
+					(*roi)->opencl_buffer = image->opencl_buffer;
+				}
 			}
 		}
 #endif
