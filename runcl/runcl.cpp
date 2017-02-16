@@ -31,8 +31,12 @@ THE SOFTWARE.
 #define ENABLE_OPENCL 1
 #endif
 #if ENABLE_OPENCL
+#if __APPLE__
+#include <opencl.h>
+#else
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
+#endif
 #if _WIN32
 #include <windows.h>
 #include <process.h>

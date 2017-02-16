@@ -53,7 +53,7 @@ target_link_libraries(runvx openvx)
 
 if (OpenCL_FOUND)
 	target_compile_definitions(runvx PUBLIC ENABLE_OPENCL=1)
-	include_directories(${OpenCL_INCLUDE_DIRS})
+	include_directories(${OpenCL_INCLUDE_DIRS} ${OpenCL_INCLUDE_DIRS}/Headers)
 	target_link_libraries(runvx ${OpenCL_LIBRARIES})
 else(OpenCL_FOUND)
 	target_compile_definitions(runvx PUBLIC ENABLE_OPENCL=0)

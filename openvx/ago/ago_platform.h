@@ -66,7 +66,11 @@ using namespace std;
 #endif
 
 #if ENABLE_OPENCL
+#if __APPLE__
+#include <opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 #endif
 
 // platform specific shared library file extension
