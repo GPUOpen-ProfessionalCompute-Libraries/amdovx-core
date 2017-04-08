@@ -519,6 +519,7 @@ void agoReplaceDataInGraph(AgoGraph * agraph, AgoData * dataFind, AgoData * data
 		if (adata->ref.type == VX_TYPE_IMAGE && adata->u.img.isROI && adata->u.img.roiMasterImage == dataFind) {
 			dataFind->roiDepList.remove(adata);
 			adata->u.img.roiMasterImage = dataReplace;
+			adata->import_type = dataReplace->import_type;
 			dataReplace->roiDepList.push_back(adata);
 		}
 	}
@@ -1151,6 +1152,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		data->isInitialized = dataMaster->isInitialized;
 		data->u.img = dataMaster->u.img;
 		data->u.img.roiMasterImage = dataMaster;
+		data->import_type = dataMaster->import_type;
 		dataMaster->roiDepList.push_back(data);
 		data->u.img.isROI = vx_true_e;
 		data->u.img.rect_roi = rect;
@@ -1169,6 +1171,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 				data->children[child]->isInitialized = dataMaster->children[child]->isInitialized;
 				data->children[child]->u.img = dataMaster->children[child]->u.img;
 				data->children[child]->u.img.roiMasterImage = dataMaster->children[child];
+				data->children[child]->import_type = dataMaster->children[child]->import_type;
 				dataMaster->children[child]->roiDepList.push_back(data->children[child]);
 				data->children[child]->u.img.isROI = vx_true_e;
 				data->children[child]->u.img.rect_roi = rect;
