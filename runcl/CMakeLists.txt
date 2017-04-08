@@ -19,53 +19,25 @@
 # THE SOFTWARE.
 
 cmake_minimum_required (VERSION 2.8)
-project (runvx)
+project (runcl)
 
 set (CMAKE_CXX_STANDARD 11)
 
 find_package(OpenCL QUIET)
-find_package(OpenCV QUIET)
-
-include_directories(../openvx/include)
 
 list(APPEND SOURCES
-	runvx.cpp
-	vxArray.cpp
-	vxConvolution.cpp
-	vxDistribution.cpp
-	vxEngine.cpp
-	vxEngineUtil.cpp
-	vxImage.cpp
-	vxLUT.cpp
-	vxMatrix.cpp
-	vxParameter.cpp
-	vxParamHelper.cpp
-	vxPyramid.cpp
-	vxRemap.cpp
-	vxScalar.cpp
-	vxThreshold.cpp
-	vxTensor.cpp
-	vxUtils.cpp
+	runcl.cpp
 )
 
-add_executable(runvx ${SOURCES})
-target_link_libraries(runvx openvx)
+add_executable(runcl ${SOURCES})
 
 if (OpenCL_FOUND)
-	target_compile_definitions(runvx PUBLIC ENABLE_OPENCL=1)
+	target_compile_definitions(runcl PUBLIC ENABLE_OPENCL=1)
 	include_directories(${OpenCL_INCLUDE_DIRS} ${OpenCL_INCLUDE_DIRS}/Headers)
-	target_link_libraries(runvx ${OpenCL_LIBRARIES})
+	target_link_libraries(runcl ${OpenCL_LIBRARIES})
 else(OpenCL_FOUND)
-	target_compile_definitions(runvx PUBLIC ENABLE_OPENCL=0)
+	target_compile_definitions(runcl PUBLIC ENABLE_OPENCL=0)
 endif(OpenCL_FOUND)
-
-if (OpenCV_FOUND)
-	target_compile_definitions(runvx PUBLIC ENABLE_OPENCV=1)
-	include_directories(${OpenCV_INCLUDE_DIRS})
-	target_link_libraries(runvx ${OpenCV_LIBRARIES})
-else(OpenCV_FOUND)
-	target_compile_definitions(runvx PUBLIC ENABLE_OPENCV=0)
-endif(OpenCV_FOUND)
 
 if( POLICY CMP0054 )
   cmake_policy( SET CMP0054 OLD )
@@ -78,6 +50,6 @@ else()
 	find_package(OpenSSL QUIET)
 	if(OPENSSL_FOUND)
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OpenSSL=1")
-		target_link_libraries(runvx crypto)
+		target_link_libraries(runcl crypto)
 	endif(OPENSSL_FOUND)
 endif()

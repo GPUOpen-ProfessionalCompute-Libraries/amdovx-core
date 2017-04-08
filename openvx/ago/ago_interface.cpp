@@ -87,15 +87,9 @@ int agoReleaseContext(AgoContext * acontext)
 		return -1;
 
 	EnterCriticalSection(&acontext->cs);
-	acontext->ref.external_count--;
-	if (acontext->ref.external_count == 0) {
-		// release all the resources
-		LeaveCriticalSection(&acontext->cs);
-		delete acontext;
-	}
-	else {
-		LeaveCriticalSection(&acontext->cs);
-	}
+	// release all the resources
+	LeaveCriticalSection(&acontext->cs);
+	delete acontext;
 	return 0;
 }
 

@@ -34,7 +34,7 @@ THE SOFTWARE.
 //
 
 // version
-#define AGO_VERSION "0.9.5"
+#define AGO_VERSION "0.9.6"
 
 // debug configuration
 #define ENABLE_DEBUG_MESSAGES                 0 // 0:disable 1:enable
@@ -416,6 +416,7 @@ struct AgoData {
 	vx_uint32 hierarchical_life_start;
 	vx_uint32 hierarchical_life_end;
 	struct AgoNode * ownerOfUserBufferOpenCL;
+	std::list<AgoData *> roiDepList;
 public:
 	AgoData();
 	~AgoData();
@@ -680,6 +681,9 @@ struct AgoContext {
 	cl_device_id opencl_device_list[16];
 	char opencl_build_options[256];
 	bool isAmdMediaOpsSupported;
+	vx_size opencl_mem_alloc_size;
+	vx_size opencl_mem_alloc_count;
+	vx_size opencl_mem_release_count;
 #endif
 	AgoTargetAffinityInfo_ attr_affinity;
 public:

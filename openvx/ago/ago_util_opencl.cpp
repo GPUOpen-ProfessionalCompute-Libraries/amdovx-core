@@ -35,7 +35,7 @@ static void clDumpBuffer(const char * fileNameFormat, cl_command_queue opencl_cm
 	char fileName[1024]; sprintf(fileName, fileNameFormat, dumpBufferCount);
 	cl_mem opencl_buffer = data->opencl_buffer;
 	cl_uint opencl_buffer_offset = data->opencl_buffer_offset;
-	cl_uint size = (cl_uint)data->size;
+	cl_uint size = (cl_uint)(data->u.img.stride_in_bytes*data->u.img.height);
 	FILE * fp = fopen(fileName, "wb"); if (!fp) { printf("ERROR: unable to create: %s\n", fileName); exit(1); }
 	clFinish(opencl_cmdq);
 	void * p = clEnqueueMapBuffer(opencl_cmdq, opencl_buffer, CL_TRUE, CL_MAP_READ, 0, opencl_buffer_offset + size, 0, NULL, NULL, NULL);
@@ -52,6 +52,26 @@ static void clDumpBuffer(const char * fileNameFormat, cl_command_queue opencl_cm
 #endif
 
 #if ENABLE_OPENCL
+static cl_mem agoGpuOclCreateBuffer(AgoContext * context, cl_mem_flags flags, size_t size, void * host_ptr, cl_int * errcode_ret)
+{
+	cl_mem mem = clCreateBuffer(context->opencl_context, flags, size, host_ptr, errcode_ret);
+	if (mem) {
+		context->opencl_mem_alloc_count++;
+		context->opencl_mem_alloc_size += size;
+	}
+	return mem;
+}
+
+static cl_mem agoGpuOclCreateImage(AgoContext * context, cl_mem_flags flags, const cl_image_format * image_format, const cl_image_desc * image_desc, void * host_ptr, cl_int * errcode_ret)
+{
+	cl_mem mem = clCreateImage(context->opencl_context, flags, image_format, image_desc, host_ptr, errcode_ret);
+	if (mem) {
+		context->opencl_mem_alloc_count++;
+		context->opencl_mem_alloc_size += image_desc->image_width; // TBD: currently assumes 8-bit 1D image
+	}
+	return mem;
+}
+
 int agoGpuOclReleaseContext(AgoContext * context)
 {
 	if (context->opencl_cmdq) {
@@ -114,6 +134,7 @@ int agoGpuOclReleaseData(AgoData * data)
 	if (data->opencl_buffer_allocated) {
 		clReleaseMemObject(data->opencl_buffer_allocated);
 		data->opencl_buffer_allocated = NULL;
+		data->ref.context->opencl_mem_release_count++;
 	}
 #if defined(CL_VERSION_2_0)
 	if (data->opencl_svm_buffer_allocated) {
@@ -342,17 +363,17 @@ int agoGpuOclAllocBuffer(AgoData * data)
 				dataMaster->buffer = dataMaster->opencl_svm_buffer_allocated + dataMaster->opencl_buffer_offset;
 				if (context->opencl_config_flags & CONFIG_OPENCL_SVM_AS_CLMEM) {
 					// use svm buffer as opencl_buffer(GPU)
-					dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, dataMaster->size + dataMaster->opencl_buffer_offset, dataMaster->opencl_svm_buffer_allocated, &err);
+					dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, dataMaster->size + dataMaster->opencl_buffer_offset, dataMaster->opencl_svm_buffer_allocated, &err);
 				}
 			}
 			else
 #endif
 			{
 				// allocate normal opencl_buffer
-				dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, dataMaster->size + dataMaster->opencl_buffer_offset, NULL, &err);
+				dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, dataMaster->size + dataMaster->opencl_buffer_offset, NULL, &err);
 			}
 			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d\n", context->opencl_context, (int)dataMaster->size + dataMaster->opencl_buffer_offset, err);
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d\n", context->opencl_context, (int)dataMaster->size + dataMaster->opencl_buffer_offset, err);
 				return -1;
 			}
 			if (dataMaster->u.img.isUniform) {
@@ -412,14 +433,14 @@ int agoGpuOclAllocBuffer(AgoData * data)
 				data->buffer = data->opencl_svm_buffer_allocated + data->opencl_buffer_offset;
 				if (context->opencl_config_flags & CONFIG_OPENCL_SVM_AS_CLMEM) {
 					// use svm buffer as opencl_buffer(GPU)
-					data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, data->size + data->opencl_buffer_offset, data->opencl_svm_buffer_allocated, &err);
+					data->opencl_buffer = data->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, data->size + data->opencl_buffer_offset, data->opencl_svm_buffer_allocated, &err);
 				}
 			}
 			else
 #endif
 			{
 				// normal opencl_buffer allocation
-				data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, data->size + data->opencl_buffer_offset, NULL, &err);
+				data->opencl_buffer = data->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, data->size + data->opencl_buffer_offset, NULL, &err);
 				if (data->opencl_buffer) {
 					// initialize array header which containts numitems
 					vx_uint32 zero = 0;
@@ -429,7 +450,7 @@ int agoGpuOclAllocBuffer(AgoData * data)
 				}
 			}
 			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (array/cannystack)\n", context->opencl_context, (int)data->size, err);
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (array/cannystack)\n", context->opencl_context, (int)data->size, err);
 				return -1;
 			}
 		}
@@ -444,9 +465,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 				cl_int err = -1;
 				cl_image_format format = { CL_INTENSITY, CL_UNORM_INT8 };
 				cl_image_desc desc = { CL_MEM_OBJECT_IMAGE1D, 256, 0, 0, 1, 0, 0, 0, 0, NULL };
-				data->opencl_buffer = data->opencl_buffer_allocated = clCreateImage(context->opencl_context, CL_MEM_READ_WRITE, &format, &desc, NULL, &err);
+				data->opencl_buffer = data->opencl_buffer_allocated = agoGpuOclCreateImage(context, CL_MEM_READ_WRITE, &format, &desc, NULL, &err);
 				if (err) {
-					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateImage(%p,CL_MEM_READ_WRITE,1D/U8,256,0,*) => %d (for LUT)\n", context->opencl_context, err);
+					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateImage(%p,CL_MEM_READ_WRITE,1D/U8,256,0,*) => %d (for LUT)\n", context->opencl_context, err);
 					return -1;
 				}
 				data->opencl_buffer_offset = 0;
@@ -454,9 +475,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 			else {
 				// normal opencl_buffer allocation
 				cl_int err = -1;
-				data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, data->size + data->opencl_buffer_offset, NULL, &err);
+				data->opencl_buffer = data->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, data->size + data->opencl_buffer_offset, NULL, &err);
 				if (err) {
-					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,*) => %d (for LUT)\n", context->opencl_context, (int)(data->size + data->opencl_buffer_offset), err);
+					agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,*) => %d (for LUT)\n", context->opencl_context, (int)(data->size + data->opencl_buffer_offset), err);
 					return -1;
 				}
 			}
@@ -465,9 +486,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 	else if (data->ref.type == VX_TYPE_REMAP) {
 		if (!data->opencl_buffer) {
 			cl_int err = -1;
-			data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, data->size, NULL, &err);
+			data->opencl_buffer = data->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, data->size, NULL, &err);
 			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Remap)\n", context->opencl_context, (int)data->size, err);
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Remap)\n", context->opencl_context, (int)data->size, err);
 				return -1;
 			}
 			data->opencl_buffer_offset = 0;
@@ -476,9 +497,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 	else if (data->ref.type == VX_TYPE_MATRIX) {
 		if (!data->opencl_buffer) {
 			cl_int err = -1;
-			data->opencl_buffer = data->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, data->size, NULL, &err);
+			data->opencl_buffer = data->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, data->size, NULL, &err);
 			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Matrix)\n", context->opencl_context, (int)data->size, err);
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Matrix)\n", context->opencl_context, (int)data->size, err);
 				return -1;
 			}
 			data->opencl_buffer_offset = 0;
@@ -488,9 +509,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 		AgoData * dataMaster = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data; // to handle tensor ROI
 		if (!dataMaster->opencl_buffer) {
 			cl_int err = -1;
-			dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = clCreateBuffer(context->opencl_context, CL_MEM_READ_WRITE, dataMaster->size, NULL, &err);
+			dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, dataMaster->size, NULL, &err);
 			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Tensor)\n", context->opencl_context, (int)dataMaster->size, err);
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Tensor)\n", context->opencl_context, (int)dataMaster->size, err);
 				return -1;
 			}
 			dataMaster->opencl_buffer_offset = 0;

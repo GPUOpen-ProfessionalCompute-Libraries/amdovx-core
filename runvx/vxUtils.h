@@ -69,7 +69,11 @@ THE SOFTWARE.
 #include <math.h>
 
 #if ENABLE_OPENCL
+#if __APPLE__
+#include <opencl.h>
+#else
 #include <CL/cl.h>
+#endif
 #endif
 
 #if ENABLE_OPENCV
