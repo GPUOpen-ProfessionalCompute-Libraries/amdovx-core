@@ -55,7 +55,7 @@ else()
 endif()
 
 set_target_properties(runcl PROPERTIES
-				OUTPUT_NAME runvx
+				OUTPUT_NAME runcl
 				DEBUG_POSTFIX "d"
 				)
 
