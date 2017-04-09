@@ -517,7 +517,10 @@ void agoReplaceDataInGraph(AgoGraph * agraph, AgoData * dataFind, AgoData * data
 	// replace all ROI master links
 	for (AgoData * adata = agraph->dataList.head; adata; adata = adata->next) {
 		if (adata->ref.type == VX_TYPE_IMAGE && adata->u.img.isROI && adata->u.img.roiMasterImage == dataFind) {
+			dataFind->roiDepList.remove(adata);
 			adata->u.img.roiMasterImage = dataReplace;
+			adata->import_type = dataReplace->import_type;
+			dataReplace->roiDepList.push_back(adata);
 		}
 	}
 
@@ -1149,6 +1152,8 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		data->isInitialized = dataMaster->isInitialized;
 		data->u.img = dataMaster->u.img;
 		data->u.img.roiMasterImage = dataMaster;
+		data->import_type = dataMaster->import_type;
+		dataMaster->roiDepList.push_back(data);
 		data->u.img.isROI = vx_true_e;
 		data->u.img.rect_roi = rect;
 		data->u.img.width = data->u.img.rect_roi.end_x - data->u.img.rect_roi.start_x;
@@ -1166,6 +1171,8 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 				data->children[child]->isInitialized = dataMaster->children[child]->isInitialized;
 				data->children[child]->u.img = dataMaster->children[child]->u.img;
 				data->children[child]->u.img.roiMasterImage = dataMaster->children[child];
+				data->children[child]->import_type = dataMaster->children[child]->import_type;
+				dataMaster->children[child]->roiDepList.push_back(data->children[child]);
 				data->children[child]->u.img.isROI = vx_true_e;
 				data->children[child]->u.img.rect_roi = rect;
 				data->children[child]->parent = data;
@@ -2145,8 +2152,13 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 			agoGetImageComponentsAndPlanes(data->ref.context, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits, &data->u.img.color_space, &data->u.img.channel_range);
 			// calculate other attributes and buffer size:
 			//   - make sure that the stride is multiple of 16 bytes
-			data->u.img.stride_in_bytes = ALIGN16((data->u.img.width * data->u.img.pixel_size_in_bits + 7) >> 3);
-			data->size = ALIGN16(data->u.img.height) * data->u.img.stride_in_bytes;
+			if (data->import_type == VX_IMPORT_TYPE_NONE) {
+				data->u.img.stride_in_bytes = ALIGN16((data->u.img.width * data->u.img.pixel_size_in_bits + 7) >> 3);
+				data->size = ALIGN16(data->u.img.height) * data->u.img.stride_in_bytes;
+			}
+			else {
+				data->size = data->u.img.height * data->u.img.stride_in_bytes;
+			}
 			if (!data->size)
 				return -1;
 			if (data->u.img.isUniform) {
@@ -3076,6 +3088,7 @@ AgoContext::AgoContext()
 	  , opencl_svmcaps{ 0 }
 #endif
 	  , opencl_context_imported{ false }, opencl_context{ nullptr }, opencl_cmdq{ nullptr }, opencl_config_flags{ 0 }, opencl_num_devices{ 0 }, isAmdMediaOpsSupported{ true }
+	  , opencl_mem_alloc_size{ 0 }, opencl_mem_alloc_count{ 0 }, opencl_mem_release_count{ 0 }
 #endif
 {
 	memset(&kernelList, 0, sizeof(kernelList));
@@ -3162,6 +3175,13 @@ AgoContext::~AgoContext()
 
 	// remove kernel objects
 	agoResetKernelList(&kernelList);
+
+#if ENABLE_OPENCL
+	if (opencl_mem_alloc_count > 0) {
+		agoAddLogEntry(&ref, VX_SUCCESS, "OK: OpenCL buffer usage: " VX_FMT_SIZE ", " VX_FMT_SIZE "/" VX_FMT_SIZE "\n",
+			opencl_mem_alloc_size, opencl_mem_release_count, opencl_mem_alloc_count);
+	}
+#endif
 
 	// critical section
 	DeleteCriticalSection(&cs);

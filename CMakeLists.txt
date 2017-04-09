@@ -23,3 +23,4 @@ project(amdovx)
 
 add_subdirectory(openvx)
 add_subdirectory(runvx)
+add_subdirectory(runcl)

@@ -67,7 +67,7 @@ add_library(openvx SHARED ${SOURCES})
 
 if (OpenCL_FOUND)
 	target_compile_definitions(openvx PUBLIC ENABLE_OPENCL=1)
-	include_directories(${OpenCL_INCLUDE_DIRS})
+	include_directories(${OpenCL_INCLUDE_DIRS} ${OpenCL_INCLUDE_DIRS}/Headers)
 	target_link_libraries(openvx ${OpenCL_LIBRARIES})
 else(OpenCL_FOUND)
 	target_compile_definitions(openvx PUBLIC ENABLE_OPENCL=0)
