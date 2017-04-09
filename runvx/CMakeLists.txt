@@ -81,3 +81,13 @@ else()
 		target_link_libraries(runvx crypto)
 	endif(OPENSSL_FOUND)
 endif()
+
+set_target_properties(runvx PROPERTIES
+				OUTPUT_NAME runvx
+				DEBUG_POSTFIX "d"
+				)
+
+install ( TARGETS runvx
+          RUNTIME DESTINATION bin
+          ARCHIVE DESTINATION lib
+          LIBRARY DESTINATION lib )

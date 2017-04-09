@@ -84,3 +84,16 @@ else()
 	target_link_libraries(openvx dl m)
 endif()
 
+set_target_properties(openvx PROPERTIES
+				OUTPUT_NAME openvx
+				DEBUG_POSTFIX "d"
+				)
+
+install( DIRECTORY include/VX DESTINATION include )
+
+install( FILES include/vx_ext_amd.h DESTINATION include )
+
+install ( TARGETS openvx
+          RUNTIME DESTINATION bin
+          ARCHIVE DESTINATION lib
+          LIBRARY DESTINATION lib )
