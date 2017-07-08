@@ -39,7 +39,7 @@ Build this project to generate AMD OpenVX library and RunVX executable.
 
 ### Build using CMake
 * Install CMake 2.8 or newer [download](http://cmake.org/download/).
-* Install OpenCV 3.0 [download](http://opencv.org/downloads.html) for RunVX tool to support camera capture and image display
+* Install OpenCV 3.0 [download](https://github.com/opencv/opencv/releases/tag/3.0.0) for RunVX tool to support camera capture and image display
 * OpenCV_DIR environment variable should point to OpenCV/build folder
 * Install libssl-dev on linux (optional)
 * Use CMake to configure and generate Makefile
