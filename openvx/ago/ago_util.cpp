@@ -67,6 +67,7 @@ static struct { const char * name; vx_enum value; vx_size size; } s_table_consta
 		{ "KEYPOINT", VX_TYPE_KEYPOINT, sizeof(vx_keypoint_t) },
 		{ "COORDINATES2D", VX_TYPE_COORDINATES2D, sizeof(vx_coordinates2d_t) },
 		{ "COORDINATES3D", VX_TYPE_COORDINATES3D, sizeof(vx_coordinates3d_t) },
+		{ "COORDINATES2DF", VX_TYPE_COORDINATES2DF, sizeof(vx_coordinates2df_t) },
 		{ "DF_IMAGE", VX_TYPE_DF_IMAGE, sizeof(vx_df_image) },
 		{ "ENUM", VX_TYPE_ENUM, sizeof(vx_enum) },
 		{ "UINT64", VX_TYPE_UINT64, sizeof(vx_uint64) },
@@ -85,6 +86,13 @@ static struct { const char * name; vx_enum value; vx_size size; } s_table_consta
 		{ "BOOL", VX_TYPE_BOOL, sizeof(vx_bool) },
 		{ "KEYPOINT_XYS", AGO_TYPE_KEYPOINT_XYS, sizeof(ago_keypoint_xys_t) },
 		{ "STRING", VX_TYPE_STRING_AMD },
+		{ "VX_TYPE_HOG", VX_TYPE_HOG, sizeof(vx_hog_t) },
+		{ "VX_TYPE_HOUGH_LINES_P", VX_TYPE_HOUGH_LINES_P, sizeof(vx_hough_lines_p_t) },
+		{ "VX_TYPE_LINE2D", VX_TYPE_LINE2D, sizeof(vx_line2d_t) },
+		{ "VX_TYPE_MATRIX_MULTIPLY_PARAMS", VX_TYPE_MATRIX_MULTIPLY_PARAMS, sizeof(vx_matrix_multiply_params_t) },
+		{ "VX_TYPE_NN_CONV_PARAMS", VX_TYPE_NN_CONV_PARAMS, sizeof(vx_nn_convolution_params_t) },
+		{ "VX_TYPE_NN_DECONV_PARAMS", VX_TYPE_NN_DECONV_PARAMS, sizeof(vx_nn_deconvolution_params_t) },
+		{ "VX_TYPE_NN_ROIPOOL_PARAMS", VX_TYPE_NN_ROIPOOL_PARAMS, sizeof(vx_nn_roi_pool_params_t) },
 		// for debug purposes only
 		{ "VX_TYPE_LUT", VX_TYPE_LUT },
 		{ "VX_TYPE_DISTRIBUTION", VX_TYPE_DISTRIBUTION },
@@ -2961,7 +2969,7 @@ AgoKernel::AgoKernel()
 	  kernel_f{ nullptr }, validate_f{ nullptr }, input_validate_f{ nullptr }, output_validate_f{ nullptr }, initialize_f{ nullptr }, deinitialize_f{ nullptr },
 	  query_target_support_f{ nullptr }, opencl_codegen_callback_f{ nullptr }, regen_callback_f{ nullptr }, opencl_global_work_update_callback_f{ nullptr },
 	  opencl_buffer_update_callback_f{ nullptr }, opencl_buffer_update_param_index{ 0 },
-	  opencl_image_access_enable{ vx_false_e }, importing_module_index_plus1{ 0 }
+	  opencl_buffer_access_enable{ vx_false_e }, importing_module_index_plus1{ 0 }
 {
 	memset(&name, 0, sizeof(name));
 	memset(&argConfig, 0, sizeof(argConfig));

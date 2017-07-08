@@ -341,9 +341,9 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, vx_reference
 {
 	// create the object based on the ref
 	vx_enum type;
-	vx_status status = vxQueryReference(ref, VX_REF_ATTRIBUTE_TYPE, &type, sizeof(type));
+	vx_status status = vxQueryReference(ref, VX_REFERENCE_TYPE, &type, sizeof(type));
 	if (status) {
-		printf("ERROR: CreateDataObject: vxQueryReference(*,VX_REF_ATTRIBUTE_TYPE,...) failed(%d)\n", status);
+		printf("ERROR: CreateDataObject: vxQueryReference(*,VX_REFERENCE_TYPE,...) failed(%d)\n", status);
 		throw -1;
 	}
 	if (type == VX_TYPE_IMAGE) {

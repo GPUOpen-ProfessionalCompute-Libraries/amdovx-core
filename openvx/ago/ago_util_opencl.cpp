@@ -35,7 +35,11 @@ static void clDumpBuffer(const char * fileNameFormat, cl_command_queue opencl_cm
 	char fileName[1024]; sprintf(fileName, fileNameFormat, dumpBufferCount);
 	cl_mem opencl_buffer = data->opencl_buffer;
 	cl_uint opencl_buffer_offset = data->opencl_buffer_offset;
-	cl_uint size = (cl_uint)(data->u.img.stride_in_bytes*data->u.img.height);
+	cl_uint size = (cl_uint)0;
+	if (data->ref.type == VX_TYPE_IMAGE)
+		size = (cl_uint)(data->u.img.stride_in_bytes*data->u.img.height);
+	else
+		size = (cl_uint)data->size;
 	FILE * fp = fopen(fileName, "wb"); if (!fp) { printf("ERROR: unable to create: %s\n", fileName); exit(1); }
 	clFinish(opencl_cmdq);
 	void * p = clEnqueueMapBuffer(opencl_cmdq, opencl_buffer, CL_TRUE, CL_MAP_READ, 0, opencl_buffer_offset + size, 0, NULL, NULL, NULL);

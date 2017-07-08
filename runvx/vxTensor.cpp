@@ -98,7 +98,7 @@ int CVxParamTensor::Initialize(vx_context context, vx_graph graph, const char * 
 		if (itMaster == m_paramMap->end())
 			ReportError("ERROR: tensor [%s] doesn't exist for %s\n", masterName, desc);
 		vx_tensor masterTensor = (vx_tensor)itMaster->second->GetVxObject();
-		m_tensor = vxCreateTensorFromROI(masterTensor, m_num_of_dims, m_start, m_end);
+		m_tensor = vxCreateTensorFromView(masterTensor, m_num_of_dims, m_start, m_end);
 	}
 	else ReportError("ERROR: unsupported tensor type: %s\n", desc);
 	vx_status ovxStatus = vxGetStatus((vx_reference)m_tensor);
@@ -118,10 +118,10 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 	// save reference object and get object attributes
 	m_vxObjRef = ref;
 	m_tensor = (vx_tensor)m_vxObjRef;
-	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_NUM_OF_DIMS, &m_num_of_dims, sizeof(m_num_of_dims)));
+	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_NUMBER_OF_DIMS, &m_num_of_dims, sizeof(m_num_of_dims)));
 	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_DIMS, &m_dims, sizeof(m_dims[0])*m_num_of_dims));
 	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_DATA_TYPE, &m_data_type, sizeof(m_data_type)));
-	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_FIXED_POINT_POS, &m_fixed_point_pos, sizeof(vx_uint8)));
+	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_FIXED_POINT_POSITION, &m_fixed_point_pos, sizeof(vx_uint8)));
 	m_size = m_data_type == VX_TYPE_FLOAT32 ? 4 : 2;
 	for (vx_uint32 i = 0; i < m_num_of_dims; i++) {
 		m_stride[i] = m_size;

@@ -1869,7 +1869,7 @@ static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * d
 						// transfer only region that has valid data
 						size = dataToSync->u.arr.numitems * dataToSync->u.arr.itemsize;
 					}
-					else if (dataToSync->ref.type == VX_TYPE_IMAGE && node->akernel->opencl_image_access_enable) {
+					else if (node->akernel->opencl_buffer_access_enable) {
 						// no need to transfer to CPU for this node
 						size = 0;
 					}
@@ -2088,12 +2088,15 @@ int agoExecuteGraph(AgoGraph * graph)
 				// mark that node outputs are dirty
 				for (vx_uint32 i = 0; i < node->paramCount; i++) {
 					AgoData * data = node->paramList[i];
-					if (data && data->opencl_buffer && !data->u.img.enableUserBufferOpenCL && 
+					if (data && data->opencl_buffer &&
 						(node->parameters[i].direction == VX_OUTPUT || node->parameters[i].direction == VX_BIDIRECTIONAL))
 					{
 						auto dataToSync = (data->ref.type == VX_TYPE_IMAGE && data->u.img.isROI) ? data->u.img.roiMasterImage : data;
 						dataToSync->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
-						dataToSync->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE;
+						dataToSync->buffer_sync_flags |=
+							((node->akernel->opencl_buffer_access_enable || data->u.img.enableUserBufferOpenCL)
+								? AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL
+								: AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE);
 					}
 				}
 #endif

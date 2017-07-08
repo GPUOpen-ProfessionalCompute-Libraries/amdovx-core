@@ -66,7 +66,7 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 	// check to make sure that GPU resources are needed
 	bool gpuNeeded = false;
 	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
-		if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU) {
+		if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU || node->akernel->opencl_buffer_access_enable) {
 			gpuNeeded = true;
 			break;
 		}
@@ -207,6 +207,15 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 				return -1;
 			}
 			if (agoGpuOclSingleNodeFinalize(graph, node) < 0) {
+				return -1;
+			}
+		}
+	}
+	// allocate buffers for nodes with opencl_buffer_access_enable
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (node->akernel->opencl_buffer_access_enable) {
+			// make sure that the GPU buffer resources are allocated in node
+			if (agoGpuOclAllocBuffers(graph, node) < 0) {
 				return -1;
 			}
 		}
