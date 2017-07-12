@@ -157,6 +157,10 @@ THE SOFTWARE.
 // thread scheduling configuration
 #define CONFIG_THREAD_DEFAULT                 1  // 0:disable 1:enable separate threads for graph scheduling
 
+// module specific
+#define MAX_MODULE_NAME_SIZE 256
+#define MAX_MODULE_PATH_SIZE 1024
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // helpful macros
 //
@@ -474,7 +478,7 @@ struct AgoKernel {
 	amd_kernel_opencl_global_work_update_callback_f opencl_global_work_update_callback_f;
 	amd_kernel_opencl_buffer_update_callback_f opencl_buffer_update_callback_f;
 	vx_uint32 opencl_buffer_update_param_index;
-	vx_bool opencl_image_access_enable;
+	vx_bool opencl_buffer_access_enable;
 	vx_uint32 importing_module_index_plus1;
 public:
 	AgoKernel();
@@ -616,6 +620,7 @@ struct AgoGraph {
 	vx_uint32 execFrameCount;
 	bool enable_performance_profiling;
 	std::vector<AgoProfileEntry> performance_profile;
+	std::map<std::string,void *> moduleHandle;
 public:
 	AgoGraph();
 	~AgoGraph();
@@ -630,8 +635,8 @@ struct AgoImageFormatDescItem {
 	AgoImageFormatDescription desc;
 };
 struct ModuleData {
-	char module_name[256];
-	char module_path[1024];
+	char module_name[MAX_MODULE_NAME_SIZE];
+	char module_path[MAX_MODULE_PATH_SIZE];
 	ago_module hmodule;
 	vx_uint8 * module_internal_data_ptr;
 	vx_size module_internal_data_size;

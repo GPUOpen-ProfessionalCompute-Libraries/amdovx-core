@@ -925,7 +925,7 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 					int subObjIndex = 0;
 					paramDescIndex = ScanParameters(paramDescIndex, "[<index>]", "[d]", &subObjIndex);
 					// get sub-indexed object
-					vx_enum type; ERROR_CHECK(vxQueryReference(ref, VX_REF_ATTRIBUTE_TYPE, &type, sizeof(type)));
+					vx_enum type; ERROR_CHECK(vxQueryReference(ref, VX_REFERENCE_TYPE, &type, sizeof(type)));
 					if (type == VX_TYPE_PYRAMID) {
 						ref = (vx_reference)vxGetPyramidLevel((vx_pyramid)ref, (vx_uint32)subObjIndex);
 						status = vxGetStatus(ref);
