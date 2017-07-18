@@ -66,7 +66,8 @@ int CVxParamScalar::Initialize(vx_context context, vx_graph graph, const char * 
 		m_format = ovxName2Enum(format);
 		if (m_format == VX_TYPE_STRING_AMD) {
 			m_scalar = vxCreateScalar(context, m_format, value);
-		}else if(m_format == (VX_TYPE_NN_CONV_PARAMS) || m_format == (VX_TYPE_NN_DECONV_PARAMS) || m_format == (VX_TYPE_NN_ROIPOOL_PARAMS)){
+		}
+		else if(m_format == (VX_TYPE_NN_CONV_PARAMS) || m_format == (VX_TYPE_NN_DECONV_PARAMS) || m_format == (VX_TYPE_NN_ROIPOOL_PARAMS)){
 			if(m_format == VX_TYPE_NN_CONV_PARAMS){
 				vx_nn_convolution_params_t v;
 				if (!GetScalarValueForStructTypes(m_format, value, &v)) {
