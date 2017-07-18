@@ -560,7 +560,7 @@ const char * ScanParameters(const char * s_, const char * syntax, const char * f
                 		else if (s[0] == '{') {
                     			s++;
 			                //copy till end of the string.
-                    			for (; (*s != '}') && (--maxStringBufferLength > 0);)
+                    			for (; (*s != '\0') && (*s != '}') && (--maxStringBufferLength > 0);)
                         			*p++ = *s++;
                     			*p = 0;
 			                if (*s == '}') s++;

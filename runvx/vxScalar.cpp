@@ -66,27 +66,27 @@ int CVxParamScalar::Initialize(vx_context context, vx_graph graph, const char * 
 		m_format = ovxName2Enum(format);
 		if (m_format == VX_TYPE_STRING_AMD) {
 			m_scalar = vxCreateScalar(context, m_format, value);
-		}
-		else if (m_format == (VX_TYPE_NN_CONV_PARAMS) || m_format == (VX_TYPE_NN_DECONV_PARAMS) || m_format == (VX_TYPE_NN_ROIPOOL_PARAMS)) {
-         	       if (m_format == VX_TYPE_NN_CONV_PARAMS) {
-                		vx_nn_convolution_params_t v;
-                       		if (!GetScalarValueForStructTypes(m_format, value, &v)) {
-                    			m_scalar = vxCreateScalar(context, m_format, &v);
-                       		}
-            	       }
-            	       else if (m_format == VX_TYPE_NN_DECONV_PARAMS) {
-                		vx_nn_deconvolution_params_t v;
-                		if (!GetScalarValueForStructTypes(m_format, value, &v)) {
-                    			m_scalar = vxCreateScalar(context, m_format, &v);
-            		        }
-            	       }
-		      else if (m_format == VX_TYPE_NN_ROIPOOL_PARAMS) {
-                 	       vx_nn_roi_pool_params_t v;
-	                       if (!GetScalarValueForStructTypes(m_format, value, &v)) {
-                    	       		m_scalar = vxCreateScalar(context, m_format, &v);
-                		}
-            	      }
-        	}
+		}else if(m_format == (VX_TYPE_NN_CONV_PARAMS) || m_format == (VX_TYPE_NN_DECONV_PARAMS) || m_format == (VX_TYPE_NN_ROIPOOL_PARAMS)){
+			if(m_format == VX_TYPE_NN_CONV_PARAMS){
+				vx_nn_convolution_params_t v;
+				if (!GetScalarValueForStructTypes(m_format, value, &v)) {
+					m_scalar= vxCreateScalar(context, m_format, &v);                                                           
+                        	} 
+			}
+			else if (m_format == VX_TYPE_NN_DECONV_PARAMS) {                                                                           
+                        	vx_nn_deconvolution_params_t v;                                                                                    
+                        	if (!GetScalarValueForStructTypes(m_format, value, &v)) {                                                          
+                                	m_scalar = vxCreateScalar(context, m_format, &v);
+				}                                                                                                                  
+        	       	}
+			else if (m_format == VX_TYPE_NN_ROIPOOL_PARAMS) {                                                                           
+                        	vx_nn_roi_pool_params_t v;                                                                                         
+                        	if (!GetScalarValueForStructTypes(m_format, value, &v)) {
+					m_scalar = vxCreateScalar(context, m_format, &v);
+				}
+			}                                                                                                                          
+                	else ReportError("ERROR: unsupported scalar value: %s [%s:0x%08x]\n", value, format, m_format);                            
+		}    
 		else {
 			vx_uint64 v = 0;
 			if (!GetScalarValueFromString(m_format, value, &v)) {

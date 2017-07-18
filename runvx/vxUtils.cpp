@@ -643,6 +643,9 @@ int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value)
 	        v.pool_type = ovxName2Enum(str);
         	*(vx_nn_roi_pool_params_t *)value = v;
     	}
+	else {
+		return -1;
+	}
     	return 0;
 }
 
