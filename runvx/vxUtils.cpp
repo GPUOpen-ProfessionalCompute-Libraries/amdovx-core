@@ -601,6 +601,51 @@ int ReadScalarToString(vx_scalar scalar, char str[])
 	return 0;
 }
 
+//get scalar value from struct types.
+int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value) 
+{
+	if (type == VX_TYPE_NN_CONV_PARAMS) {
+        	vx_nn_convolution_params_t v;
+        	char* tok = std::strtok((char *)str, ",");
+        	v.padding_x = atoi(tok);
+        	tok = std::strtok(NULL, ",");
+	        v.padding_y = atoi(tok);
+        	tok = std::strtok(NULL, ",");
+	        v.overflow_policy = ovxName2Enum(tok);
+        	tok = std::strtok(NULL, ",");
+	        v.rounding_policy = ovxName2Enum(tok);
+        	tok = std::strtok(NULL, ",");
+	        v.down_scale_size_rounding = ovxName2Enum(tok);
+        	tok = std::strtok(NULL, ",");
+	        v.dilation_x = atoi(tok);
+        	tok = std::strtok(NULL, ",");
+	        v.dilation_y = atoi(tok);
+        	*(vx_nn_convolution_params_t *)value = v;
+    	}
+    	else if (type == VX_TYPE_NN_DECONV_PARAMS) {
+        	vx_nn_deconvolution_params_t v;
+        	char *tok = std::strtok((char *)str, ",");
+	        v.padding_x = atoi(tok);
+	        tok = std::strtok(NULL, ",");
+        	v.padding_y = atoi(tok);
+	        tok = std::strtok(NULL, ",");
+        	v.overflow_policy = ovxName2Enum(tok);
+	        tok = std::strtok(NULL, ",");
+        	v.rounding_policy = ovxName2Enum(tok);
+	        tok = std::strtok(NULL, ",");
+        	v.a_x = atoi(tok);
+	        tok = std::strtok(NULL, ",");
+        	v.a_y = atoi(tok);
+	        *(vx_nn_deconvolution_params_t *)value = v;
+    	}
+    	else if (type == VX_TYPE_NN_ROIPOOL_PARAMS) {
+        	vx_nn_roi_pool_params_t v;
+	        v.pool_type = ovxName2Enum(str);
+        	*(vx_nn_roi_pool_params_t *)value = v;
+    	}
+    	return 0;
+}
+
 // get scalar value from string
 int GetScalarValueFromString(vx_enum type, const char str[], vx_uint64 * value)
 {

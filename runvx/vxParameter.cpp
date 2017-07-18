@@ -557,6 +557,14 @@ const char * ScanParameters(const char * s_, const char * syntax, const char * f
 					*p = 0;
 					if(*s == '"') s++;
 				}
+                		else if (s[0] == '{') {
+                    			s++;
+			                //copy till end of the string.
+                    			for (; (*s != '}') && (--maxStringBufferLength > 0);)
+                        			*p++ = *s++;
+                    			*p = 0;
+			                if (*s == '}') s++;
+                		}
 				else {
 					if (!_strnicmp(s, "https://", 8) || !_strnicmp(s, "http://", 7) || !_strnicmp(s, "file://", 7) ||
 						(((s[0] >= 'a' && s[0] <= 'z') || (s[0] >= 'A' && s[0] <= 'Z')) && s[1] == ':' && s[2] == '\\'))
