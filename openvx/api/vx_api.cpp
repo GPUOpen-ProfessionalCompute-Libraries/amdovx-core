@@ -3666,7 +3666,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxWriteScalarValue(vx_scalar ref, const void 
 				break;
 			default:
 				if(ptr){
-					memcpy(ptr,data->buffer, data->size);
+					memcpy(data->buffer,ptr, data->size);
 					break;
 				}
 				status = VX_ERROR_NOT_SUPPORTED;
