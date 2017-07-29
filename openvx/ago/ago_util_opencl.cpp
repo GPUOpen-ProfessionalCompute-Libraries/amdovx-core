@@ -834,19 +834,19 @@ static int agoGpuOclSetKernelArgs(cl_kernel opencl_kernel, vx_uint32& kernelArgI
 			return -1; 
 		}
 		kernelArgIndex++;
-        vx_uint32 stride[4] = {
-            (vx_uint32)data->u.tensor.stride[0],
-            (vx_uint32)data->u.tensor.stride[1],
-            (vx_uint32)data->u.tensor.stride[2],
-            (vx_uint32)data->u.tensor.stride[3]
-        };
-        err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(stride), stride);
-        if (err) {
-            agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,tensor.offset) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
-            return -1;
-        }
-        kernelArgIndex++;
-    }
+		vx_uint32 stride[4] = {
+			(vx_uint32)data->u.tensor.stride[0],
+			(vx_uint32)data->u.tensor.stride[1],
+			(vx_uint32)data->u.tensor.stride[2],
+			(vx_uint32)data->u.tensor.stride[3]
+		};
+		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(stride), stride);
+		if (err) {
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,tensor.offset) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
+			return -1;
+		}
+		kernelArgIndex++;
+	}
 	else {
 		agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGpuOclSetKernelArgs: doesn't support object type %s in group#%d for kernel arg setting\n", agoEnum2Name(data->ref.type), group);
 		return -1;
