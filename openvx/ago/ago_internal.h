@@ -265,7 +265,8 @@ struct AgoConfigImage {
 	vx_uint32 height;
 	vx_df_image format;
 	vx_uint32 stride_in_bytes;
-	vx_size pixel_size_in_bits;
+	vx_uint32 pixel_size_in_bits_num;
+	vx_uint32 pixel_size_in_bits_denom;
 	vx_size components;
 	vx_size planes;
 	vx_bool isVirtual;
@@ -757,8 +758,8 @@ AgoData * agoCreateDataFromDescription(AgoContext * acontext, AgoGraph * agraph,
 void agoGenerateDataName(AgoContext * acontext, const char * postfix, std::string& name);
 void agoGenerateVirtualDataName(AgoGraph * agraph, const char * postfix, std::string& name);
 int agoInitializeImageComponentsAndPlanes(AgoContext * acontext);
-int agoSetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size components, vx_size planes, vx_size pixelSizeInBits, vx_color_space_e colorSpace, vx_channel_range_e channelRange);
-int agoGetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size * pComponents, vx_size * pPlanes, vx_size * pPixelSizeInBits, vx_color_space_e * pColorSpace, vx_channel_range_e * pChannelRange);
+int agoSetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size components, vx_size planes, vx_uint32 pixelSizeInBitsNum, vx_uint32 pixelSizeInBitsDenom, vx_color_space_e colorSpace, vx_channel_range_e channelRange);
+int agoGetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size * pComponents, vx_size * pPlanes, vx_uint32 * pPixelSizeInBitsNum, vx_uint32 * pPixelSizeInBitsDenom, vx_color_space_e * pColorSpace, vx_channel_range_e * pChannelRange);
 int agoGetImagePlaneFormat(AgoContext * acontext, vx_df_image format, vx_uint32 width, vx_uint32 height, vx_uint32 plane, vx_df_image *pFormat, vx_uint32 * pWidth, vx_uint32 * pHeight);
 void agoGetDataName(vx_char * name, AgoData * data);
 int agoAllocData(AgoData * data);
@@ -875,6 +876,16 @@ inline int leftmostbit(unsigned int n) {
 	while (pos >= 0 && !(n & (1 << pos)))
 		pos--;
 	return pos;
+}
+
+inline vx_uint32 ImageWidthInBytesFloor(vx_uint32 width, const AgoData * img)
+{
+    return ((width * img->u.img.pixel_size_in_bits_num + img->u.img.pixel_size_in_bits_denom - 1) / img->u.img.pixel_size_in_bits_denom) >> 3;
+}
+
+inline vx_uint32 ImageWidthInBytesCeil(vx_uint32 width, const AgoData * img)
+{
+    return ((width * img->u.img.pixel_size_in_bits_num + img->u.img.pixel_size_in_bits_denom - 1) / img->u.img.pixel_size_in_bits_denom + 7) >> 3;
 }
 
 #endif // __ago_internal_h__

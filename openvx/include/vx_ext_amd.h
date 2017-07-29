@@ -221,9 +221,10 @@ typedef struct _vx_tensor_t * vx_tensor;
 typedef struct {
 	vx_size            components;
 	vx_size            planes;
-	vx_size            pixelSizeInBits;
+	vx_size            pixelSizeInBitsNum;
 	vx_color_space_e   colorSpace;
 	vx_channel_range_e channelRange;
+	vx_size            pixelSizeInBitsDenom;
 } AgoImageFormatDescription;
 
 /*! \brief AMD data structure to specify target affinity.
