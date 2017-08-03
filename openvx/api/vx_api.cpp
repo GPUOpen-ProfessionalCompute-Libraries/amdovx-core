@@ -99,6 +99,32 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context
 	return status;
 }
 
+/**
+* \brief Get custom image format description.
+* \ingroup vx_framework_reference
+* \param [in] context The context.
+* \param [in] format The image format.
+* \param [out] desc The image format description.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+* \retval VX_ERROR_INVALID_FORMAT if format is already in use.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context context, vx_df_image format, AgoImageFormatDescription * desc)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context)) {
+		status = VX_ERROR_INVALID_FORMAT;
+		vx_uint32 pixelSizeInBitsNum, pixelSizeInBitsDenom;
+		if (desc->planes == 1 && !agoGetImageComponentsAndPlanes(context, format, &desc->components, &desc->planes, &pixelSizeInBitsNum, &pixelSizeInBitsDenom, &desc->colorSpace, &desc->channelRange)) {
+			desc->pixelSizeInBitsNum = pixelSizeInBitsNum;
+			desc->pixelSizeInBitsDenom = pixelSizeInBitsDenom;
+			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
 /*! \brief Retrieves the context from any reference from within a context.
 * \param [in] reference The reference from which to extract the context.
 * \ingroup group_context
