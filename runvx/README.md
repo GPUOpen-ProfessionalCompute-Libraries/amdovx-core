@@ -288,7 +288,7 @@ This project uses OpenCV for camera capture and image display.
 Here are few examples that demonstrate use of RUNVX prototyping tool.
 
 ### Canny Edge Detector
-This example demonstrates building OpenVX graph for Canny edge detector. Use [raja-koduri-640x480.jpg](http://cdn5.applesencia.com/wp-content/blogs.dir/17/files/2013/04/raja-koduri-640x480.jpg) for this example.
+This example demonstrates building OpenVX graph for Canny edge detector. Use [face1.jpg](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-core/blob/master/examples/images/face1.jpg) for this example.
 
     % runvx[.exe] file canny.gdf
 
