@@ -295,11 +295,11 @@ This example demonstrates building OpenVX graph for Canny edge detector. Use [fa
 File **canny.gdf**:
 
     # create input and output images
-    data input  = image:640,480,RGB2
-    data output = image:640,480,U008
+    data input  = image:480,360,RGB2
+    data output = image:480,360,U008
     
     # specify input source for input image and request for displaying input and output images
-    read input  raja-koduri-640x480.jpg
+    read input  examples/images/face1.jpg
     view input  inputWindow
     view output edgesWindow
     
