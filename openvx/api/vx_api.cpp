@@ -116,7 +116,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context
 	if (agoIsValidContext(context)) {
 		status = VX_ERROR_INVALID_FORMAT;
 		vx_uint32 pixelSizeInBitsNum, pixelSizeInBitsDenom;
-		if (desc->planes == 1 && !agoGetImageComponentsAndPlanes(context, format, &desc->components, &desc->planes, &pixelSizeInBitsNum, &pixelSizeInBitsDenom, &desc->colorSpace, &desc->channelRange)) {
+		if (!agoGetImageComponentsAndPlanes(context, format, &desc->components, &desc->planes, &pixelSizeInBitsNum, &pixelSizeInBitsDenom, &desc->colorSpace, &desc->channelRange)) {
 			desc->pixelSizeInBitsNum = pixelSizeInBitsNum;
 			desc->pixelSizeInBitsDenom = pixelSizeInBitsDenom;
 			status = VX_SUCCESS;
