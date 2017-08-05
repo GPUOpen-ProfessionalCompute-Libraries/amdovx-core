@@ -288,18 +288,18 @@ This project uses OpenCV for camera capture and image display.
 Here are few examples that demonstrate use of RUNVX prototyping tool.
 
 ### Canny Edge Detector
-This example demonstrates building OpenVX graph for Canny edge detector. Use [raja-koduri-640x480.jpg](http://cdn5.applesencia.com/wp-content/blogs.dir/17/files/2013/04/raja-koduri-640x480.jpg) for this example.
+This example demonstrates building OpenVX graph for Canny edge detector. Use [face1.jpg](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-core/blob/master/examples/images/face1.jpg) for this example.
 
     % runvx[.exe] file canny.gdf
 
 File **canny.gdf**:
 
     # create input and output images
-    data input  = image:640,480,RGB2
-    data output = image:640,480,U008
+    data input  = image:480,360,RGB2
+    data output = image:480,360,U008
     
     # specify input source for input image and request for displaying input and output images
-    read input  raja-koduri-640x480.jpg
+    read input  examples/images/face1.jpg
     view input  inputWindow
     view output edgesWindow
     
@@ -315,28 +315,28 @@ File **canny.gdf**:
     node org.khronos.openvx.canny_edge_detector luma hyst gradient_size !NORM_L1 output
 
 ### Skintone Pixel Detector
-This example demonstrates building OpenVX graph for pixel-based skin tone detector [Peer et al. 2003]. Use [raja-koduri-640x480.jpg](http://cdn5.applesencia.com/wp-content/blogs.dir/17/files/2013/04/raja-koduri-640x480.jpg) for this example.
+This example demonstrates building OpenVX graph for pixel-based skin tone detector [Peer et al. 2003]. Use [face1.jpg](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-core/blob/master/examples/images/face1.jpg) for this example.
 
     % runvx[.exe] file skintonedetect.gdf
 
 File **skintonedetect.gdf**:
 
     # create input and output images
-    data input  = image:640,480,RGB2
-    data output = image:640,480,U008
-    
+    data input  = image:480,360,RGB2
+    data output = image:480,360,U008
+
     # specify input source for input image and request for displaying input and output images
-    read input  raja-koduri-640x480.jpg
+    read input  examples/images/face1.jpg
     view input  inputWindow
     view output skintoneWindow
-    
+
     # threshold objects
     data thr95  = threshold:BINARY,UINT8:INIT,95 # threshold for computing R > 95
     data thr40  = threshold:BINARY,UINT8:INIT,40 # threshold for computing G > 40
     data thr20  = threshold:BINARY,UINT8:INIT,20 # threshold for computing B > 20
     data thr15  = threshold:BINARY,UINT8:INIT,15 # threshold for computing R-G > 15
     data thr0   = threshold:BINARY,UINT8:INIT,0  # threshold for computing R-B > 0
-    
+
     # virtual image objects for intermediate results
     data R      = image-virtual:0,0,U008
     data G      = image-virtual:0,0,U008
@@ -351,26 +351,27 @@ File **skintonedetect.gdf**:
     data and1   = image-virtual:0,0,U008
     data and2   = image-virtual:0,0,U008
     data and3   = image-virtual:0,0,U008
-    
+
     # extract R,G,B channels and compute R-G and R-B
     node org.khronos.openvx.channel_extract input !CHANNEL_R R # extract R channel
     node org.khronos.openvx.channel_extract input !CHANNEL_G G # extract G channel
     node org.khronos.openvx.channel_extract input !CHANNEL_B B # extract B channel
     node org.khronos.openvx.subtract R   G   !SATURATE RmG  # compute R-G
     node org.khronos.openvx.subtract R   B   !SATURATE RmB  # compute R-B
-    
+
     # compute threshold
     node org.khronos.openvx.threshold R   thr95 R95         # compute R > 95
     node org.khronos.openvx.threshold G   thr40 G40         # compute G > 40
     node org.khronos.openvx.threshold B   thr20 B20         # compute B > 20
     node org.khronos.openvx.threshold RmG thr15 RmG15       # compute RmG > 15
     node org.khronos.openvx.threshold RmB thr0  RmB0        # compute RmB > 0
-    
+
     # aggregate all thresholded values to produce SKIN pixels
     node org.khronos.openvx.and R95   G40   and1            # compute R95 & G40
     node org.khronos.openvx.and and1  B20   and2            # compute B20 & and1
     node org.khronos.openvx.and RmG15 RmB0  and3            # compute RmG15 & RmB0
     node org.khronos.openvx.and and2 and3 output            # compute and2 & and3 as output
+
 
 ### Feature Tracker
 The feature tracker example demonstrates building an application with two 
