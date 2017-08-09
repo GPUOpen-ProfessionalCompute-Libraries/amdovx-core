@@ -3141,13 +3141,6 @@ AgoContext::~AgoContext()
 		agraph = next;
 	}
 
-	agoResetDataList(&dataList);
-	for (AgoData * data = graph_garbage_data; data;) {
-		AgoData * item = data;
-		data = data->next;
-		delete item;
-	}
-
 	for (AgoNode * node = graph_garbage_node; node;) {
 		AgoNode * item = node;
 		node = node->next;
@@ -3157,6 +3150,13 @@ AgoContext::~AgoContext()
 	for (AgoGraph * graph = graph_garbage_list; graph;) {
 		AgoGraph * item = graph;
 		graph = graph->next;
+		delete item;
+	}
+
+	agoResetDataList(&dataList);
+	for (AgoData * data = graph_garbage_data; data;) {
+		AgoData * item = data;
+		data = data->next;
 		delete item;
 	}
 

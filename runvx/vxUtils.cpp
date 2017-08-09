@@ -91,6 +91,24 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "BT601_525|VX_COLOR_SPACE_BT601_525", VX_COLOR_SPACE_BT601_525 },
 	{ "BT601_625|VX_COLOR_SPACE_BT601_625", VX_COLOR_SPACE_BT601_625 },
 	{ "BT709|VX_COLOR_SPACE_BT709", VX_COLOR_SPACE_BT709 },
+	{ "VX_NN_POOLING_MAX", VX_NN_POOLING_MAX },
+	{ "VX_NN_POOLING_AVG", VX_NN_POOLING_AVG },
+	{ "VX_NN_DS_SIZE_ROUNDING_FLOOR", VX_NN_DS_SIZE_ROUNDING_FLOOR },
+	{ "VX_NN_DS_SIZE_ROUNDING_CEILING", VX_NN_DS_SIZE_ROUNDING_CEILING },
+	{ "VX_NN_ACTIVATION_LOGISTIC", VX_NN_ACTIVATION_LOGISTIC },
+	{ "VX_NN_ACTIVATION_HYPERBOLIC_TAN", VX_NN_ACTIVATION_HYPERBOLIC_TAN },
+	{ "VX_NN_ACTIVATION_RELU", VX_NN_ACTIVATION_RELU },
+	{ "VX_NN_ACTIVATION_BRELU", VX_NN_ACTIVATION_BRELU },
+	{ "VX_NN_ACTIVATION_SOFTRELU", VX_NN_ACTIVATION_SOFTRELU },
+	{ "VX_NN_ACTIVATION_ABS", VX_NN_ACTIVATION_ABS },
+	{ "VX_NN_ACTIVATION_SQUARE", VX_NN_ACTIVATION_SQUARE },
+	{ "VX_NN_ACTIVATION_SQRT", VX_NN_ACTIVATION_SQRT },
+	{ "VX_NN_ACTIVATION_LINEAR", VX_NN_ACTIVATION_LINEAR },
+	{ "VX_NN_NORMALIZATION_SAME_MAP", VX_NN_NORMALIZATION_SAME_MAP },
+	{ "VX_NN_NORMALIZATION_ACROSS_MAPS", VX_NN_NORMALIZATION_ACROSS_MAPS },
+	{ "VX_TYPE_NN_CONV_PARAMS", VX_TYPE_NN_CONV_PARAMS},
+	{ "VX_TYPE_NN_DECONV_PARAMS", VX_TYPE_NN_DECONV_PARAMS },
+	{ "VX_TYPE_NN_ROIPOOL_PARAMS", VX_TYPE_NN_ROIPOOL_PARAMS },
 	// error codes
 	{ "VX_FAILURE", VX_FAILURE },
 	{ "VX_ERROR_REFERENCE_NONZERO", VX_ERROR_REFERENCE_NONZERO },
@@ -597,6 +615,60 @@ int ReadScalarToString(vx_scalar scalar, char str[])
 		// unknown types will be printed in hex
 		vx_uint64 v = 0; ERROR_CHECK(vxReadScalarValue(scalar, &v));
 		sprintf(str, "0x%" PRIx64, v);
+	}
+	return 0;
+}
+
+// get scalar value from struct types.
+int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value)
+{
+	auto getNextToken = [](const char *& s, char * token, size_t size) -> const char * {
+		size_t i = 0;
+		for (size--; *s && *s != ',' && *s != '}'; s++) {
+			if(i < size)
+				token[i++] = *s;
+		}
+		if(*s == ',' || *s == '}')
+			s++;
+		token[i] = '\0';
+		return token;
+	};
+
+	char token[1024];
+	const char * s = &str[1];
+	if(str[0] != '{') {
+		printf("ERROR: GetScalarValueForStructTypes: string must start with '{'\n");
+		return -1;
+	}
+	else if (type == VX_TYPE_NN_CONV_PARAMS) {
+		vx_nn_convolution_params_t v;
+		v.padding_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.padding_y = atoi(getNextToken(s, token, sizeof(token)));
+		v.overflow_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.rounding_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.down_scale_size_rounding = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.dilation_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.dilation_y = atoi(getNextToken(s, token, sizeof(token)));
+		*(vx_nn_convolution_params_t *)value = v;
+	}
+	else if (type == VX_TYPE_NN_DECONV_PARAMS) {
+		vx_nn_deconvolution_params_t v;
+		v.padding_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.padding_y = atoi(getNextToken(s, token, sizeof(token)));
+		v.overflow_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.rounding_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.a_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.a_y = atoi(getNextToken(s, token, sizeof(token)));
+		*(vx_nn_deconvolution_params_t *)value = v;
+	}
+	else if (type == VX_TYPE_NN_ROIPOOL_PARAMS) {
+		vx_nn_roi_pool_params_t v;
+		v.pool_type = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		*(vx_nn_roi_pool_params_t *)value = v;
+	}
+	else {
+		printf("ERROR: GetScalarValueForStructTypes: unsupported type 0x%08x\n", type);
+		return -1;
 	}
 	return 0;
 }
