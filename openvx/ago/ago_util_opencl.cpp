@@ -1785,8 +1785,9 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 			node->opencl_output_array_param_index_plus1 = 0;
 			node->opencl_local_buffer_usage_mask = 0;
 			node->opencl_local_buffer_size_in_bytes = 0;
+			vx_uint32 work_dim = 3;
 			status = node->akernel->opencl_codegen_callback_f(node, (vx_reference *)node->paramList, node->paramCount,
-				true, node->opencl_name, node->opencl_code, node->opencl_build_options, 3, supernode->opencl_global_work,
+				true, node->opencl_name, node->opencl_code, node->opencl_build_options, work_dim, supernode->opencl_global_work,
 				supernode->opencl_local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
 		}
 		if (status != VX_SUCCESS) {
