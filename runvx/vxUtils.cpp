@@ -622,46 +622,52 @@ int ReadScalarToString(vx_scalar scalar, char str[])
 // get scalar value from struct types.
 int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value)
 {
-	if (type == VX_TYPE_NN_CONV_PARAMS) {
+	auto getNextToken = [](const char *& s, char * token, size_t size) -> const char * {
+		size_t i = 0;
+		for (size--; *s && *s != ',' && *s != '}'; s++) {
+			if(i < size)
+				token[i++] = *s;
+		}
+		if(*s == ',' || *s == '}')
+			s++;
+		token[i] = '\0';
+		return token;
+	};
+
+	char token[1024];
+	const char * s = &str[1];
+	if(str[0] != '{') {
+		printf("ERROR: GetScalarValueForStructTypes: string must start with '{'\n");
+		return -1;
+	}
+	else if (type == VX_TYPE_NN_CONV_PARAMS) {
 		vx_nn_convolution_params_t v;
-		char* tok = std::strtok((char *)str, ",");
-		v.padding_x = atoi(tok);
-		tok = std::strtok(NULL, ",");
-		v.padding_y = atoi(tok);
-		tok = std::strtok(NULL, ",");
-		v.overflow_policy = ovxName2Enum(tok);
-		tok = std::strtok(NULL, ",");
-		v.rounding_policy = ovxName2Enum(tok);
-		tok = std::strtok(NULL, ",");
-		v.down_scale_size_rounding = ovxName2Enum(tok);
-		tok = std::strtok(NULL, ",");
-		v.dilation_x = atoi(tok);
-		tok = std::strtok(NULL, ",");
-		v.dilation_y = atoi(tok);
+		v.padding_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.padding_y = atoi(getNextToken(s, token, sizeof(token)));
+		v.overflow_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.rounding_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.down_scale_size_rounding = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.dilation_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.dilation_y = atoi(getNextToken(s, token, sizeof(token)));
 		*(vx_nn_convolution_params_t *)value = v;
 	}
 	else if (type == VX_TYPE_NN_DECONV_PARAMS) {
 		vx_nn_deconvolution_params_t v;
-		char *tok = std::strtok((char *)str, ",");
-		v.padding_x = atoi(tok);
-		tok = std::strtok(NULL, ",");
-		v.padding_y = atoi(tok);
-		tok = std::strtok(NULL, ",");
-		v.overflow_policy = ovxName2Enum(tok);
-		tok = std::strtok(NULL, ",");
-		v.rounding_policy = ovxName2Enum(tok);
-		tok = std::strtok(NULL, ",");
-		v.a_x = atoi(tok);
-		tok = std::strtok(NULL, ",");
-		v.a_y = atoi(tok);
+		v.padding_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.padding_y = atoi(getNextToken(s, token, sizeof(token)));
+		v.overflow_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.rounding_policy = ovxName2Enum(getNextToken(s, token, sizeof(token)));
+		v.a_x = atoi(getNextToken(s, token, sizeof(token)));
+		v.a_y = atoi(getNextToken(s, token, sizeof(token)));
 		*(vx_nn_deconvolution_params_t *)value = v;
 	}
 	else if (type == VX_TYPE_NN_ROIPOOL_PARAMS) {
 		vx_nn_roi_pool_params_t v;
-		v.pool_type = ovxName2Enum(str);
+		v.pool_type = ovxName2Enum(getNextToken(s, token, sizeof(token)));
 		*(vx_nn_roi_pool_params_t *)value = v;
 	}
 	else {
+		printf("ERROR: GetScalarValueForStructTypes: unsupported type 0x%08x\n", type);
 		return -1;
 	}
 	return 0;
