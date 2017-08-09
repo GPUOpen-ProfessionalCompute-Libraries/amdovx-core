@@ -70,6 +70,9 @@ float coclock2sec(coclock_t tstart, coclock_t tend)
 }
 #endif
 
+//! \brief The macro for fread error checking and reporting.
+#define ERROR_CHECK_FREAD_(call,value) {size_t retVal = (call); if(retVal != (size_t)value) { fprintf(stderr,"ERROR: fread call expected to return [ %d elements ] but returned [ %d elements ] at " __FILE__ "#%d\n", (int)value, (int)retVal, __LINE__); return -1; }  }
+
 void show_usage(const char * program)
 {
     printf("Usage: %s [platform-options] [-I<include-dir>] [[-D<name>=<value>] ...] <kernel.[cl|elf]>\n", program);
@@ -558,7 +561,7 @@ main(int argc, char * argv[])
         {
             FILE * fp = fopen(sourceelffile, "rb"); if (!fp) { fprintf(stderr, "ERROR: unable to open '%s'\n", sourceelffile); return !!- 1; }
             char * elfsrc = source + 2 * sizeof(size_t);
-            size_t elfsize = fread(elfsrc, 1, sourcesize, fp);
+            size_t elfsize = fread(elfsrc, 1, sizeof(elfsrc), fp);
             fclose(fp);
             ((size_t *)source)[0] = 1;
             ((size_t *)source)[1] = elfsize;
@@ -739,7 +742,7 @@ main(int argc, char * argv[])
             fseek(fp, 0L, SEEK_END); size[narg] = ftell(fp); fseek(fp, 0L, SEEK_SET);
             if (size[narg] < 1) { fprintf(stderr, "ERROR: invalid size value passed/derived for argument #%d\n", narg); return !!- 1; }
             arg[narg] = calloc(size[narg], 1); if (!arg[narg]) { fprintf(stderr, "ERROR: calloc(%d) failed\n", size[narg]); return !!- 1; }
-            fread(arg[narg], size[narg], 1, fp); fclose(fp);
+            ERROR_CHECK_FREAD_(fread(arg[narg], size[narg], 1, fp),1); fclose(fp);
         }
         else if (strncmp(argv[0], "lm#", 3) == 0)
         {
@@ -851,7 +854,7 @@ main(int argc, char * argv[])
                 fp = fopen(p, "rb"); if (!fp) { fprintf(stderr, "ERROR: unable to open '%s'\n", p); return !!- 1; } 
                 if (size[narg] < 1) { fseek(fp, 0L, SEEK_END); size[narg] = ftell(fp); fseek(fp, 0L, SEEK_SET); }
                 if (skip[narg] > 0) fseek(fp, (long)(size[narg] * skip[narg]), SEEK_SET);
-                fread(arg[narg], size[narg], 1, fp);
+                ERROR_CHECK_FREAD_(fread(arg[narg], size[narg], 1, fp),1);
                 fclose(fp);
             }
         }
@@ -941,7 +944,7 @@ main(int argc, char * argv[])
                 if (size[narg] < 1) { fprintf(stderr, "ERROR: invalid size value passed/derived for argument #%d\n", narg); return !!- 1; }
                 arg[narg] = calloc(size[narg], 1); if (!arg[narg]) { fprintf(stderr, "ERROR: calloc(%d) failed\n", size[narg]); return !!- 1; }
                 if (skip[narg] > 0) fseek(fp, (long)(size[narg] * skip[narg]), SEEK_SET);
-                if (!noload) fread(arg[narg], size[narg], 1, fp);
+                if (!noload) { ERROR_CHECK_FREAD_(fread(arg[narg], size[narg], 1, fp), 1); }
                 fclose(fp);
             }
             if (!arg[narg])
