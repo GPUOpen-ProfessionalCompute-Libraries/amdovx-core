@@ -3563,6 +3563,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxReadScalarValue(vx_scalar ref, void *ptr)
 				strcpy((char *)ptr, (const char *)data->buffer);
 				break;
 			default:
+				if (data->buffer) {
+					memcpy(ptr, data->buffer, data->size);
+					break;
+				}
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
 			}
@@ -3661,6 +3665,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxWriteScalarValue(vx_scalar ref, const void 
 				data->isInitialized = vx_true_e;
 				break;
 			default:
+				if (ptr) {
+					memcpy(data->buffer,ptr, data->size);
+					break;
+				}
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
 			}

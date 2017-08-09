@@ -181,6 +181,7 @@ int ReadScalarToString(vx_scalar scalar, char str[]);
 int WriteScalarFromString(vx_scalar scalar, const char str[]);
 int GetScalarValueFromString(vx_enum type, const char str[], vx_uint64 * value);
 int PutScalarValueToString(vx_enum type, const void * value, char str[]);
+int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value);
 
 // useful utility functions:
 //   stristr -- case insensitive version of strstr
