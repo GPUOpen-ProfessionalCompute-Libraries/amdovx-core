@@ -1561,6 +1561,10 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 	supernode->height = height;
 	supernode->opencl_global_work[0] = (((width + 7) >> 3) + (work_group_width  - 1)) & ~(work_group_width  - 1);
 	supernode->opencl_global_work[1] = (  height           + (work_group_height - 1)) & ~(work_group_height - 1);
+	supernode->opencl_global_work[2] = 1;
+	supernode->opencl_local_work[0] = work_group_width;
+	supernode->opencl_local_work[1] = work_group_height;
+	supernode->opencl_local_work[2] = 1;
 	for (size_t index = 0; index < supernode->dataList.size(); index++) {
 		AgoData * data = supernode->dataList[index];
 	}
@@ -1769,12 +1773,9 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 			node->opencl_output_array_param_index_plus1 = 0;
 			node->opencl_local_buffer_usage_mask = 0;
 			node->opencl_local_buffer_size_in_bytes = 0;
-			vx_uint32 work_dim = 2;
-			vx_size global_work[3] = { supernode->opencl_global_work[0], supernode->opencl_global_work[1], 1 };
-			vx_size local_work[3] = { work_group_width, work_group_height, 1 };
 			status = node->akernel->opencl_codegen_callback_f(node, (vx_reference *)node->paramList, node->paramCount,
-				true, node->opencl_name, node->opencl_code, node->opencl_build_options, work_dim, global_work, 
-				local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
+				true, node->opencl_name, node->opencl_code, node->opencl_build_options, 3, supernode->opencl_global_work,
+				supernode->opencl_local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
 		}
 		if (status != VX_SUCCESS) {
 			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: agoGpuOclSuperNodeFinalize: kernel %s in group#%d is not supported yet\n", node->akernel->name, supernode->group);
@@ -2056,9 +2057,9 @@ int agoGpuOclSuperNodeLaunch(AgoGraph * graph, AgoSuperNode * supernode)
 	// launch the kernel
 	int64_t stime = agoGetClockCounter();
 	cl_int err;
-	err = clEnqueueNDRangeKernel(supernode->opencl_cmdq, supernode->opencl_kernel, 2, NULL, supernode->opencl_global_work, NULL, 0, NULL, &supernode->opencl_event);
+	err = clEnqueueNDRangeKernel(supernode->opencl_cmdq, supernode->opencl_kernel, 3, NULL, supernode->opencl_global_work, supernode->opencl_local_work, 0, NULL, &supernode->opencl_event);
 	if (err) { 
-		agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,2,*,%dx%d,...) failed(%d) for group#%d\n", (cl_uint)supernode->opencl_global_work[0], (cl_uint)supernode->opencl_global_work[1], err, supernode->group);
+		agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,3,*,{%d,%d,%d},{%d,%d,%d},...) failed(%d) for group#%d\n", (cl_uint)supernode->opencl_global_work[0], (cl_uint)supernode->opencl_global_work[1], (cl_uint)supernode->opencl_global_work[2], (cl_uint)supernode->opencl_local_work[0], (cl_uint)supernode->opencl_local_work[1], (cl_uint)supernode->opencl_local_work[2], err, supernode->group);
 		return -1; 
 	}
 	err = clFlush(supernode->opencl_cmdq);
@@ -2234,9 +2235,14 @@ int agoGpuOclSingleNodeLaunch(AgoGraph * graph, AgoNode * node)
 	// launch the kernel
 	int64_t stime = agoGetClockCounter();
 	cl_int err;
-	err = clEnqueueNDRangeKernel(graph->opencl_cmdq, node->opencl_kernel, node->opencl_work_dim, NULL, node->opencl_global_work, NULL, 0, NULL, &node->opencl_event);
+	if(node->opencl_local_work[0] != 0) {
+		err = clEnqueueNDRangeKernel(graph->opencl_cmdq, node->opencl_kernel, node->opencl_work_dim, NULL, node->opencl_global_work, node->opencl_local_work, 0, NULL, &node->opencl_event);
+	}
+	else {
+		err = clEnqueueNDRangeKernel(graph->opencl_cmdq, node->opencl_kernel, node->opencl_work_dim, NULL, node->opencl_global_work, NULL, 0, NULL, &node->opencl_event);
+	}
 	if (err) { 
-		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,%d,*,{%d,%d,%d},...) failed(%d) for %s\n", (cl_uint)node->opencl_work_dim, (cl_uint)node->opencl_global_work[0], (cl_uint)node->opencl_global_work[1], (cl_uint)node->opencl_global_work[2], err, node->akernel->name);
+		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,%d,*,{%d,%d,%d},{%d,%d,%d},...) failed(%d) for %s\n", (cl_uint)node->opencl_work_dim, (cl_uint)node->opencl_global_work[0], (cl_uint)node->opencl_global_work[1], (cl_uint)node->opencl_global_work[2], (cl_uint)node->opencl_local_work[0], (cl_uint)node->opencl_local_work[1], (cl_uint)node->opencl_local_work[2], err, node->akernel->name);
 		return -1; 
 	}
 	err = clFlush(graph->opencl_cmdq);
