@@ -149,6 +149,19 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 				else ReportError("ERROR: invalid tensor read option: %s\n", option);
 			}
 		}
+		else if (!_stricmp(ioType, "init"))
+		{ // init request syntax: init,<fileName>
+			FILE * fp = fopen(RootDirUpdated(fileName), "rb");
+			if (!fp) {
+				ReportError("ERROR: Unable to open: %s\n", fileName);
+			}
+			if (fread(m_data, 1, m_size, fp) != m_size)
+				ReportError("ERROR: not enough data (%d bytes) in %s\n", (vx_uint32)m_size, fileName);
+			vx_status status = vxCopyTensorPatch(m_tensor, m_num_of_dims, nullptr, nullptr, m_stride, m_data, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+			fclose(fp);
+			if (status != VX_SUCCESS)
+				ReportError("ERROR: vxCopyTensorPatch: write failed (%d)\n", status);
+		}
 		else if (!_stricmp(ioType, "write"))
 		{ // write request syntax: write,<fileName>[,ascii|binary]
 			m_fileNameWrite.assign(RootDirUpdated(fileName));
