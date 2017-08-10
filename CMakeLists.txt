@@ -19,8 +19,22 @@
 # THE SOFTWARE.
 
 cmake_minimum_required (VERSION 2.8)
-project(amdovx)
+project(amdovx-core)
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+find_package(OpenCL QUIET)
+find_package(OpenCV QUIET)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+file(COPY examples DESTINATION ${CMAKE_BINARY_DIR})
 
 add_subdirectory(openvx)
 add_subdirectory(runvx)
-add_subdirectory(runcl)
+
+if(OpenCL_FOUND)
+    add_subdirectory(runcl)
+endif(OpenCL_FOUND)

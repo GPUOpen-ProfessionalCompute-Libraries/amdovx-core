@@ -32,14 +32,14 @@ Build this project to generate AMD OpenVX library and RunVX executable.
 * Refer to [runvx/README.md](runvx/README.md) for RunVX details. 
 
 ### Build using Visual Studio Professional 2013 on 64-bit Windows 10/8.1/7
-* Install OpenCV 3.0 [download](http://opencv.org/downloads.html) for RunVX tool to support camera capture and image display
+* Install OpenCV 3 with contrib [download](https://github.com/opencv/opencv/releases) for RunVX tool to support camera capture and image display (optional)
 * OpenCV_DIR environment variable should point to OpenCV/build folder
 * Use amdovx-core/amdovx.sln to build for x64 platform
 * If AMD GPU (or OpenCL 2.0) is not available, set build flag ENABLE_OPENCL=0 in openvx/openvx.vcxproj and runvx/runvx.vcxproj.
 
 ### Build using CMake
 * Install CMake 2.8 or newer [download](http://cmake.org/download/).
-* Install OpenCV 3.0 [download](https://github.com/opencv/opencv/releases/tag/3.0.0) for RunVX tool to support camera capture and image display
+* Install OpenCV 3 with contrib [download](https://github.com/opencv/opencv/releases) for RunVX tool to support camera capture and image display (optional)
 * OpenCV_DIR environment variable should point to OpenCV/build folder
 * Install libssl-dev on linux (optional)
 * Use CMake to configure and generate Makefile

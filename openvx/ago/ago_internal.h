@@ -508,7 +508,8 @@ struct AgoSuperNode {
 	cl_program opencl_program;
 	cl_kernel opencl_kernel;
 	cl_event opencl_event;
-	size_t opencl_global_work[2];
+	size_t opencl_global_work[3];
+	size_t opencl_local_work[3];
 #endif
 	vx_status status;
 	vx_perf_t perf;
