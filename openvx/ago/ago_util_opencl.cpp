@@ -1738,6 +1738,11 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 		if (node->akernel->func) {
 			node->opencl_code = "";
 			status = node->akernel->func(node, ago_kernel_cmd_opencl_codegen);
+			for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+				node->opencl_global_work[dim] = 1;
+				node->opencl_local_work[dim] = 1;
+			}
+			node->opencl_work_dim = 3;
 		}
 		else if (node->akernel->opencl_codegen_callback_f) {
 			// generation function declaration
@@ -1785,10 +1790,14 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 			node->opencl_output_array_param_index_plus1 = 0;
 			node->opencl_local_buffer_usage_mask = 0;
 			node->opencl_local_buffer_size_in_bytes = 0;
-			vx_uint32 work_dim = 3;
 			status = node->akernel->opencl_codegen_callback_f(node, (vx_reference *)node->paramList, node->paramCount,
-				true, node->opencl_name, node->opencl_code, node->opencl_build_options, work_dim, supernode->opencl_global_work,
+				true, node->opencl_name, node->opencl_code, node->opencl_build_options, node->opencl_work_dim, supernode->opencl_global_work,
 				supernode->opencl_local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
+			for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+				node->opencl_global_work[dim] = 1;
+				node->opencl_local_work[dim] = 1;
+			}
+			node->opencl_work_dim = 3;
 		}
 		if (status != VX_SUCCESS) {
 			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: agoGpuOclSuperNodeFinalize: kernel %s in group#%d is not supported yet\n", node->akernel->name, supernode->group);
@@ -2244,6 +2253,11 @@ int agoGpuOclSingleNodeLaunch(AgoGraph * graph, AgoNode * node)
 			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: agoGpuOclSingleNodeLaunch: invalid opencl_global_work_update_callback_f failed (%d) for kernel %s\n", status, node->akernel->name);
 			return -1;
 		}
+		for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+			node->opencl_global_work[dim] = 1;
+			node->opencl_local_work[dim] = 1;
+		}
+		node->opencl_work_dim = 3;
 	}
 	// launch the kernel
 	int64_t stime = agoGetClockCounter();
