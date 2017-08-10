@@ -198,6 +198,14 @@ enum vx_memory_type_amd_e {
 	VX_MEMORY_TYPE_OPENCL = VX_ENUM_BASE(VX_ID_KHRONOS, VX_ENUM_MEMORY_TYPE) + 0x2,
 };
 
+/*! \brief The image color space list used by the <tt>\ref VX_IMAGE_SPACE</tt> attribute of a <tt>\ref vx_image</tt>.
+* \ingroup group_image
+*/
+enum vx_color_space_amd_e {
+	/*! \brief Use to indicate that the BT.2020 coefficients are used for conversions. */
+	VX_COLOR_SPACE_BT2020 = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_COLOR_SPACE) + 0x1,
+};
+
 /*! \brief Based on the VX_DF_IMAGE definition.
 * \note Use <tt>\ref vx_df_image</tt> to contain these values.
 */
@@ -221,9 +229,10 @@ typedef struct _vx_tensor_t * vx_tensor;
 typedef struct {
 	vx_size            components;
 	vx_size            planes;
-	vx_size            pixelSizeInBits;
+	vx_size            pixelSizeInBitsNum;
 	vx_color_space_e   colorSpace;
 	vx_channel_range_e channelRange;
+	vx_size            pixelSizeInBitsDenom;
 } AgoImageFormatDescription;
 
 /*! \brief AMD data structure to specify target affinity.
@@ -519,6 +528,19 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetModuleHandle(vx_node node, const vx_char
 * \retval VX_ERROR_INVALID_FORMAT if format is already in use.
 */
 VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context context, vx_df_image format, const AgoImageFormatDescription * desc);
+
+/**
+* \brief Get custom image format description.
+* \ingroup vx_framework_reference
+* \param [in] context The context.
+* \param [in] format The image format.
+* \param [out] desc The image format description.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+* \retval VX_ERROR_INVALID_FORMAT if format is already in use.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context context, vx_df_image format, AgoImageFormatDescription * desc);
 
 #ifdef  __cplusplus
 }

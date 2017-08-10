@@ -1015,7 +1015,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 			data->isNotFullyConfigured = vx_true_e;
 			return 0;
 		}
-		if (agoGetImageComponentsAndPlanes(acontext, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits, &data->u.img.color_space, &data->u.img.channel_range)) return -1;
+		if (agoGetImageComponentsAndPlanes(acontext, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits_num, &data->u.img.pixel_size_in_bits_denom, &data->u.img.color_space, &data->u.img.channel_range)) return -1;
 		if (data->u.img.planes > 1) {
 			if (data->children) 
 				delete [] data->children;
@@ -1027,17 +1027,17 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 				if (agoGetImagePlaneFormat(acontext, data->u.img.format, data->u.img.width, data->u.img.height, child, &format, &width, &height)) return -1;
 				char imgdesc[64]; sprintf(imgdesc, "image%s:%4.4s,%d,%d", data->isVirtual ? "-virtual" : "", FORMAT_STR(format), width, height);
 				if ((data->children[child] = agoCreateDataFromDescription(acontext, agraph, imgdesc, false)) == NULL) return -1;
-				if (agoGetImageComponentsAndPlanes(acontext, data->children[child]->u.img.format, &data->children[child]->u.img.components, &data->children[child]->u.img.planes, &data->children[child]->u.img.pixel_size_in_bits, &data->children[child]->u.img.color_space, &data->children[child]->u.img.channel_range)) return -1;
+				if (agoGetImageComponentsAndPlanes(acontext, data->children[child]->u.img.format, &data->children[child]->u.img.components, &data->children[child]->u.img.planes, &data->children[child]->u.img.pixel_size_in_bits_num, &data->children[child]->u.img.pixel_size_in_bits_denom, &data->children[child]->u.img.color_space, &data->children[child]->u.img.channel_range)) return -1;
 				data->children[child]->siblingIndex = (vx_int32)child;
 				data->children[child]->parent = data;
 				data->children[child]->u.img.x_scale_factor_is_2 = (data->children[child]->u.img.width  != data->u.img.width ) ? 1 : 0;
 				data->children[child]->u.img.y_scale_factor_is_2 = (data->children[child]->u.img.height != data->u.img.height) ? 1 : 0;
-				data->children[child]->u.img.stride_in_bytes = ALIGN16((data->children[child]->u.img.width * data->children[child]->u.img.pixel_size_in_bits + 7) >> 3);
+				data->children[child]->u.img.stride_in_bytes = ALIGN16(ImageWidthInBytesCeil(data->children[child]->u.img.width, data->children[child]));
 				data->children[child]->opencl_buffer_offset = OPENCL_IMAGE_FIXED_OFFSET + data->children[child]->u.img.stride_in_bytes;
 			}
 		}
 		else if (data->u.img.planes == 1) {
-			data->u.img.stride_in_bytes = ALIGN16((data->u.img.width * data->u.img.pixel_size_in_bits + 7) >> 3);
+			data->u.img.stride_in_bytes = ALIGN16(ImageWidthInBytesCeil(data->u.img.width , data));
 			data->opencl_buffer_offset = OPENCL_IMAGE_FIXED_OFFSET + data->u.img.stride_in_bytes;
 		}
 		// sanity check and update
@@ -1064,7 +1064,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 		data->u.img.isUniform = vx_true_e;
 		memcpy(&data->u.img.format, desc, sizeof(data->u.img.format));
 		if (sscanf(desc + 5, "%d,%d," VX_FMT_SIZE "," VX_FMT_SIZE "," VX_FMT_SIZE "," VX_FMT_SIZE "", &data->u.img.width, &data->u.img.height, &data->u.img.uniform[0], &data->u.img.uniform[1], &data->u.img.uniform[2], &data->u.img.uniform[3]) < 2) return -1;
-		if (agoGetImageComponentsAndPlanes(acontext, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits, &data->u.img.color_space, &data->u.img.channel_range)) return -1;
+		if (agoGetImageComponentsAndPlanes(acontext, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits_num, &data->u.img.pixel_size_in_bits_denom, &data->u.img.color_space, &data->u.img.channel_range)) return -1;
 		data->isInitialized = vx_true_e;
 		if (data->u.img.planes > 1) {
 			if (data->children) 
@@ -1083,7 +1083,7 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 
 				char imgdesc[64]; sprintf(imgdesc, "image-uniform%s:%4.4s,%d,%d,%d", data->isVirtual ? "-virtual" : "", FORMAT_STR(format), width, height, value);
 				if ((data->children[child] = agoCreateDataFromDescription(acontext, agraph, imgdesc, false)) == NULL) return -1;
-				if (agoGetImageComponentsAndPlanes(acontext, data->children[child]->u.img.format, &data->children[child]->u.img.components, &data->children[child]->u.img.planes, &data->children[child]->u.img.pixel_size_in_bits, &data->children[child]->u.img.color_space, &data->children[child]->u.img.channel_range)) return -1;
+				if (agoGetImageComponentsAndPlanes(acontext, data->children[child]->u.img.format, &data->children[child]->u.img.components, &data->children[child]->u.img.planes, &data->children[child]->u.img.pixel_size_in_bits_num, &data->children[child]->u.img.pixel_size_in_bits_denom, &data->children[child]->u.img.color_space, &data->children[child]->u.img.channel_range)) return -1;
 				data->children[child]->isInitialized = vx_true_e;
 				data->children[child]->parent = data;
 				data->children[child]->u.img.x_scale_factor_is_2 = (data->children[child]->u.img.width  != data->u.img.width ) ? 1 : 0;
@@ -1100,12 +1100,12 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 					data->children[child]->u.img.minValue = (vx_int32)data->children[child]->u.img.uniform[0];
 					data->children[child]->u.img.maxValue = (vx_int32)data->children[child]->u.img.uniform[0];
 				}
-				data->children[child]->u.img.stride_in_bytes = ALIGN16((data->children[child]->u.img.width * data->children[child]->u.img.pixel_size_in_bits + 7) >> 3);
+				data->children[child]->u.img.stride_in_bytes = ALIGN16(ImageWidthInBytesCeil(data->children[child]->u.img.width, data->children[child]));
 				data->children[child]->opencl_buffer_offset = OPENCL_IMAGE_FIXED_OFFSET + data->children[child]->u.img.stride_in_bytes;
 			}
 		}
 		else if (data->u.img.planes == 1) {
-			data->u.img.stride_in_bytes = ALIGN16((data->u.img.width * data->u.img.pixel_size_in_bits + 7) >> 3);
+			data->u.img.stride_in_bytes = ALIGN16(ImageWidthInBytesCeil(data->u.img.width, data));
 			data->opencl_buffer_offset = OPENCL_IMAGE_FIXED_OFFSET + data->u.img.stride_in_bytes;
 		}
 		// set min/max values as uniform value
@@ -1201,14 +1201,14 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 				data->children[child]->u.img.stride_in_bytes = dataMaster->children[child]->u.img.stride_in_bytes;
 				data->children[child]->opencl_buffer_offset = dataMaster->children[child]->opencl_buffer_offset +
 					data->children[child]->u.img.rect_roi.start_y * data->children[child]->u.img.stride_in_bytes +
-					((data->children[child]->u.img.rect_roi.start_x * (vx_uint32)data->children[child]->u.img.pixel_size_in_bits) >> 3);
+					ImageWidthInBytesFloor(data->children[child]->u.img.rect_roi.start_x, data->children[child]);
 			}
 		}
 		else if (data->u.img.planes == 1) {
 			data->u.img.stride_in_bytes = dataMaster->u.img.stride_in_bytes;
 			data->opencl_buffer_offset = dataMaster->opencl_buffer_offset +
 				data->u.img.rect_roi.start_y * data->u.img.stride_in_bytes +
-				((data->u.img.rect_roi.start_x * (vx_uint32)data->u.img.pixel_size_in_bits) >> 3);
+				ImageWidthInBytesFloor(data->u.img.rect_roi.start_x, data);
 		}
 		// sanity check and update
 		if (agoDataSanityCheckAndUpdate(data)) {
@@ -1246,10 +1246,10 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 			char imgdesc[64];
 			sprintf(imgdesc, "image%s:%4.4s,%d,%d", data->isVirtual ? "-virtual" : "", FORMAT_STR(data->u.pyr.format), width, height);
 			if ((data->children[level] = agoCreateDataFromDescription(acontext, agraph, imgdesc, false)) == NULL) return -1;
-			if (agoGetImageComponentsAndPlanes(acontext, data->u.pyr.format, &data->children[level]->u.img.components, &data->children[level]->u.img.planes, &data->children[level]->u.img.pixel_size_in_bits, &data->children[level]->u.img.color_space, &data->children[level]->u.img.channel_range)) return -1;
+			if (agoGetImageComponentsAndPlanes(acontext, data->u.pyr.format, &data->children[level]->u.img.components, &data->children[level]->u.img.planes, &data->children[level]->u.img.pixel_size_in_bits_num, &data->children[level]->u.img.pixel_size_in_bits_denom, &data->children[level]->u.img.color_space, &data->children[level]->u.img.channel_range)) return -1;
 			data->children[level]->siblingIndex = (vx_int32)level;
 			data->children[level]->parent = data;
-			data->children[level]->u.img.stride_in_bytes = ALIGN16((data->children[level]->u.img.width * data->children[level]->u.img.pixel_size_in_bits + 7) >> 3);
+			data->children[level]->u.img.stride_in_bytes = ALIGN16(ImageWidthInBytesCeil(data->children[level]->u.img.width, data->children[level]));
 			data->children[level]->opencl_buffer_offset = OPENCL_IMAGE_FIXED_OFFSET + data->children[level]->u.img.stride_in_bytes;
 			if (data->u.pyr.scale == VX_SCALE_PYRAMID_ORB) {
 				float orb_scale_factor[4] = {
@@ -1809,35 +1809,36 @@ void agoGenerateVirtualDataName(AgoGraph * agraph, const char * postfix, std::st
 
 int agoInitializeImageComponentsAndPlanes(AgoContext * acontext)
 {
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_RGBX, 4, 1, 4 * 8, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_RGB, 3, 1, 3 * 8, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_NV12, 3, 2, 0, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_NV21, 3, 2, 0, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_UYVY, 3, 1, 2 * 8, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_YUYV, 3, 1, 2 * 8, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_IYUV, 3, 3, 0, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_YUV4, 3, 3, 0, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U8, 1, 1, 8, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U16, 1, 1, 16, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_S16, 1, 1, 16, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U32, 1, 1, 32, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_S32, 1, 1, 32, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U1_AMD, 1, 1, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F32x3_AMD, 3, 1, 3 * 32, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F32_AMD, 1, 1, 32, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F64_AMD, 1, 1, 64, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
-	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F16_AMD, 1, 1, 16, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_RGBX, 4, 1, 4 * 8, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_RGB, 3, 1, 3 * 8, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_NV12, 3, 2, 0, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_NV21, 3, 2, 0, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_UYVY, 3, 1, 2 * 8, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_YUYV, 3, 1, 2 * 8, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_IYUV, 3, 3, 0, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_YUV4, 3, 3, 0, 1, VX_COLOR_SPACE_DEFAULT, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U8, 1, 1, 8, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U16, 1, 1, 16, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_S16, 1, 1, 16, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U32, 1, 1, 32, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_S32, 1, 1, 32, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_U1_AMD, 1, 1, 1, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F32x3_AMD, 3, 1, 3 * 32, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F32_AMD, 1, 1, 32, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F64_AMD, 1, 1, 64, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
+	agoSetImageComponentsAndPlanes(acontext, VX_DF_IMAGE_F16_AMD, 1, 1, 16, 1, VX_COLOR_SPACE_NONE, VX_CHANNEL_RANGE_FULL);
 	return 0;
 }
 
-int agoSetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size components, vx_size planes, vx_size pixelSizeInBits, vx_color_space_e colorSpace, vx_channel_range_e channelRange)
+int agoSetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size components, vx_size planes, vx_uint32 pixelSizeInBitsNum, vx_uint32 pixelSizeInBitsDenom, vx_color_space_e colorSpace, vx_channel_range_e channelRange)
 {
 	// check to make sure that there are duplicate entries
 	for (auto it = acontext->image_format_list.begin(); it != acontext->image_format_list.end(); it++) {
 		if (it->format == format) {
 			if (it->desc.components == components &&
 				it->desc.planes == planes &&
-				it->desc.pixelSizeInBits == pixelSizeInBits &&
+				it->desc.pixelSizeInBitsNum == pixelSizeInBitsNum &&
+				it->desc.pixelSizeInBitsDenom == pixelSizeInBitsDenom &&
 				it->desc.colorSpace == colorSpace &&
 				it->desc.channelRange == channelRange)
 			{
@@ -1855,21 +1856,23 @@ int agoSetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx
 	item.format = format;
 	item.desc.components = components;
 	item.desc.planes = planes;
-	item.desc.pixelSizeInBits = pixelSizeInBits;
+	item.desc.pixelSizeInBitsNum = pixelSizeInBitsNum;
+	item.desc.pixelSizeInBitsDenom = pixelSizeInBitsDenom;
 	item.desc.colorSpace = colorSpace;
 	item.desc.channelRange = channelRange;
 	acontext->image_format_list.push_back(item);
 	return 0;
 }
 
-int agoGetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size * pComponents, vx_size * pPlanes, vx_size * pPixelSizeInBits, vx_color_space_e * pColorSpace, vx_channel_range_e * pChannelRange)
+int agoGetImageComponentsAndPlanes(AgoContext * acontext, vx_df_image format, vx_size * pComponents, vx_size * pPlanes, vx_uint32 * pPixelSizeInBitsNum, vx_uint32 * pPixelSizeInBitsDenom, vx_color_space_e * pColorSpace, vx_channel_range_e * pChannelRange)
 {
 	// search format in context
 	for (auto it = acontext->image_format_list.begin(); it != acontext->image_format_list.end(); it++) {
 		if (it->format == format) {
 			*pComponents = it->desc.components;
 			*pPlanes = it->desc.planes;
-			*pPixelSizeInBits = it->desc.pixelSizeInBits;
+			*pPixelSizeInBitsNum = (vx_uint32)it->desc.pixelSizeInBitsNum;
+			*pPixelSizeInBitsDenom = (vx_uint32)it->desc.pixelSizeInBitsDenom;
 			*pColorSpace = it->desc.colorSpace;
 			*pChannelRange = it->desc.channelRange;
 			return 0;
@@ -2132,11 +2135,11 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 		}
 		else if (data->u.img.isROI) {
 			// re-compute image parameters to deal with parameter changes
-			agoGetImageComponentsAndPlanes(data->ref.context, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits, &data->u.img.color_space, &data->u.img.channel_range);
+			agoGetImageComponentsAndPlanes(data->ref.context, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits_num, &data->u.img.pixel_size_in_bits_denom, &data->u.img.color_space, &data->u.img.channel_range);
 			// get buffer stride and compute buffer start address
 			data->u.img.stride_in_bytes = data->u.img.roiMasterImage->u.img.stride_in_bytes;
-			if ((data->u.img.rect_roi.start_x * data->u.img.pixel_size_in_bits) & 7) {
-				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: detected U1 ROI that doesn't start on 8-bit boundary: %s at (%d,%d)\n", data->name.length() ? data->name.c_str() : "<?>", data->u.img.rect_roi.start_x, data->u.img.rect_roi.start_y);
+			if (((data->u.img.rect_roi.start_x * data->u.img.pixel_size_in_bits_num) & 7) || (data->u.img.pixel_size_in_bits_denom > 1)) {
+				agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: detected ROI that doesn't start on 8-bit boundary: %s at (%d,%d)\n", data->name.length() ? data->name.c_str() : "<?>", data->u.img.rect_roi.start_x, data->u.img.rect_roi.start_y);
 				return -1;
 			}
 			// set valid region to overlap of parent and ROI
@@ -2157,11 +2160,11 @@ int agoDataSanityCheckAndUpdate(AgoData * data)
 			// re-compute image parameters to deal with parameter changes
 			// NOTE: image buffer stride needs to be multiple of 16 bytes to support CPU/GPU optimizations
 			// NOTE: image buffer height needs to be mutliple of 16 to support OpenCL workgroup height=16
-			agoGetImageComponentsAndPlanes(data->ref.context, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits, &data->u.img.color_space, &data->u.img.channel_range);
+			agoGetImageComponentsAndPlanes(data->ref.context, data->u.img.format, &data->u.img.components, &data->u.img.planes, &data->u.img.pixel_size_in_bits_num, &data->u.img.pixel_size_in_bits_denom, &data->u.img.color_space, &data->u.img.channel_range);
 			// calculate other attributes and buffer size:
 			//   - make sure that the stride is multiple of 16 bytes
 			if (data->import_type == VX_IMPORT_TYPE_NONE) {
-				data->u.img.stride_in_bytes = ALIGN16((data->u.img.width * data->u.img.pixel_size_in_bits + 7) >> 3);
+				data->u.img.stride_in_bytes = ALIGN16(ImageWidthInBytesCeil(data->u.img.width, data));
 				data->size = ALIGN16(data->u.img.height) * data->u.img.stride_in_bytes;
 			}
 			else {
@@ -2366,7 +2369,7 @@ int agoAllocData(AgoData * data)
 			// get the region from master image
 			data->buffer = data->u.img.roiMasterImage->buffer +
 				data->u.img.rect_roi.start_y * data->u.img.stride_in_bytes +
-				((data->u.img.rect_roi.start_x * data->u.img.pixel_size_in_bits) >> 3);
+				ImageWidthInBytesFloor(data->u.img.rect_roi.start_x, data);
 		}
 		else {
 			if (data->u.img.isUniform) {

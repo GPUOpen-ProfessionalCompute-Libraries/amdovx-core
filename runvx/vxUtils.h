@@ -172,6 +172,8 @@ vx_enum ovxName2Enum(const char * name);
 void ComputeChecksum(char checkSumString[64], vx_image image, vx_rectangle_t * rectRegion);
 // compare rectangular region specified within an image and return number of pixels mismatching
 size_t CompareImage(vx_image image, vx_rectangle_t * rectRegion, vx_uint8 * refImage, float errLimitMin, float errLimitMax, int frameNumber, const char * fileNameRef);
+// get image width in bytes from image
+vx_size CalculateImageWidthInBytes(vx_image image);
 // read image
 int ReadImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp);
 // write image
