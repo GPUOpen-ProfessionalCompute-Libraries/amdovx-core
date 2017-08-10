@@ -116,6 +116,11 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 				if (status == VX_SUCCESS) {
 					if (node->opencl_type & NODE_OPENCL_TYPE_FULL_KERNEL) {
 						strcpy(node->opencl_name, NODE_OPENCL_KERNEL_NAME);
+						for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+							node->opencl_global_work[dim] = 1;
+							node->opencl_local_work[dim] = 1;
+						}
+						node->opencl_work_dim = 3;
 					}
 					else {
 						agoAddLogEntry(&node->akernel->ref, VX_FAILURE, "ERROR: agoOptimizeDramaAllocGpuResources: doesn't support kernel %s as a standalone OpenCL kernel\n", node->akernel->name);
@@ -151,6 +156,11 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 					node->opencl_local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
 				if (status == VX_SUCCESS) {
 					node->opencl_type = NODE_OPENCL_TYPE_FULL_KERNEL;
+					for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+						node->opencl_global_work[dim] = 1;
+						node->opencl_local_work[dim] = 1;
+					}
+					node->opencl_work_dim = 3;
 				}
 				else if (status != AGO_ERROR_KERNEL_NOT_IMPLEMENTED) {
 					agoAddLogEntry(&node->akernel->ref, status, "ERROR: agoOptimizeDramaAllocGpuResources: kernel %s failed to generate OpenCL code (error %d)\n", node->akernel->name, status);

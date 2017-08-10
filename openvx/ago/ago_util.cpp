@@ -2987,6 +2987,7 @@ AgoSuperNode::AgoSuperNode()
 {
 #if ENABLE_OPENCL
 	memset(&opencl_global_work, 0, sizeof(opencl_global_work));
+	memset(&opencl_local_work, 0, sizeof(opencl_local_work));
 #endif
 	memset(&perf, 0, sizeof(perf));
 }
