@@ -624,6 +624,9 @@ int CVxParamImage::Finalize()
 	m_compareCountMatches = 0;
 	m_compareCountMismatches = 0;
 
+	// Calculate image width for single plane image:
+	vx_size width_in_bytes = (m_planes == 1) ? CalculateImageWidthInBytes(m_image) : 0;
+
 	// compute frame size in bytes
 	m_frameSize = 0;
 	for (vx_uint32 plane = 0; plane < (vx_uint32)m_planes; plane++) {
@@ -633,7 +636,8 @@ int CVxParamImage::Finalize()
 		if (vxAccessImagePatch(m_image, &m_rectFull, plane, &addr, (void **)&dst, VX_READ_ONLY) == VX_SUCCESS) {
 			vx_size width = (addr.dim_x * addr.scale_x) / VX_SCALE_UNITY;
 			vx_size height = (addr.dim_y * addr.scale_y) / VX_SCALE_UNITY;
-			vx_size width_in_bytes = (m_format == VX_DF_IMAGE_U1_AMD) ? ((width + 7) >> 3) : (width * addr.stride_x);
+			if (addr.stride_x != 0)
+				width_in_bytes = (width * addr.stride_x);
 			m_frameSize += width_in_bytes * height;
 			ERROR_CHECK(vxCommitImagePatch(m_image, &m_rectFull, plane, &addr, (void *)dst));
 		}

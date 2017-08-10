@@ -198,6 +198,14 @@ enum vx_memory_type_amd_e {
 	VX_MEMORY_TYPE_OPENCL = VX_ENUM_BASE(VX_ID_KHRONOS, VX_ENUM_MEMORY_TYPE) + 0x2,
 };
 
+/*! \brief The image color space list used by the <tt>\ref VX_IMAGE_SPACE</tt> attribute of a <tt>\ref vx_image</tt>.
+* \ingroup group_image
+*/
+enum vx_color_space_amd_e {
+	/*! \brief Use to indicate that the BT.2020 coefficients are used for conversions. */
+	VX_COLOR_SPACE_BT2020 = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_COLOR_SPACE) + 0x1,
+};
+
 /*! \brief Based on the VX_DF_IMAGE definition.
 * \note Use <tt>\ref vx_df_image</tt> to contain these values.
 */
