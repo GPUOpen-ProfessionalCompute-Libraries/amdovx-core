@@ -3054,6 +3054,7 @@ AgoGraph::AgoGraph()
 	  virtualDataGenerationCount{ 0 }, optimizer_flags{ AGO_GRAPH_OPTIMIZER_FLAGS_DEFAULT }, verified{ false }, enable_performance_profiling{ false }, execFrameCount{ 0 }
 #if ENABLE_OPENCL
 	, supernodeList{ nullptr }, opencl_cmdq{ nullptr }, opencl_device{ nullptr }
+	, enable_node_level_opencl_flush{ true }
 #endif
 {
 	memset(&dataList, 0, sizeof(dataList));

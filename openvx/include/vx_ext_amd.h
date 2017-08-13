@@ -188,6 +188,8 @@ enum vx_directive_amd_e {
 	/*! \brief collect performance profile capture. */
 	VX_DIRECTIVE_AMD_ENABLE_PROFILE_CAPTURE  = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x03,
 	VX_DIRECTIVE_AMD_DISABLE_PROFILE_CAPTURE = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x04,
+	/*! \brief disable node level flush for a graph. */
+	VX_DIRECTIVE_AMD_DISABLE_OPENCL_FLUSH    = VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_DIRECTIVE) + 0x05,
 };
 
 /*! \brief An enumeration of additional memory type imports.
