@@ -1576,6 +1576,22 @@ int agoVerifyGraph(AgoGraph * graph)
 	//    - single writers
 	//    - no loops
 	status = agoOptimizeDramaComputeGraphHierarchy(graph);
+	if (status) {
+		return status;
+	}
+
+#if ENABLE_OPENCL
+	// if all nodes run on GPU, clear enable_node_level_opencl_flush
+	bool cpuTargetBufferNodesExists = false;
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_CPU &&
+			!node->akernel->opencl_buffer_access_enable)
+			cpuTargetBufferNodesExists = true;
+	}
+	if(!cpuTargetBufferNodesExists) {
+		graph->enable_node_level_opencl_flush = false;
+	}
+#endif
 
 	return status;
 }
@@ -1992,6 +2008,7 @@ int agoExecuteGraph(AgoGraph * graph)
 	memset(&graph->opencl_perf, 0, sizeof(graph->opencl_perf));
 #endif
 	// execute one nodes in one hierarchical level at a time
+	bool opencl_buffer_access_enable = false;
 	for (auto enode = graph->nodeList.head; enode;) {
 		// get snode..enode with next hierarchical_level 
 		auto hierarchical_level = enode->hierarchical_level;
@@ -2035,16 +2052,27 @@ int agoExecuteGraph(AgoGraph * graph)
 		for (auto node = snode; node != enode; node = node->next) {
 			if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_CPU) {
 #if ENABLE_OPENCL
-				agoPerfProfileEntry(graph, ago_profile_type_wait_begin, &node->ref);
-				if (nodeLaunchHierarchicalLevel > 0 && nodeLaunchHierarchicalLevel < node->hierarchical_level) {
-					status = agoWaitForNodesCompletion(graph);
-					if (status != VX_SUCCESS) {
-						agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: agoWaitForNodesCompletion failed (%d:%s)\n", status, agoEnum2Name(status));
-						return status;
+				opencl_buffer_access_enable |= node->akernel->opencl_buffer_access_enable;
+				if (!node->akernel->opencl_buffer_access_enable) {
+					agoPerfProfileEntry(graph, ago_profile_type_wait_begin, &node->ref);
+					if (nodeLaunchHierarchicalLevel > 0 && nodeLaunchHierarchicalLevel < node->hierarchical_level) {
+						status = agoWaitForNodesCompletion(graph);
+						if (status != VX_SUCCESS) {
+							agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: agoWaitForNodesCompletion failed (%d:%s)\n", status, agoEnum2Name(status));
+							return status;
+						}
+						nodeLaunchHierarchicalLevel = 0;
 					}
-					nodeLaunchHierarchicalLevel = 0;
+					if(opencl_buffer_access_enable) {
+						cl_int err = clFinish(graph->opencl_cmdq);
+						if (err) {
+							agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clFinish(graph) => %d\n", err);
+							return VX_FAILURE;
+						}
+						opencl_buffer_access_enable = false;
+					}
+					agoPerfProfileEntry(graph, ago_profile_type_wait_end, &node->ref);
 				}
-				agoPerfProfileEntry(graph, ago_profile_type_wait_end, &node->ref);
 				agoPerfProfileEntry(graph, ago_profile_type_copy_begin, &node->ref);
 				// make sure that all input buffers are synched
 				if (node->akernel->opencl_buffer_access_enable) {
@@ -2130,6 +2158,7 @@ int agoExecuteGraph(AgoGraph * graph)
 		}
 	}
 #if ENABLE_OPENCL
+	agoPerfProfileEntry(graph, ago_profile_type_wait_begin, &graph->ref);
 	if (nodeLaunchHierarchicalLevel > 0) {
 		status = agoWaitForNodesCompletion(graph);
 		if (status != VX_SUCCESS) {
@@ -2137,6 +2166,14 @@ int agoExecuteGraph(AgoGraph * graph)
 			return status;
 		}
 	}
+	if(opencl_buffer_access_enable) {
+		cl_int err = clFinish(graph->opencl_cmdq);
+		if (err) {
+			agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clFinish(graph) => %d\n", err);
+			return VX_FAILURE;
+		}
+	}
+	agoPerfProfileEntry(graph, ago_profile_type_wait_end, &graph->ref);
 	graph->opencl_perf_total.kernel_enqueue += graph->opencl_perf.kernel_enqueue;
 	graph->opencl_perf_total.kernel_wait += graph->opencl_perf.kernel_wait;
 	graph->opencl_perf_total.buffer_read += graph->opencl_perf.buffer_read;
@@ -2270,6 +2307,14 @@ vx_status agoDirective(vx_reference reference, vx_enum directive)
 					status = VX_ERROR_NOT_SUPPORTED;
 				}
 				break;
+			case VX_DIRECTIVE_AMD_DISABLE_OPENCL_FLUSH:
+				if (reference->type == VX_TYPE_GRAPH) {
+					((AgoGraph *)reference)->enable_node_level_opencl_flush = false;
+				}
+				else {
+					status = VX_ERROR_NOT_SUPPORTED;
+				}
+				break;
 			default:
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
@@ -2321,7 +2366,11 @@ vx_status agoGraphDumpPerformanceProfile(AgoGraph * graph, const char * fileName
 			if (entry.ref->type == VX_TYPE_GRAPH) strcpy(name, "GRAPH");
 			else if (entry.ref->type == VX_TYPE_NODE) strncpy(name, ((AgoNode *)entry.ref)->akernel->name, sizeof(name) - 1);
 			else agoGetDataName(name, (AgoData *)entry.ref);
-			fprintf(fp, "%6d,%4d,%13.3f,%s\n", entry.id, entry.type, (float)(entry.time - stime) * factor, name);
+			static const char * type_str[] = {
+				"launch(s)", "launch(e)", "wait(s)", "wait(e)", "copy(s)", "copy(e)", "exec(s)", "exec(e)",
+				"8", "9", "10", "11", "12", "13", "14", "15"
+			};
+			fprintf(fp, "%6d,%-9.9s,%13.3f,%s\n", entry.id, type_str[entry.type], (float)(entry.time - stime) * factor, name);
 		}
 		// clear the profiling data
 		graph->performance_profile.clear();

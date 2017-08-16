@@ -2272,10 +2272,12 @@ int agoGpuOclSingleNodeLaunch(AgoGraph * graph, AgoNode * node)
 		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,%d,*,{%d,%d,%d},{%d,%d,%d},...) failed(%d) for %s\n", (cl_uint)node->opencl_work_dim, (cl_uint)node->opencl_global_work[0], (cl_uint)node->opencl_global_work[1], (cl_uint)node->opencl_global_work[2], (cl_uint)node->opencl_local_work[0], (cl_uint)node->opencl_local_work[1], (cl_uint)node->opencl_local_work[2], err, node->akernel->name);
 		return -1; 
 	}
-	err = clFlush(graph->opencl_cmdq);
-	if (err) { 
-		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clFlush(supernode) failed(%d) for %s\n", err, node->akernel->name);
-		return -1; 
+	if(graph->enable_node_level_opencl_flush) {
+		err = clFlush(graph->opencl_cmdq);
+		if (err) {
+			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clFlush(supernode) failed(%d) for %s\n", err, node->akernel->name);
+			return -1;
+		}
 	}
 	int64_t etime = agoGetClockCounter();
 	graph->opencl_perf.kernel_enqueue += etime - stime;

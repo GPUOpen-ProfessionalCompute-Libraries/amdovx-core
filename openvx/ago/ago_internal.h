@@ -617,6 +617,7 @@ struct AgoGraph {
 	AgoSuperNode * supernodeList;
 	cl_command_queue opencl_cmdq;
 	cl_device_id opencl_device;
+	bool enable_node_level_opencl_flush;
 #endif
 	AgoTargetAffinityInfo_ attr_affinity;
 	vx_uint32 execFrameCount;

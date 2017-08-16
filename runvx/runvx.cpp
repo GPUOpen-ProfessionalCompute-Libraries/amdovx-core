@@ -59,6 +59,8 @@ void show_usage(const char * program, bool detail)
 	printf("      Set context affinity to CPU or GPU.\n");
 	printf("  -dump-profile\n");
 	printf("      Print performance profiling information after graph launch.\n");
+	printf("  -enable-profile\n");
+	printf("      use directive VX_DIRECTIVE_AMD_ENABLE_PROFILE_CAPTURE when graph is created\n");
 	printf("  -discard-compare-errors\n");
 	printf("      Continue graph processing even if compare mismatches occur.\n");
 	printf("  -disable-virtual\n");
@@ -90,6 +92,7 @@ int main(int argc, char * argv[])
 	int arg, frameStart = 0, frameEnd = 1;
 	bool frameCountSpecified = false;
 	int waitKeyDelayInMilliSeconds = -1; // -ve indicates no user preference
+	bool enableFullProfile = false, disableNodeFlushForCL = false;
 	for (arg = 1; arg < argc; arg++){
 		if (argv[arg][0] == '-'){
 			if (!_stricmp(argv[arg], "-h")) {
@@ -142,6 +145,12 @@ int main(int argc, char * argv[])
 			else if (!_stricmp(argv[arg], "-dump-profile")) {
 				enableDumpProfile = true;
 			}
+			else if (!_stricmp(argv[arg], "-enable-profile")) {
+				enableFullProfile = true;
+			}
+			else if (!_stricmp(argv[arg], "-disable-opencl-node-flush")) {
+				disableNodeFlushForCL = true;
+			}
 			else if (!_stricmp(argv[arg], "-dump-gdf") || !_stricmp(argv[arg], "-ago-dump")) { // TBD: remove -ago-dump
 				enableDumpGDF = true;
 			}
@@ -186,7 +195,7 @@ int main(int argc, char * argv[])
 	int errorCode = 0;
 	try {
 		// initialize engine
-		if (engine.Initialize(argCount, defaultTargetAffinity, defaultTargetInfo, enableScheduleGraph, disableVirtual) < 0) throw - 1;
+		if (engine.Initialize(argCount, defaultTargetAffinity, defaultTargetInfo, enableScheduleGraph, disableVirtual, enableFullProfile, disableNodeFlushForCL) < 0) throw - 1;
 		if (doSetGraphOptimizerFlags) {
 			engine.SetGraphOptimizerFlags(graphOptimizerFlags);
 		}
