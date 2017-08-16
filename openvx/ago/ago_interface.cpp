@@ -2158,22 +2158,22 @@ int agoExecuteGraph(AgoGraph * graph)
 		}
 	}
 #if ENABLE_OPENCL
+	agoPerfProfileEntry(graph, ago_profile_type_wait_begin, &graph->ref);
 	if (nodeLaunchHierarchicalLevel > 0) {
-		agoPerfProfileEntry(graph, ago_profile_type_wait_begin, &graph->ref);
 		status = agoWaitForNodesCompletion(graph);
 		if (status != VX_SUCCESS) {
 			agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: agoWaitForNodesCompletion failed (%d:%s)\n", status, agoEnum2Name(status));
 			return status;
 		}
-		if(opencl_buffer_access_enable) {
-			cl_int err = clFinish(graph->opencl_cmdq);
-			if (err) {
-				agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clFinish(graph) => %d\n", err);
-				return VX_FAILURE;
-			}
-		}
-		agoPerfProfileEntry(graph, ago_profile_type_wait_end, &graph->ref);
 	}
+	if(opencl_buffer_access_enable) {
+		cl_int err = clFinish(graph->opencl_cmdq);
+		if (err) {
+			agoAddLogEntry(NULL, VX_FAILURE, "ERROR: clFinish(graph) => %d\n", err);
+			return VX_FAILURE;
+		}
+	}
+	agoPerfProfileEntry(graph, ago_profile_type_wait_end, &graph->ref);
 	graph->opencl_perf_total.kernel_enqueue += graph->opencl_perf.kernel_enqueue;
 	graph->opencl_perf_total.kernel_wait += graph->opencl_perf.kernel_wait;
 	graph->opencl_perf_total.buffer_read += graph->opencl_perf.buffer_read;
