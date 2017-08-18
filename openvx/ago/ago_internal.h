@@ -418,10 +418,12 @@ struct AgoData {
 	std::list<MappedData> mapped;
 	vx_map_id nextMapId;
 	vx_uint32 hierarchical_level;
-	vx_uint32 hierarchical_life_start;
-	vx_uint32 hierarchical_life_end;
 	struct AgoNode * ownerOfUserBufferOpenCL;
 	std::list<AgoData *> roiDepList;
+	vx_uint32 hierarchical_life_start;
+	vx_uint32 hierarchical_life_end;
+	vx_uint32 initialization_flags;
+	vx_uint32 device_type_unused;
 public:
 	AgoData();
 	~AgoData();
@@ -511,6 +513,8 @@ struct AgoSuperNode {
 	size_t opencl_global_work[3];
 	size_t opencl_local_work[3];
 #endif
+	vx_uint32 hierarchical_level_start;
+	vx_uint32 hierarchical_level_end;
 	vx_status status;
 	vx_perf_t perf;
 public:
@@ -818,8 +822,9 @@ int agoGpuOclReleaseSuperNode(AgoSuperNode * supernode);
 int agoGpuOclReleaseData(AgoData * data);
 int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context);
 int agoGpuOclAllocBuffer(AgoData * data);
-int agoGpuOclAllocBuffers(AgoGraph * graph, AgoNode * node);
+int agoGpuOclAllocBuffers(AgoGraph * graph);
 int agoGpuOclSuperNodeMerge(AgoGraph * graph, AgoSuperNode * supernode, AgoNode * node);
+int agoGpuOclSuperNodeUpdate(AgoGraph * graph, AgoSuperNode * supernode);
 int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode);
 int agoGpuOclSuperNodeLaunch(AgoGraph * graph, AgoSuperNode * supernode);
 int agoGpuOclSuperNodeWait(AgoGraph * graph, AgoSuperNode * supernode);
