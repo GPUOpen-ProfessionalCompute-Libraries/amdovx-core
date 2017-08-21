@@ -1554,8 +1554,8 @@ int agoGpuOclSuperNodeUpdate(AgoGraph * graph, AgoSuperNode * supernode)
 		supernode->hierarchical_level_start = INT_MAX;
 		supernode->hierarchical_level_end = 0;
 		for (AgoNode * node : supernode->nodeList) {
-			supernode->hierarchical_level_start = std::min(supernode->hierarchical_level_start, node->hierarchical_level);
-			supernode->hierarchical_level_end = std::max(supernode->hierarchical_level_end, node->hierarchical_level);
+			supernode->hierarchical_level_start = min(supernode->hierarchical_level_start, node->hierarchical_level);
+			supernode->hierarchical_level_end = max(supernode->hierarchical_level_end, node->hierarchical_level);
 		}
 	}
 

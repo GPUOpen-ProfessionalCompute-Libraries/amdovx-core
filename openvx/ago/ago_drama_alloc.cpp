@@ -76,8 +76,8 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	}
 	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
 		for (AgoData * data : supernode->dataList) {
-			data->hierarchical_life_start = std::min(data->hierarchical_life_start, supernode->hierarchical_level_start);
-			data->hierarchical_life_end = std::max(data->hierarchical_life_end, supernode->hierarchical_level_end);
+			data->hierarchical_life_start = min(data->hierarchical_life_start, supernode->hierarchical_level_start);
+			data->hierarchical_life_end = max(data->hierarchical_life_end, supernode->hierarchical_level_end);
 		}
 	}
 	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
@@ -85,8 +85,8 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 			for (vx_uint32 i = 0; i < node->paramCount; i++) {
 				AgoData * data = node->paramList[i];
 				if (data) {
-					data->hierarchical_life_start = std::min(data->hierarchical_life_start, node->hierarchical_level);
-					data->hierarchical_life_end = std::max(data->hierarchical_life_end, node->hierarchical_level);
+					data->hierarchical_life_start = min(data->hierarchical_life_start, node->hierarchical_level);
+					data->hierarchical_life_end = max(data->hierarchical_life_end, node->hierarchical_level);
 				}
 			}
 		}
@@ -151,7 +151,7 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	auto calcMergedCost = [=](std::vector<AgoData *>& G, AgoData * data) -> size_t {
 		size_t size = data->size;
 		for (auto d : G) {
-			size = std::max(size, d->size);
+			size = max(size, d->size);
 		}
 		return size;
 	};
