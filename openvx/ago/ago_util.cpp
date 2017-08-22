@@ -2314,6 +2314,10 @@ int agoAllocData(AgoData * data)
 		// can't proceed further
 		return -1;
 	}
+    else if (data->isVirtual && (data->device_type_unused & AGO_TARGET_AFFINITY_CPU)) {
+		// no need to allocate: unused CPU buffers
+		return 0;
+	}
 
 	if (data->ref.type == VX_TYPE_DELAY) {
 		for (vx_uint32 child = 0; child < data->numChildren; child++) {
@@ -2937,6 +2941,7 @@ AgoData::AgoData()
 	  opencl_buffer_offset{ 0 },
 	  isVirtual{ vx_false_e }, isDelayed{ vx_false_e }, isNotFullyConfigured{ vx_false_e }, isInitialized{ vx_false_e }, siblingIndex{ 0 },
 	  numChildren{ 0 }, children{ nullptr }, parent{ nullptr }, inputUsageCount{ 0 }, outputUsageCount{ 0 }, inoutUsageCount{ 0 },
+	  initialization_flags{ 0 }, device_type_unused{ 0 },
 	  nextMapId{ 0 }, hierarchical_level{ 0 }, hierarchical_life_start{ 0 }, hierarchical_life_end{ 0 }, ownerOfUserBufferOpenCL{ nullptr }
 {
 	memset(&u, 0, sizeof(u));
@@ -2986,6 +2991,7 @@ AgoSuperNode::AgoSuperNode()
 #if ENABLE_OPENCL
 	  opencl_cmdq{ nullptr }, opencl_program{ nullptr }, opencl_kernel{ nullptr }, opencl_event{ nullptr },
 #endif
+	  hierarchical_level_start{ 0 }, hierarchical_level_end{ 0 },
 	  status{ VX_SUCCESS }
 {
 #if ENABLE_OPENCL

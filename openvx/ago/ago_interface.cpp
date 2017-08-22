@@ -1894,7 +1894,7 @@ static int agoDataSyncFromGpuToCpu(AgoGraph * graph, AgoNode * node, AgoData * d
 						if (size > 0) {
 							cl_int err = clEnqueueReadBuffer(opencl_cmdq, dataToSync->opencl_buffer, CL_TRUE, dataToSync->opencl_buffer_offset, size, dataToSync->buffer, 0, NULL, NULL);
 							if (err) {
-								agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: clEnqueueReadBuffer() => %d\n", err);
+								agoAddLogEntry((vx_reference)graph, VX_FAILURE, "ERROR: clEnqueueReadBuffer(0x%x,%s,%ld,%ld) => %d\n", dataToSync->ref.type, dataToSync->name.c_str(), dataToSync->opencl_buffer_offset, size, err);
 								return -1;
 							}
 						}

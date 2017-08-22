@@ -61,6 +61,202 @@ static int agoOptimizeDramaAllocRemoveUnusedData(AgoGraph * agraph)
 }
 
 #if ENABLE_OPENCL
+int agoGpuOclAllocBuffers(AgoGraph * graph)
+{
+	// get default target
+	vx_uint32 bufferMergeFlags = 0;
+	char textBuffer[1024];
+	if (agoGetEnvironmentVariable("AGO_BUFFER_MERGE_FLAGS", textBuffer, sizeof(textBuffer))) {
+		bufferMergeFlags = atoi(textBuffer);
+	}
+
+	// mark hierarchical level (start,end) of all data in the graph
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		for (vx_uint32 i = 0; i < node->paramCount; i++) {
+			AgoData * data = node->paramList[i];
+			if (data) {
+				data->hierarchical_life_start = INT_MAX;
+				data->hierarchical_life_end = 0;
+				data->initialization_flags = 0;
+				for (vx_uint32 j = 0; j < data->numChildren; j++) {
+					data->children[j]->hierarchical_life_start = INT_MAX;
+					data->children[j]->hierarchical_life_end = 0;
+					data->children[j]->initialization_flags = 0;
+				}
+			}
+		}
+	}
+	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
+		for (AgoData * data : supernode->dataList) {
+			data->hierarchical_life_start = min(data->hierarchical_life_start, supernode->hierarchical_level_start);
+			data->hierarchical_life_end = max(data->hierarchical_life_end, supernode->hierarchical_level_end);
+		}
+	}
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (!node->supernode) {
+			for (vx_uint32 i = 0; i < node->paramCount; i++) {
+				AgoData * data = node->paramList[i];
+				if (data) {
+					data->hierarchical_life_start = min(data->hierarchical_life_start, node->hierarchical_level);
+					data->hierarchical_life_end = max(data->hierarchical_life_end, node->hierarchical_level);
+					for (vx_uint32 j = 0; j < data->numChildren; j++) {
+						data->children[j]->hierarchical_life_start = min(data->children[j]->hierarchical_life_start, node->hierarchical_level);
+						data->children[j]->hierarchical_life_end = max(data->children[j]->hierarchical_life_end, node->hierarchical_level);
+					}
+				}
+			}
+		}
+	}
+
+	// get the list of virtual data (D) that need GPU buffers and mark if CPU access is not needed for virtual buffers
+	auto isDataValidForGd = [=](AgoData * data) -> bool {
+		return data && data->isVirtual;
+	};
+	std::vector<AgoData *> D;
+	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
+		for (size_t i = 0; i < supernode->dataList.size(); i++) {
+			AgoData * data = supernode->dataList[i];
+			if (supernode->dataInfo[i].needed_as_a_kernel_argument && isDataValidForGd(data) && (data->initialization_flags & 1) == 0) {
+				data->initialization_flags |= 1;
+				if (!(bufferMergeFlags & 2)) {
+					data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
+				}
+				D.push_back(data);
+			}
+		}
+	}
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (!node->supernode) {
+			if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU ||
+				node->akernel->opencl_buffer_access_enable)
+			{
+				for (vx_uint32 i = 0; i < node->paramCount; i++) {
+					AgoData * data = node->paramList[i];
+					if (isDataValidForGd(data) && (data->initialization_flags & 1) == 0) {
+						data->initialization_flags |= 1;
+						if (!(bufferMergeFlags & 2)) {
+							data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
+						}
+						D.push_back(data);
+					}
+				}
+			}
+		}
+	}
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (!node->supernode) {
+			if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_CPU &&
+				!node->akernel->opencl_buffer_access_enable)
+			{
+				for (vx_uint32 i = 0; i < node->paramCount; i++) {
+					AgoData * data = node->paramList[i];
+					if (data && data->isVirtual) {
+						data->device_type_unused &= ~AGO_TARGET_AFFINITY_CPU;
+						for (vx_uint32 j = 0; j < data->numChildren; j++) {
+							data->children[j]->device_type_unused &= ~AGO_TARGET_AFFINITY_CPU;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// get data groups (Gd)
+	auto getMemObjectType = [=](AgoData * data) -> cl_mem_object_type {
+		cl_mem_object_type obj_type = CL_MEM_OBJECT_BUFFER;
+		if (data->ref.type == VX_TYPE_LUT && data->u.lut.type == VX_TYPE_UINT8)
+			obj_type = CL_MEM_OBJECT_IMAGE1D;
+		return obj_type;
+	};
+	auto getMemObjectSize = [=](AgoData * data) -> size_t {
+		return data->opencl_buffer_offset + data->size;
+	};
+	auto isMergePossible = [=](std::vector<AgoData *>& G, AgoData * data) -> bool {
+		vx_uint32 s = data->hierarchical_life_start;
+		vx_uint32 e = data->hierarchical_life_end;
+		cl_mem_object_type dataMemType = getMemObjectType(data);
+		for (auto d : G) {
+			cl_mem_object_type dMemType = getMemObjectType(d);
+			if((dataMemType != dMemType) ||
+			   ( s      >= d->hierarchical_life_start &&  s      <= (d->hierarchical_life_end + 1)) ||
+			   ((e + 1) >= d->hierarchical_life_start && (e + 1) <= (d->hierarchical_life_end + 1)))
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+	auto calcMergedCost = [=](std::vector<AgoData *>& G, AgoData * data) -> size_t {
+		size_t size = getMemObjectSize(data);
+		for (auto d : G) {
+			size = max(size, getMemObjectSize(d));
+		}
+		return size;
+	};
+	std::vector< std::vector<AgoData *> > Gd;
+	std::vector< size_t > Gsize;
+	for (AgoData * data : D) {
+		size_t bestj = INT_MAX, bestCost = INT_MAX;
+		if (!(bufferMergeFlags & 1)) {
+			for (size_t j = 0; j < Gd.size(); j++) {
+				if(isMergePossible(Gd[j], data)) {
+					size_t cost = calcMergedCost(Gd[j], data);
+					if(cost < bestCost) {
+						bestj = j;
+						bestCost = cost;
+					}
+				}
+			}
+		}
+		if(bestj == INT_MAX) {
+			bestj = Gd.size();
+			bestCost = getMemObjectSize(data);
+			Gd.push_back(std::vector<AgoData *>());
+		}
+		Gd[bestj].push_back(data);
+	}
+
+	// allocate one GPU buffer per group
+	for (size_t j = 0; j < Gd.size(); j++) {
+		size_t k = 0;
+		for (size_t i = 1; i < Gd[j].size(); i++) {
+			if(getMemObjectSize(Gd[j][i]) > getMemObjectSize(Gd[j][k]))
+				k = i;
+		}
+		if (agoGpuOclAllocBuffer(Gd[j][k]) < 0) {
+			return -1;
+		}
+		for (size_t i = 0; i < Gd[j].size(); i++) {
+			if(i != k) {
+				Gd[j][i]->opencl_buffer = Gd[j][k]->opencl_buffer;
+				Gd[j][i]->opencl_buffer_offset = Gd[j][k]->opencl_buffer_offset;
+			}
+		}
+	}
+
+	// allocate GPU buffers if node scheduled on GPU using OpenCL or using opencl_buffer_access_enable
+	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
+		if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU ||
+			node->akernel->opencl_buffer_access_enable)
+		{
+			for (vx_uint32 i = 0; i < node->paramCount; i++) {
+				AgoData * data = node->paramList[i];
+				if (data && !data->opencl_buffer && !data->isVirtual) {
+					if (agoIsPartOfDelay(data)) {
+						int siblingTrace[AGO_MAX_DEPTH_FROM_DELAY_OBJECT], siblingTraceCount = 0;
+						data = agoGetSiblingTraceToDelayForUpdate(data, siblingTrace, siblingTraceCount);
+						if (!data) return -1;
+					}
+					if (agoGpuOclAllocBuffer(data) < 0) {
+						return -1;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 {
 	// check to make sure that GPU resources are needed
@@ -186,10 +382,6 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 				}
 				// link supernode into node
 				node->supernode = supernode;
-				// make sure that the GPU buffer resources are allocated in node
-				if (agoGpuOclAllocBuffers(graph, node) < 0) {
-					return -1;
-				}
 				// initialize supernode with OpenCL information
 				supernode->isGpuOclSuperNode = true;
 				supernode->opencl_cmdq = graph->opencl_cmdq;
@@ -200,32 +392,33 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 			}
 		}
 		if (supernode) {
-			// finalize
-			if (agoGpuOclSuperNodeFinalize(graph, supernode) < 0) {
-				return -1;
-			}
 			// add supernode to the master list
 			supernode->next = graph->supernodeList;
 			graph->supernodeList = supernode;
 		}
 	}
-	// allocate and finalize single nodes with GPU
-	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
-		if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU && node->attr_affinity.group == 0) {
-			// make sure that the GPU buffer resources are allocated in node
-			if (agoGpuOclAllocBuffers(graph, node) < 0) {
-				return -1;
-			}
-			if (agoGpuOclSingleNodeFinalize(graph, node) < 0) {
-				return -1;
-			}
+
+	// update supernodes for buffer usage and hierarchical levels
+	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
+		if (agoGpuOclSuperNodeUpdate(graph, supernode) < 0) {
+			return -1;
 		}
 	}
-	// allocate buffers for nodes with opencl_buffer_access_enable
+
+	// allocate GPU buffers if node scheduled on GPU using OpenCL or using opencl_buffer_access_enable
+	if (agoGpuOclAllocBuffers(graph) < 0) {
+		return -1;
+	}
+
+	// finalize all GPU supernodes and single nodes
+	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
+		if (agoGpuOclSuperNodeFinalize(graph, supernode) < 0) {
+			return -1;
+		}
+	}
 	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
-		if (node->akernel->opencl_buffer_access_enable) {
-			// make sure that the GPU buffer resources are allocated in node
-			if (agoGpuOclAllocBuffers(graph, node) < 0) {
+		if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_GPU && node->attr_affinity.group == 0) {
+			if (agoGpuOclSingleNodeFinalize(graph, node) < 0) {
 				return -1;
 			}
 		}
