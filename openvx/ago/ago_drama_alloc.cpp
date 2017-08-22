@@ -63,6 +63,13 @@ static int agoOptimizeDramaAllocRemoveUnusedData(AgoGraph * agraph)
 #if ENABLE_OPENCL
 int agoGpuOclAllocBuffers(AgoGraph * graph)
 {
+	// get default target
+	vx_uint32 bufferMergeFlags = 0;
+	char textBuffer[1024];
+	if (agoGetEnvironmentVariable("AGO_BUFFER_MERGE_FLAGS", textBuffer, sizeof(textBuffer))) {
+		bufferMergeFlags = atoi(textBuffer);
+	}
+
 	// mark hierarchical level (start,end) of all data in the graph
 	for (AgoNode * node = graph->nodeList.head; node; node = node->next) {
 		for (vx_uint32 i = 0; i < node->paramCount; i++) {
@@ -71,6 +78,11 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 				data->hierarchical_life_start = INT_MAX;
 				data->hierarchical_life_end = 0;
 				data->initialization_flags = 0;
+				for (vx_uint32 j = 0; j < data->numChildren; j++) {
+					data->children[j]->hierarchical_life_start = INT_MAX;
+					data->children[j]->hierarchical_life_end = 0;
+					data->children[j]->initialization_flags = 0;
+				}
 			}
 		}
 	}
@@ -87,6 +99,10 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 				if (data) {
 					data->hierarchical_life_start = min(data->hierarchical_life_start, node->hierarchical_level);
 					data->hierarchical_life_end = max(data->hierarchical_life_end, node->hierarchical_level);
+					for (vx_uint32 j = 0; j < data->numChildren; j++) {
+						data->children[j]->hierarchical_life_start = min(data->children[j]->hierarchical_life_start, node->hierarchical_level);
+						data->children[j]->hierarchical_life_end = max(data->children[j]->hierarchical_life_end, node->hierarchical_level);
+					}
 				}
 			}
 		}
@@ -102,7 +118,9 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 			AgoData * data = supernode->dataList[i];
 			if (supernode->dataInfo[i].needed_as_a_kernel_argument && isDataValidForGd(data) && (data->initialization_flags & 1) == 0) {
 				data->initialization_flags |= 1;
-				data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
+				if (!(bufferMergeFlags & 2)) {
+					data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
+				}
 				D.push_back(data);
 			}
 		}
@@ -116,7 +134,9 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 					AgoData * data = node->paramList[i];
 					if (isDataValidForGd(data) && (data->initialization_flags & 1) == 0) {
 						data->initialization_flags |= 1;
-						data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
+						if (!(bufferMergeFlags & 2)) {
+							data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
+						}
 						D.push_back(data);
 					}
 				}
@@ -132,6 +152,9 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 					AgoData * data = node->paramList[i];
 					if (data && data->isVirtual) {
 						data->device_type_unused &= ~AGO_TARGET_AFFINITY_CPU;
+						for (vx_uint32 j = 0; j < data->numChildren; j++) {
+							data->children[j]->device_type_unused &= ~AGO_TARGET_AFFINITY_CPU;
+						}
 					}
 				}
 			}
@@ -144,6 +167,9 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 		if (data->ref.type == VX_TYPE_LUT && data->u.lut.type == VX_TYPE_UINT8)
 			obj_type = CL_MEM_OBJECT_IMAGE1D;
 		return obj_type;
+	};
+	auto getMemObjectSize = [=](AgoData * data) -> size_t {
+		return data->opencl_buffer_offset + data->size;
 	};
 	auto isMergePossible = [=](std::vector<AgoData *>& G, AgoData * data) -> bool {
 		vx_uint32 s = data->hierarchical_life_start;
@@ -161,9 +187,9 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 		return true;
 	};
 	auto calcMergedCost = [=](std::vector<AgoData *>& G, AgoData * data) -> size_t {
-		size_t size = data->size;
+		size_t size = getMemObjectSize(data);
 		for (auto d : G) {
-			size = max(size, d->size);
+			size = max(size, getMemObjectSize(d));
 		}
 		return size;
 	};
@@ -171,18 +197,20 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	std::vector< size_t > Gsize;
 	for (AgoData * data : D) {
 		size_t bestj = INT_MAX, bestCost = INT_MAX;
-		for (size_t j = 0; j < Gd.size(); j++) {
-			if(isMergePossible(Gd[j], data)) {
-				size_t cost = calcMergedCost(Gd[j], data);
-				if(cost < bestCost) {
-					bestj = j;
-					bestCost = cost;
+		if (!(bufferMergeFlags & 1)) {
+			for (size_t j = 0; j < Gd.size(); j++) {
+				if(isMergePossible(Gd[j], data)) {
+					size_t cost = calcMergedCost(Gd[j], data);
+					if(cost < bestCost) {
+						bestj = j;
+						bestCost = cost;
+					}
 				}
 			}
 		}
 		if(bestj == INT_MAX) {
 			bestj = Gd.size();
-			bestCost = data->size;
+			bestCost = getMemObjectSize(data);
 			Gd.push_back(std::vector<AgoData *>());
 		}
 		Gd[bestj].push_back(data);
@@ -192,7 +220,7 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	for (size_t j = 0; j < Gd.size(); j++) {
 		size_t k = 0;
 		for (size_t i = 1; i < Gd[j].size(); i++) {
-			if(Gd[j][i]->size > Gd[j][k]->size)
+			if(getMemObjectSize(Gd[j][i]) > getMemObjectSize(Gd[j][k]))
 				k = i;
 		}
 		if (agoGpuOclAllocBuffer(Gd[j][k]) < 0) {
