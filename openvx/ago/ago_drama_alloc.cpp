@@ -93,11 +93,16 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	}
 
 	// get the list of virtual data (D) that need GPU buffers and mark if CPU access is not needed for virtual buffers
+	auto isDataValidForGd = [=](AgoData * data) -> bool {
+		return data && data->isVirtual &&
+			 !(data->ref.type == VX_TYPE_LUT && data->u.lut.type == VX_TYPE_UINT8) // can't be used because of clCreateImage
+			;
+	};
 	std::vector<AgoData *> D;
 	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
 		for (size_t i = 0; i < supernode->dataList.size(); i++) {
 			AgoData * data = supernode->dataList[i];
-			if (supernode->dataInfo[i].needed_as_a_kernel_argument && data->isVirtual && (data->initialization_flags & 1) == 0) {
+			if (supernode->dataInfo[i].needed_as_a_kernel_argument && isDataValidForGd(data) && (data->initialization_flags & 1) == 0) {
 				data->initialization_flags |= 1;
 				data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
 				D.push_back(data);
@@ -111,7 +116,7 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 			{
 				for (vx_uint32 i = 0; i < node->paramCount; i++) {
 					AgoData * data = node->paramList[i];
-					if (data && data->isVirtual && (data->initialization_flags & 1) == 0) {
+					if (isDataValidForGd(data) && (data->initialization_flags & 1) == 0) {
 						data->initialization_flags |= 1;
 						data->device_type_unused = AGO_TARGET_AFFINITY_CPU;
 						D.push_back(data);
