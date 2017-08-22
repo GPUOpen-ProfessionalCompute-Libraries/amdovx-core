@@ -94,9 +94,7 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 
 	// get the list of virtual data (D) that need GPU buffers and mark if CPU access is not needed for virtual buffers
 	auto isDataValidForGd = [=](AgoData * data) -> bool {
-		return data && data->isVirtual &&
-			 !(data->ref.type == VX_TYPE_LUT && data->u.lut.type == VX_TYPE_UINT8) // can't be used because of clCreateImage
-			;
+		return data && data->isVirtual;
 	};
 	std::vector<AgoData *> D;
 	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
@@ -141,11 +139,20 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	}
 
 	// get data groups (Gd)
+	auto getMemObjectType = [=](AgoData * data) -> cl_mem_object_type {
+		cl_mem_object_type obj_type = CL_MEM_OBJECT_BUFFER;
+		if (data->ref.type == VX_TYPE_LUT && data->u.lut.type == VX_TYPE_UINT8)
+			obj_type = CL_MEM_OBJECT_IMAGE1D;
+		return obj_type;
+	};
 	auto isMergePossible = [=](std::vector<AgoData *>& G, AgoData * data) -> bool {
 		vx_uint32 s = data->hierarchical_life_start;
 		vx_uint32 e = data->hierarchical_life_end;
+		cl_mem_object_type dataMemType = getMemObjectType(data);
 		for (auto d : G) {
-			if(( s	  >= d->hierarchical_life_start &&  s	  <= (d->hierarchical_life_end + 1)) ||
+			cl_mem_object_type dMemType = getMemObjectType(d);
+			if((dataMemType != dMemType) ||
+			   ( s      >= d->hierarchical_life_start &&  s      <= (d->hierarchical_life_end + 1)) ||
 			   ((e + 1) >= d->hierarchical_life_start && (e + 1) <= (d->hierarchical_life_end + 1)))
 			{
 				return false;
