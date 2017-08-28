@@ -6,9 +6,10 @@ The amdovx-core project consists of two components:
 * [RunVX](runvx/README.md): command-line utility to execute OpenVX graph described in GDF text file
 
 The OpenVX framework provides a mechanism to add new vision functions to OpenVX by 3rd party vendors. Look into github [amdovx-modules](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-modules) project for additional OpenVX modules and utilities.
-* [vx_loomsl](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-modules/tree/master/vx_loomsl/README.md): Radeon LOOM stitching library for live 360 degree video applications
-* [loom_shell](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-modules/tree/master/utils/loom_shell/README.md): an interpreter to prototype 360 degree video stitching applications using a script
-* [vx_ext_cv](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-modules/tree/master/vx_ext_cv/README.md): OpenVX module that implemented a mechanism to access OpenCV functionality as OpenVX kernels
+* **vx_nn**: OpenVX neural network module that was built on top of [MIOpen](https://github.com/ROCmSoftwarePlatform/MIOpen)
+* **vx_loomsl**: Radeon LOOM stitching library for live 360 degree video applications
+* **loom_shell**: an interpreter to prototype 360 degree video stitching applications using a script
+* **vx_opencv**: OpenVX module that implemented a mechanism to access OpenCV functionality as OpenVX kernels
 
 This software is provided under a MIT-style license,  see the file COPYRIGHT.txt for details.
 
