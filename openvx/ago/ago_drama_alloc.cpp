@@ -178,8 +178,8 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 		for (auto d : G) {
 			cl_mem_object_type dMemType = getMemObjectType(d);
 			if((dataMemType != dMemType) ||
-			   ( s      >= d->hierarchical_life_start &&  s      <= (d->hierarchical_life_end + 1)) ||
-			   ((e + 1) >= d->hierarchical_life_start && (e + 1) <= (d->hierarchical_life_end + 1)))
+			   (s >= d->hierarchical_life_start && s <= d->hierarchical_life_end) ||
+			   (e >= d->hierarchical_life_start && e <= d->hierarchical_life_end))
 			{
 				return false;
 			}
