@@ -1764,6 +1764,36 @@ int agoDramaDivideOpticalFlowPyrLkNode(AgoNodeList * nodeList, AgoNode * anode)
 #endif
 }
 
+int agoDramaDivideCopyNode(AgoNodeList * nodeList, AgoNode * anode)
+{
+	// sanity checks
+	SANITY_CHECK_DATA_TYPE(anode->paramList[1], anode->paramList[0]->ref.type);
+	// save parameters
+	AgoData * paramList[AGO_MAX_PARAMS]; memcpy(paramList, anode->paramList, sizeof(paramList));
+	anode->paramList[0] = paramList[1];
+	anode->paramList[1] = paramList[0];
+	anode->paramCount = 2;
+	vx_enum new_kernel_id = VX_KERNEL_AMD_COPY_DATA_DATA;
+	return agoDramaDivideAppend(nodeList, anode, new_kernel_id);
+}
+
+int agoDramaDivideSelectNode(AgoNodeList * nodeList, AgoNode * anode)
+{
+	// sanity checks
+	SANITY_CHECK_DATA_TYPE(anode->paramList[0], VX_TYPE_SCALAR);
+	SANITY_CHECK_DATA_TYPE(anode->paramList[3], anode->paramList[1]->ref.type);
+	SANITY_CHECK_DATA_TYPE(anode->paramList[2], anode->paramList[1]->ref.type);
+	// save parameters
+	AgoData * paramList[AGO_MAX_PARAMS]; memcpy(paramList, anode->paramList, sizeof(paramList));
+	anode->paramList[0] = paramList[3];
+	anode->paramList[1] = paramList[0];
+	anode->paramList[2] = paramList[1];
+	anode->paramList[3] = paramList[2];
+	anode->paramCount = 4;
+	vx_enum new_kernel_id = VX_KERNEL_AMD_SELECT_DATA_DATA_DATA;
+	return agoDramaDivideAppend(nodeList, anode, new_kernel_id);
+}
+
 int agoDramaDivideNode(AgoNodeList * nodeList, AgoNode * anode)
 {
 	// save parameter list
@@ -1896,6 +1926,12 @@ int agoDramaDivideNode(AgoNodeList * nodeList, AgoNode * anode)
 		case VX_KERNEL_HALFSCALE_GAUSSIAN:
 			status = agoDramaDivideHalfscaleGaussianNode(nodeList, anode);
 			break;
+		case VX_KERNEL_COPY:
+			status = agoDramaDivideCopyNode(nodeList, anode);
+			break;
+		case VX_KERNEL_SELECT:
+			status = agoDramaDivideSelectNode(nodeList, anode);
+			break;
 		default:
 			break;
 	}
@@ -1930,7 +1966,7 @@ int agoOptimizeDramaDivide(AgoGraph * agraph)
 			}
 			else {
 				// TBD: error handling
-				agoAddLogEntry(&anode->akernel->ref, VX_FAILURE, "ERROR: agoOptimizeDramaDivide: failed for node %s\n", anode->akernel->name);
+				agoAddLogEntry(&anode->akernel->ref, VX_FAILURE, "ERROR: agoOptimizeDramaDivide: failed for node %s (not implemented yet)\n", anode->akernel->name);
 				astatus = -1;
 				// advance to next node, since node divide failed
 				aprev = anode;

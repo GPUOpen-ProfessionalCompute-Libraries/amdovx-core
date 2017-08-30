@@ -1300,7 +1300,7 @@ vx_status agoVerifyNode(AgoNode * node)
 		if (data) {
 			if ((kernel->argConfig[arg] & (AGO_KERNEL_ARG_INPUT_FLAG | AGO_KERNEL_ARG_OUTPUT_FLAG)) == AGO_KERNEL_ARG_OUTPUT_FLAG) {
 				vx_meta_format meta = &node->metaList[arg];
-				if (kernel->argType[arg] && (meta->data.ref.type != kernel->argType[arg])) {
+				if (kernel->argType[arg] && kernel->argType[arg] != VX_TYPE_REFERENCE && (meta->data.ref.type != kernel->argType[arg])) {
 					agoAddLogEntry(&kernel->ref, VX_ERROR_INVALID_TYPE, "ERROR: agoVerifyGraph: kernel %s: output argument type mismatch for argument#%d\n", kernel->name, arg);
 					return VX_ERROR_INVALID_TYPE;
 				}

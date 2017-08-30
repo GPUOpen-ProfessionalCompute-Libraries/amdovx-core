@@ -2081,6 +2081,76 @@ int ovxKernel_HalfScaleGaussian(AgoNode * node, AgoKernelCommand cmd)
 	return status;
 }
 
+int ovxKernel_Copy(AgoNode * node, AgoKernelCommand cmd)
+{
+	// INFO: use VX_KERNEL_AMD_COPY_* kernels
+	vx_status status = AGO_ERROR_KERNEL_NOT_IMPLEMENTED;
+	if (cmd == ago_kernel_cmd_execute) {
+		// TBD: not implemented yet
+	}
+	else if (cmd == ago_kernel_cmd_validate) {
+		// validate parameters
+		if (node->paramList[0]->ref.type != node->paramList[1]->ref.type)
+			return VX_ERROR_INVALID_PARAMETERS;
+		// set meta must be same as input
+		vx_meta_format meta;
+		meta = &node->metaList[1];
+		meta->data.ref.type = node->paramList[0]->ref.type;
+		memcpy(&meta->data.u, &node->paramList[0]->u, sizeof(meta->data.u));
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_query_target_support) {
+		node->target_support_flags = AGO_KERNEL_FLAG_SUBGRAPH
+					| AGO_KERNEL_FLAG_DEVICE_CPU
+#if ENABLE_OPENCL
+					| AGO_KERNEL_FLAG_DEVICE_GPU
+#endif
+					;
+		status = VX_SUCCESS;
+	}
+	return status;
+}
+
+int ovxKernel_Select(AgoNode * node, AgoKernelCommand cmd)
+{
+	// INFO: use VX_KERNEL_AMD_SELECT_* kernels
+	vx_status status = AGO_ERROR_KERNEL_NOT_IMPLEMENTED;
+	if (cmd == ago_kernel_cmd_execute) {
+		// TBD: not implemented yet
+	}
+	else if (cmd == ago_kernel_cmd_validate) {
+		// validate parameters
+		if ((node->paramList[1]->ref.type != node->paramList[2]->ref.type) || (node->paramList[1]->ref.type != node->paramList[3]->ref.type))
+			return VX_ERROR_INVALID_PARAMETERS;
+		if (memcmp(&node->paramList[1]->u, &node->paramList[2]->u, sizeof(node->paramList[1]->u)) != 0)
+			return VX_ERROR_INVALID_PARAMETERS;
+		if (node->paramList[0]->u.scalar.type != VX_TYPE_BOOL)
+			return VX_ERROR_INVALID_TYPE;
+		// set meta must be same as input
+		vx_meta_format meta;
+		meta = &node->metaList[3];
+		meta->data.ref.type = node->paramList[1]->ref.type;
+		memcpy(&meta->data.u, &node->paramList[1]->u, sizeof(meta->data.u));
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_query_target_support) {
+		node->target_support_flags = AGO_KERNEL_FLAG_SUBGRAPH
+					| AGO_KERNEL_FLAG_DEVICE_CPU
+#if ENABLE_OPENCL
+					| AGO_KERNEL_FLAG_DEVICE_GPU
+#endif
+					;
+		status = VX_SUCCESS;
+	}
+	return status;
+}
+
 #if ENABLE_OPENCL
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Local OpenCL Codegen Functions
@@ -18821,6 +18891,105 @@ int agoKernel_MinMaxLocMerge_DATA_DATA(AgoNode * node, AgoKernelCommand cmd)
 		node->target_support_flags = 0
 			| AGO_KERNEL_FLAG_DEVICE_CPU
 			;
+		status = VX_SUCCESS;
+	}
+	return status;
+}
+
+int agoKernel_Copy_DATA_DATA(AgoNode * node, AgoKernelCommand cmd)
+{
+	vx_status status = AGO_ERROR_KERNEL_NOT_IMPLEMENTED;
+	if (cmd == ago_kernel_cmd_execute) {
+		// TBD: not implemented yet
+		status = VX_ERROR_NOT_SUPPORTED;
+	}
+	else if (cmd == ago_kernel_cmd_validate) {
+		// validate parameters
+		if (node->paramList[0]->ref.type != node->paramList[1]->ref.type)
+			return VX_ERROR_INVALID_PARAMETERS;
+		// doesn't support host access buffers
+		if (node->paramList[0]->import_type != VX_MEMORY_TYPE_NONE || node->paramList[1]->import_type != VX_MEMORY_TYPE_NONE)
+			return VX_ERROR_NOT_SUPPORTED;
+		// doesn't support ROIs
+		if ((node->paramList[0]->ref.type == VX_TYPE_IMAGE  && node->paramList[0]->u.img.roiMasterImage) ||
+		    (node->paramList[1]->ref.type == VX_TYPE_IMAGE  && node->paramList[1]->u.img.roiMasterImage) ||
+		    (node->paramList[0]->ref.type == VX_TYPE_TENSOR && node->paramList[0]->u.tensor.roiMaster) ||
+		    (node->paramList[1]->ref.type == VX_TYPE_TENSOR && node->paramList[1]->u.tensor.roiMaster))
+			return VX_ERROR_NOT_SUPPORTED;
+		// set meta must be same as input
+		vx_meta_format meta;
+		meta = &node->metaList[0];
+		meta->data.ref.type = node->paramList[1]->ref.type;
+		memcpy(&meta->data.u, &node->paramList[1]->u, sizeof(meta->data.u));
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		// TBD: not implemented yet
+	}
+#if ENABLE_OPENCL
+	else if (cmd == ago_kernel_cmd_opencl_codegen) {
+		size_t work_group_size = 256;
+		size_t num_work_items = node->paramList[0]->size / 4;
+		char code[1024];
+		sprintf(code,
+			"__kernel __attribute__((reqd_work_group_size(%ld, 1, 1)))\n"
+			"void %s(__global char * dst_buf, uint dst_offset, uint4 dst_stride, __global char * src_buf, uint src_offset, uint4 src_stride)\n"
+			"{\n"
+			"    uint id = get_global_id(0);\n"
+			"    if(id < %ld) ((__global float *)(dst_buf + dst_offset))[id] =  ((__global float *)(src_buf + src_offset))[id];\n"
+			"}\n", work_group_size, NODE_OPENCL_KERNEL_NAME, num_work_items);
+		node->opencl_code = code;
+		// use completely separate kernel
+		node->opencl_type = NODE_OPENCL_TYPE_FULL_KERNEL;
+		node->opencl_work_dim = 3;
+		node->opencl_global_work[0] = (num_work_items + work_group_size - 1) & ~(work_group_size - 1);
+		node->opencl_global_work[1] = 1;
+		node->opencl_global_work[2] = 1;
+		node->opencl_local_work[0] = work_group_size;
+		node->opencl_local_work[1] = 1;
+		node->opencl_local_work[2] = 1;
+		status = VX_SUCCESS;
+	}
+#endif
+	else if (cmd == ago_kernel_cmd_query_target_support) {
+		node->target_support_flags = 0;
+#if ENABLE_OPENCL
+		if (node->paramList[0]->ref.type == VX_TYPE_TENSOR)
+			node->target_support_flags |= AGO_KERNEL_FLAG_DEVICE_GPU | AGO_KERNEL_FLAG_GPU_INTEG_FULL;
+#endif
+        status = VX_SUCCESS;
+	}
+	return status;
+}
+
+int agoKernel_Select_DATA_DATA_DATA(AgoNode * node, AgoKernelCommand cmd)
+{
+	vx_status status = AGO_ERROR_KERNEL_NOT_IMPLEMENTED;
+	if (cmd == ago_kernel_cmd_execute) {
+		// TBD: not implemented yet
+		status = VX_ERROR_NOT_SUPPORTED;
+	}
+	else if (cmd == ago_kernel_cmd_validate) {
+		// TBD: not implemented yet
+		status = VX_ERROR_NOT_SUPPORTED;
+	}
+	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
+		status = VX_SUCCESS;
+	}
+	else if (cmd == ago_kernel_cmd_valid_rect_callback) {
+		// TBD: not implemented yet
+	}
+#if ENABLE_OPENCL
+	else if (cmd == ago_kernel_cmd_opencl_codegen) {
+		// TBD: not implemented yet
+		status = VX_ERROR_NOT_SUPPORTED;
+	}
+#endif
+	else if (cmd == ago_kernel_cmd_query_target_support) {
+		node->target_support_flags = 0;
 		status = VX_SUCCESS;
 	}
 	return status;

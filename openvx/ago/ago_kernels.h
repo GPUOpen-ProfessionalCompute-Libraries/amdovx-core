@@ -434,6 +434,10 @@ enum vx_kernel_amd_e {
 	VX_KERNEL_AMD_MIN_MAX_LOC_DATA_S16DATA_LOC_MINMAX_COUNT_MINMAX,
 	VX_KERNEL_AMD_MIN_MAX_LOC_MERGE_DATA_DATA,
 
+	// OpenVX 1.2 kernels
+	VX_KERNEL_AMD_COPY_DATA_DATA,
+	VX_KERNEL_AMD_SELECT_DATA_DATA_DATA,
+
 	VX_KERNEL_AMD_MAX_1_0, // Used for bounds checking in the internal conformance test
 };
 
