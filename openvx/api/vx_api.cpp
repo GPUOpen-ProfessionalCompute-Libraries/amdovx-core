@@ -3221,7 +3221,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetParameterByIndex(vx_node node, vx_uint32
 		else if (node->parameters[index].state == VX_PARAMETER_STATE_REQUIRED && !value) {
 			status = VX_ERROR_INVALID_REFERENCE;
 		}
-		else if ((index < node->paramCount) && (!node->parameters[index].type || !value || node->parameters[index].type == value->type)) {
+		else if ((index < node->paramCount) && (!node->parameters[index].type || !value || node->parameters[index].type == value->type || node->parameters[index].type == VX_TYPE_REFERENCE)) {
 			if (node->paramList[index]) {
 				agoReleaseData(node->paramList[index], false);
 			}

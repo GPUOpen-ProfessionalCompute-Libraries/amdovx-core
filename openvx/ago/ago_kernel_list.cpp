@@ -140,6 +140,9 @@ THE SOFTWARE.
 #define ATYPE_ASSIm                            { VX_TYPE_ARRAY, VX_TYPE_SCALAR, VX_TYPE_SCALAR, VX_TYPE_IMAGE, AGO_TYPE_MINMAXLOC_DATA }
 #define ATYPE_AASSIm                           { VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_SCALAR, VX_TYPE_SCALAR, VX_TYPE_IMAGE, AGO_TYPE_MINMAXLOC_DATA }
 #define ATYPE_SAAAAAAAAA                       { VX_TYPE_SCALAR, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY, VX_TYPE_ARRAY }
+#define ATYPE_RR                               { VX_TYPE_REFERENCE, VX_TYPE_REFERENCE }
+#define ATYPE_SRRR                             { VX_TYPE_SCALAR, VX_TYPE_REFERENCE, VX_TYPE_REFERENCE, VX_TYPE_REFERENCE }
+#define ATYPE_RSRR                             { VX_TYPE_REFERENCE, VX_TYPE_SCALAR, VX_TYPE_REFERENCE, VX_TYPE_REFERENCE }
 
 // for kernOpType & kernOpInfo
 #define KOP_UNKNOWN    AGO_KERNEL_OP_TYPE_UNKNOWN,         0,
@@ -169,7 +172,7 @@ static struct {
 		AGO_KERNEL_FLAG_GROUP_AMDLL | (cpu_avail ? AGO_KERNEL_FLAG_DEVICE_CPU : 0) | (gpu_avail ? AGO_KERNEL_FLAG_DEVICE_GPU : 0) | \
 		(validRectReset ? AGO_KERNEL_FLAG_VALID_RECT_RESET : 0), argCfg, argType, kernOp \
 	}
-	// OpenVX 1.0 built-in kernels
+	// OpenVX 1.x built-in kernels
 	OVX_KERNEL_ENTRY( VX_KERNEL_COLOR_CONVERT         , ColorConvert, "color_convert",             AIN_AOUT,             ATYPE_II           , false ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_CHANNEL_EXTRACT       , ChannelExtract, "channel_extract",         AINx2_AOUT,           ATYPE_ISI          , false ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_CHANNEL_COMBINE       , ChannelCombine, "channel_combine",         AINx2_AOPTINx2_AOUT,  ATYPE_IIIII        , false ),
@@ -211,6 +214,8 @@ static struct {
 	OVX_KERNEL_ENTRY( VX_KERNEL_OPTICAL_FLOW_PYR_LK   , OpticalFlowPyrLK, "optical_flow_pyr_lk",   AINx4_AOUT_AINx5,     ATYPE_PPAAASSSSS   , false ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_REMAP                 , Remap, "remap",                            AINx3_AOUT,           ATYPE_IRSI         , true  ),
 	OVX_KERNEL_ENTRY( VX_KERNEL_HALFSCALE_GAUSSIAN    , HalfScaleGaussian, "halfscale_gaussian",   AIN_AOUT_AIN,         ATYPE_IIS          , false ),
+	OVX_KERNEL_ENTRY( VX_KERNEL_COPY                  , Copy, "copy",                              AIN_AOUT,             ATYPE_RR           , false ),
+	OVX_KERNEL_ENTRY( VX_KERNEL_SELECT                , Select, "select",                          AINx3_AOUT,           ATYPE_SRRR         , false ),
 	// AMD low-level kernel primitives
 	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_SET_00_U8                                               , 1, 1, Set00_U8, { AOUT },                                           ATYPE_I                 , KOP_ELEMWISE  , false ),
 	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_SET_FF_U8                                               , 1, 1, SetFF_U8, { AOUT },                                           ATYPE_I                 , KOP_ELEMWISE  , false ),
@@ -488,6 +493,8 @@ static struct {
 	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_MIN_MAX_LOC_DATA_S16DATA_LOC_MAX_COUNT_MINMAX           , 1, 0, MinMaxLoc_DATA_S16DATA_Loc_Max_Count_MinMax, AOUT_AOPTOUTx2_AINx2, ATYPE_ASSIm        , KOP_UNKNOWN   , false ),
 	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_MIN_MAX_LOC_DATA_S16DATA_LOC_MINMAX_COUNT_MINMAX        , 1, 0, MinMaxLoc_DATA_S16DATA_Loc_MinMax_Count_MinMax, AOUTx2_AOPTOUTx2_AINx2, ATYPE_AASSIm  , KOP_UNKNOWN   , false ),
 	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_MIN_MAX_LOC_MERGE_DATA_DATA                             , 1, 0, MinMaxLocMerge_DATA_DATA, AOUTx2_AIN_AOPTINx7,                ATYPE_SAAAAAAAAA        , KOP_UNKNOWN   , false ),
+	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_COPY_DATA_DATA                                          , 1, 1, Copy_DATA_DATA, AOUT_AIN,                                     ATYPE_RR                , KOP_UNKNOWN   , false ),
+	AGO_KERNEL_ENTRY( VX_KERNEL_AMD_SELECT_DATA_DATA_DATA                                   , 1, 1, Select_DATA_DATA_DATA, AOUT_AIN,                              ATYPE_RSRR              , KOP_UNKNOWN   , false ),
 #undef AGO_KERNEL_ENTRY
 #undef OVX_KERNEL_ENTRY
 };

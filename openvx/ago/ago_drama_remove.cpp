@@ -911,12 +911,16 @@ int agoOptimizeDramaRemoveCopyNodes(AgoGraph * agraph)
 	for (AgoNode * anode = agraph->nodeList.head; anode; anode = anode->next) {
 		AgoKernel * akernel = anode->akernel;
 		bool nodeCanBeRemoved = false;
-		if (anode->akernel->id == VX_KERNEL_AMD_CHANNEL_COPY_U8_U8)
+		if (anode->akernel->id == VX_KERNEL_AMD_CHANNEL_COPY_U8_U8 || anode->akernel->id == VX_KERNEL_AMD_COPY_DATA_DATA)
 		{
 			// copy of a virtual data can be removed by just replacing the virtual data
 			// TBD: need to handle possible optimizations with buffers in delay object
 			AgoData * dstParam = anode->paramList[0];
 			AgoData * srcParam = anode->paramList[1];
+			if (anode->akernel->id == VX_KERNEL_AMD_COPY_DATA_DATA) {
+				srcParam = anode->paramList[0];
+				dstParam = anode->paramList[1];
+			}
 			bool replaceSrc = false;
 			bool replaceDst = false;
 			if (dstParam->isVirtual && !agoIsPartOfDelay(dstParam)) {
