@@ -122,7 +122,12 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_DIMS, &m_dims, sizeof(m_dims[0])*m_num_of_dims));
 	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_DATA_TYPE, &m_data_type, sizeof(m_data_type)));
 	ERROR_CHECK(vxQueryTensor(m_tensor, VX_TENSOR_FIXED_POINT_POSITION, &m_fixed_point_pos, sizeof(vx_uint8)));
-	m_size = m_data_type == VX_TYPE_FLOAT32 ? 4 : 2;
+	if(m_data_type == VX_TYPE_UINT8 || m_data_type == VX_TYPE_INT8)
+		m_size = 1;
+	else if(m_data_type == VX_TYPE_UINT16 || m_data_type == VX_TYPE_INT16 || m_data_type == VX_TYPE_FLOAT16)
+		m_size = 2;
+	else
+	    m_size = 4;
 	for (vx_uint32 i = 0; i < m_num_of_dims; i++) {
 		m_stride[i] = m_size;
 		m_size *= m_dims[i];

@@ -1210,6 +1210,7 @@ vx_status agoVerifyNode(AgoNode * node)
 			// reset meta data of the node for output argument processing
 			if ((kernel->argConfig[arg] & (AGO_KERNEL_ARG_INPUT_FLAG | AGO_KERNEL_ARG_OUTPUT_FLAG)) == AGO_KERNEL_ARG_OUTPUT_FLAG) {
 				vx_meta_format meta = &node->metaList[arg];
+				meta->data.ref.type = data->ref.type;
 				meta->data.ref.external_count = 1;
 				meta->set_valid_rectangle_callback = nullptr;
 				if (data->ref.type == VX_TYPE_IMAGE) {
