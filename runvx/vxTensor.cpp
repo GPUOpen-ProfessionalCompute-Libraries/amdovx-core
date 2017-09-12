@@ -324,8 +324,9 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 		}
 		vx_size count = m_dims[0] * m_dims[1] * m_dims[2] * m_dims[3];
 		float avgError = (float)sumError / (float)count;
-		mismatchDetected = ((float)maxError > m_maxErrorLimit) ? true : false;
-		mismatchDetected = ((float)avgError > m_avgErrorLimit) ? true : mismatchDetected;
+		mismatchDetected = true;
+		if (((float)maxError <= m_maxErrorLimit) && ((float)avgError <= m_avgErrorLimit))
+		    mismatchDetected = false;
 		if (mismatchDetected)
 			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %d] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 		else if (m_verbose)
@@ -354,8 +355,9 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 		}
 		vx_size count = m_dims[0] * m_dims[1] * m_dims[2] * m_dims[3];
 		float avgError = (float)sumError / (float)count;
-		mismatchDetected = (maxError > m_maxErrorLimit) ? true : false;
-		mismatchDetected = (avgError > m_avgErrorLimit) ? true : mismatchDetected;
+		mismatchDetected = true;
+		if ((maxError <= m_maxErrorLimit) && (avgError <= m_avgErrorLimit))
+		    mismatchDetected = false;
 		if (mismatchDetected)
 			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %.6f] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 		else if (m_verbose)
@@ -388,8 +390,9 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 		}
 		vx_size count = m_dims[0] * m_dims[1] * m_dims[2] * m_dims[3];
 		float avgError = (float)sumError / (float)count;
-		mismatchDetected = (maxError > m_maxErrorLimit) ? true : false;
-		mismatchDetected = (avgError > m_avgErrorLimit) ? true : mismatchDetected;
+		mismatchDetected = true;
+		if ((maxError <= m_maxErrorLimit) && (avgError <= m_avgErrorLimit))
+		    mismatchDetected = false;
 		if (mismatchDetected)
 			printf("ERROR: tensor COMPARE MISMATCHED [max-err: %.6f] [avg-err: %.6f] for %s with frame#%d of %s\n", maxError, avgError, GetVxObjectName(), frameNumber, fileName);
 		else if (m_verbose)
