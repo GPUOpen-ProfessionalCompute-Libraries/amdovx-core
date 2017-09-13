@@ -3111,6 +3111,7 @@ AgoContext::AgoContext()
 #endif
 	  , opencl_context_imported{ false }, opencl_context{ nullptr }, opencl_cmdq{ nullptr }, opencl_config_flags{ 0 }, opencl_num_devices{ 0 }, isAmdMediaOpsSupported{ true }
 	  , opencl_mem_alloc_size{ 0 }, opencl_mem_alloc_count{ 0 }, opencl_mem_release_count{ 0 }
+      , opencl_cmdq_properties{ 0 }
 #endif
 {
 	memset(&kernelList, 0, sizeof(kernelList));

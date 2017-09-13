@@ -261,6 +261,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					status = VX_SUCCESS;
 				}
 				break;
+			case VX_CONTEXT_CL_QUEUE_PROPERTIES:
+				if (size == sizeof(vx_uint32)) {
+					*(vx_uint32 *)ptr = context->opencl_cmdq_properties;
+					status = VX_SUCCESS;
+				}
+				break;
 #endif
 			case VX_CONTEXT_MAX_TENSOR_DIMENSIONS:
 				if (size == sizeof(vx_size)) {
@@ -355,6 +361,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextAttribute(vx_context context, vx_
 					else {
 						status = VX_FAILURE;
 					}
+				}
+				break;
+			case VX_CONTEXT_CL_QUEUE_PROPERTIES:
+				if (size == sizeof(vx_uint32)) {
+					context->opencl_cmdq_properties = *(vx_uint32 *)ptr;
+					status = VX_SUCCESS;
 				}
 				break;
 #endif

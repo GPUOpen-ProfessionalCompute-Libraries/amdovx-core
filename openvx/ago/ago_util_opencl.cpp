@@ -317,9 +317,9 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 #endif
 	// create command queue for buffer sync
 #if defined(CL_VERSION_2_0)
-	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], NULL, &status);
+	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], &context->opencl_cmdq_properties, &status);
 #else
-	context->opencl_cmdq = clCreateCommandQueue(context->opencl_context, context->opencl_device_list[device_id], 0, &status);
+	context->opencl_cmdq = clCreateCommandQueue(context->opencl_context, context->opencl_device_list[device_id], context->opencl_cmdq_properties, &status);
 #endif
 	if (status) {
 		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateCommandQueueWithProperties(%p,%p,0,*) => %d\n", context->opencl_context, context->opencl_device_list[device_id], status);

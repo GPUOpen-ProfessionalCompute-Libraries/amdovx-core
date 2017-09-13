@@ -97,6 +97,8 @@ enum vx_context_attribute_amd_e {
 	VX_CONTEXT_ATTRIBUTE_AMD_SET_MERGE_RULE = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_CONTEXT) + 0x04,
 	/*! \brief tensor Data max num of dimensions supported by HW. */
 	VX_CONTEXT_MAX_TENSOR_DIMENSIONS = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_CONTEXT) + 0x05,
+	/*! \brief cl_queue_properties to be used for creating OpenCL command queue. */
+	VX_CONTEXT_CL_QUEUE_PROPERTIES = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_CONTEXT) + 0x06,
 };
 
 /*! \brief The AMD kernel attributes list.
