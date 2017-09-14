@@ -688,10 +688,8 @@ struct AgoContext {
 	char opencl_extensions[1024];
 #if defined(CL_VERSION_2_0)
 	cl_device_svm_capabilities opencl_svmcaps;
-    cl_queue_properties opencl_cmdq_properties;
-#else
-    cl_command_queue_properties opencl_cmdq_properties;
 #endif
+    cl_command_queue_properties opencl_cmdq_properties;
 	cl_uint      opencl_num_devices;
 	cl_device_id opencl_device_list[16];
 	char opencl_build_options[256];

@@ -317,7 +317,8 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 #endif
 	// create command queue for buffer sync
 #if defined(CL_VERSION_2_0)
-	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], &context->opencl_cmdq_properties, &status);
+	cl_queue_properties properties[] = { CL_QUEUE_PROPERTIES, context->opencl_cmdq_properties, 0 };
+	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], properties, &status);
 #else
 	context->opencl_cmdq = clCreateCommandQueue(context->opencl_context, context->opencl_device_list[device_id], context->opencl_cmdq_properties, &status);
 #endif

@@ -262,8 +262,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 				}
 				break;
 			case VX_CONTEXT_CL_QUEUE_PROPERTIES:
-				if (size == sizeof(vx_uint32)) {
-					*(vx_uint32 *)ptr = context->opencl_cmdq_properties;
+				if (size == sizeof(cl_command_queue_properties)) {
+					*(cl_command_queue_properties *)ptr = context->opencl_cmdq_properties;
 					status = VX_SUCCESS;
 				}
 				break;
@@ -364,8 +364,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextAttribute(vx_context context, vx_
 				}
 				break;
 			case VX_CONTEXT_CL_QUEUE_PROPERTIES:
-				if (size == sizeof(vx_uint32)) {
-					context->opencl_cmdq_properties = *(vx_uint32 *)ptr;
+				if (size == sizeof(cl_command_queue_properties)) {
+					context->opencl_cmdq_properties = *(cl_command_queue_properties *)ptr;
 					status = VX_SUCCESS;
 				}
 				break;

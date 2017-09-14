@@ -281,7 +281,8 @@ static int agoOptimizeDramaAllocGpuResources(AgoGraph * graph)
 			cl_int err = -1;
 			graph->opencl_device = context->opencl_device_list[0];
 #if defined(CL_VERSION_2_0)
-			graph->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, graph->opencl_device, &context->opencl_cmdq_properties, &err);
+            cl_queue_properties properties[] = { CL_QUEUE_PROPERTIES, context->opencl_cmdq_properties, 0 };
+			graph->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, graph->opencl_device, properties, &err);
 #else
 			graph->opencl_cmdq = clCreateCommandQueue(context->opencl_context, graph->opencl_device, context->opencl_cmdq_properties, &err);
 #endif
