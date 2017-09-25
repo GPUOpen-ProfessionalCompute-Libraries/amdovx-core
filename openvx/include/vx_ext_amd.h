@@ -338,7 +338,8 @@ typedef vx_status(VX_CALLBACK * amd_kernel_opencl_codegen_callback_f) (
 
 /*! \brief AMD usernode callback for regenerating a node.
 */
-typedef vx_status(VX_CALLBACK * amd_kernel_node_regen_callback_f) (vx_graph graph, vx_node node, vx_bool& regen_not_needed);
+typedef vx_status(VX_CALLBACK * amd_drama_add_node_f)(vx_node node, vx_enum kernel_id, vx_reference * paramList, vx_uint32 paramCount);
+typedef vx_status(VX_CALLBACK * amd_kernel_node_regen_callback_f)(vx_node node, amd_drama_add_node_f add_node_f, vx_bool& replace_original);
 
 /*! \brief AMD usernode callback for updating the OpenCL global_work[]. The framework will pass
 *   OpenVX objects as parameters to OpenCL kernels in othe order they appear to OpenVX node and

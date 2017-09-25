@@ -26,7 +26,7 @@ THE SOFTWARE.
 #define SANITY_CHECK_DATA_TYPE(data,data_type)          if(!data || data->ref.type != data_type) return -1
 #define SANITY_CHECK_DATA_TYPE_OPTIONAL(data,data_type) if( data && data->ref.type != data_type) return -1
 
-int agoDramaDivideAppend(AgoNodeList * nodeList, AgoNode * anode, vx_enum new_kernel_id)
+int agoDramaDivideAppend(AgoNodeList * nodeList, AgoNode * anode, vx_enum new_kernel_id, vx_reference * paramList, vx_uint32 paramCount)
 {
 	if (new_kernel_id == VX_KERNEL_AMD_INVALID) {
 		// TBD: error handling
@@ -35,13 +35,24 @@ int agoDramaDivideAppend(AgoNodeList * nodeList, AgoNode * anode, vx_enum new_ke
 	}
 	// create a new AgoNode and add it to the nodeList
 	AgoNode * childnode = agoCreateNode((AgoGraph *)anode->ref.scope, new_kernel_id);
-	for (vx_uint32 i = 0; i < anode->paramCount; i++) {
-		childnode->paramList[i] = anode->paramList[i];
+	for (vx_uint32 i = 0; i < paramCount; i++) {
+		childnode->paramList[i] = (AgoData *)paramList[i];
 	}
+	anode->drama_divide_invoked = true;
 	// transfer attributes from anode to childnode
 	agoImportNodeConfig(childnode, anode);
 	// verify the node
 	return agoVerifyNode(childnode);
+}
+
+vx_status VX_CALLBACK agoDramaDivideAddNodeCallback(vx_node node, vx_enum kernel_id, vx_reference * paramList, vx_uint32 paramCount)
+{
+    return agoDramaDivideAppend(&((AgoGraph *)node->ref.scope)->nodeList, node, kernel_id, paramList, paramCount);
+}
+
+int agoDramaDivideAppend(AgoNodeList * nodeList, AgoNode * anode, vx_enum new_kernel_id)
+{
+    return agoDramaDivideAppend(nodeList, anode, new_kernel_id, (vx_reference *)anode->paramList, anode->paramCount);
 }
 
 int agoDramaDivideColorConvertNode(AgoNodeList * nodeList, AgoNode * anode)
@@ -1975,10 +1986,11 @@ int agoOptimizeDramaDivide(AgoGraph * agraph)
 		}
 		else if (anode->akernel->regen_callback_f) {
 			// try regenerating the node
-			vx_bool regen_not_needed = vx_true_e;
-			vx_status status = anode->akernel->regen_callback_f(agraph, anode, regen_not_needed);
+			anode->drama_divide_invoked = false;
+			vx_bool replace_original = vx_true_e;
+			vx_status status = anode->akernel->regen_callback_f(anode, agoDramaDivideAddNodeCallback, replace_original);
 			if (status == VX_SUCCESS) {
-				if (regen_not_needed == vx_false_e) {
+				if (anode->drama_divide_invoked && replace_original) {
 					// remove and release the current node
 					if (aprev) aprev->next = anode->next;
 					else agraph->nodeList.head = anode->next;
