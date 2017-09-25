@@ -541,6 +541,7 @@ struct AgoNode {
 	vx_nodecomplete_f callback;
 	AgoSuperNode * supernode;
 	bool initialized;
+	bool drama_divide_invoked;
 	vx_uint32 valid_rect_num_inputs;
 	vx_uint32 valid_rect_num_outputs;
 	vx_rectangle_t ** valid_rect_inputs;

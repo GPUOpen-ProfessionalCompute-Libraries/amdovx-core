@@ -3010,6 +3010,7 @@ AgoNode::AgoNode()
 	: next{ nullptr }, akernel{ nullptr }, flags{ 0 }, localDataSize{ 0 }, localDataPtr{ nullptr }, localDataPtr_allocated{ nullptr }, 
 	  valid_rect_reset{ vx_true_e }, valid_rect_num_inputs{ 0 }, valid_rect_num_outputs{ 0 }, valid_rect_inputs{ nullptr }, valid_rect_outputs{ nullptr },
 	  paramCount{ 0 }, callback{ nullptr }, supernode{ nullptr }, initialized{ false }, target_support_flags{ 0 }, hierarchical_level{ 0 }, status{ VX_SUCCESS }
+	, drama_divide_invoked{ false }
 #if ENABLE_OPENCL
 	, opencl_type{ 0 }, opencl_param_mem2reg_mask{ 0 }, opencl_param_discard_mask{ 0 }, opencl_param_as_value_mask{ 0 },
 	  opencl_param_atomic_mask{ 0 }, opencl_local_buffer_usage_mask{ 0 }, opencl_local_buffer_size_in_bytes{ 0 }, opencl_work_dim{ 0 },
