@@ -2053,7 +2053,7 @@ int agoExecuteGraph(AgoGraph * graph)
 		for (auto node = snode; node != enode; node = node->next) {
 			if (node->attr_affinity.device_type == AGO_KERNEL_FLAG_DEVICE_CPU) {
 #if ENABLE_OPENCL
-				opencl_buffer_access_enable |= node->akernel->opencl_buffer_access_enable;
+				opencl_buffer_access_enable |= (node->akernel->opencl_buffer_access_enable ? true : false);
 				if (!node->akernel->opencl_buffer_access_enable) {
 					agoPerfProfileEntry(graph, ago_profile_type_wait_begin, &node->ref);
 					if (nodeLaunchHierarchicalLevel > 0 && nodeLaunchHierarchicalLevel < node->hierarchical_level) {
