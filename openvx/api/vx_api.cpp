@@ -92,7 +92,33 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context
 	vx_status status = VX_ERROR_INVALID_REFERENCE;
 	if (agoIsValidContext(context)) {
 		status = VX_ERROR_INVALID_FORMAT;
-		if (desc->planes == 1 && !agoSetImageComponentsAndPlanes(context, format, desc->components, desc->planes, desc->pixelSizeInBits, desc->colorSpace, desc->channelRange)) {
+		if (desc->planes == 1 && !agoSetImageComponentsAndPlanes(context, format, desc->components, desc->planes, (vx_uint32)desc->pixelSizeInBitsNum, (vx_uint32)(desc->pixelSizeInBitsDenom ? desc->pixelSizeInBitsDenom : 1), desc->colorSpace, desc->channelRange)) {
+			status = VX_SUCCESS;
+		}
+	}
+	return status;
+}
+
+/**
+* \brief Get custom image format description.
+* \ingroup vx_framework_reference
+* \param [in] context The context.
+* \param [in] format The image format.
+* \param [out] desc The image format description.
+* \return A \ref vx_status_e enumeration.
+* \retval VX_SUCCESS No errors.
+* \retval VX_ERROR_INVALID_REFERENCE if reference is not valid.
+* \retval VX_ERROR_INVALID_FORMAT if format is already in use.
+*/
+VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context context, vx_df_image format, AgoImageFormatDescription * desc)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidContext(context)) {
+		status = VX_ERROR_INVALID_FORMAT;
+		vx_uint32 pixelSizeInBitsNum, pixelSizeInBitsDenom;
+		if (!agoGetImageComponentsAndPlanes(context, format, &desc->components, &desc->planes, &pixelSizeInBitsNum, &pixelSizeInBitsDenom, &desc->colorSpace, &desc->channelRange)) {
+			desc->pixelSizeInBitsNum = pixelSizeInBitsNum;
+			desc->pixelSizeInBitsDenom = pixelSizeInBitsDenom;
 			status = VX_SUCCESS;
 		}
 	}
@@ -235,6 +261,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryContext(vx_context context, vx_enum at
 					status = VX_SUCCESS;
 				}
 				break;
+			case VX_CONTEXT_CL_QUEUE_PROPERTIES:
+				if (size == sizeof(cl_command_queue_properties)) {
+					*(cl_command_queue_properties *)ptr = context->opencl_cmdq_properties;
+					status = VX_SUCCESS;
+				}
+				break;
 #endif
 			case VX_CONTEXT_MAX_TENSOR_DIMENSIONS:
 				if (size == sizeof(vx_size)) {
@@ -329,6 +361,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextAttribute(vx_context context, vx_
 					else {
 						status = VX_FAILURE;
 					}
+				}
+				break;
+			case VX_CONTEXT_CL_QUEUE_PROPERTIES:
+				if (size == sizeof(cl_command_queue_properties)) {
+					context->opencl_cmdq_properties = *(cl_command_queue_properties *)ptr;
+					status = VX_SUCCESS;
 				}
 				break;
 #endif
@@ -884,7 +922,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* cons
 					for (auto roi = image->children[i]->roiDepList.begin(); roi != image->children[i]->roiDepList.end(); roi++) {
 						(*roi)->buffer = image->children[i]->buffer +
 							image->children[i]->u.img.rect_roi.start_y * image->children[i]->u.img.stride_in_bytes +
-							((image->children[i]->u.img.rect_roi.start_x * image->children[i]->u.img.pixel_size_in_bits) >> 3);
+							ImageWidthInBytesFloor(image->children[i]->u.img.rect_roi.start_x, image->children[i]);
 					}
 				}
 			}
@@ -899,7 +937,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapImageHandle(vx_image image_, void* cons
 				for (auto roi = image->roiDepList.begin(); roi != image->roiDepList.end(); roi++) {
 					(*roi)->buffer = image->buffer +
 						image->u.img.rect_roi.start_y * image->u.img.stride_in_bytes +
-						((image->u.img.rect_roi.start_x * image->u.img.pixel_size_in_bits) >> 3);
+						ImageWidthInBytesFloor(image->u.img.rect_roi.start_x, image);
 				}
 			}
 		}
@@ -1173,8 +1211,8 @@ VX_API_ENTRY vx_size VX_API_CALL vxComputeImagePatchSize(vx_image image_,
 		if (image->children) {
 			img = image->children[plane_index];
 		}
-		size = (((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2) * 
-			    ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2) * img->u.img.pixel_size_in_bits) >> 3;
+		size = ImageWidthInBytesFloor(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2), img) *
+			    ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2);
 	}
 	return size;
 }
@@ -1241,12 +1279,13 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
 				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
 				addr->step_y = 1 << img->u.img.y_scale_factor_is_2;
-				addr->stride_x = ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3;
+				addr->stride_x = ((img->u.img.pixel_size_in_bits_num & 7) || (img->u.img.pixel_size_in_bits_denom > 1)) ?
+					0 : (img->u.img.pixel_size_in_bits_num >> 3);
 				addr->stride_y = img->u.img.stride_in_bytes;
 			}
 			vx_uint8 * ptr_internal = img->buffer + 
 				(rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes + 
-				(((rect->start_x >> img->u.img.x_scale_factor_is_2) * img->u.img.pixel_size_in_bits) >> 3);
+				ImageWidthInBytesFloor((rect->start_x >> img->u.img.x_scale_factor_is_2), img);
 			vx_uint8 * ptr_returned = *ptr ? (vx_uint8 *)*ptr : ptr_internal;
 			// save the pointer and usage for use in vxCommitImagePatch
 			status = VX_SUCCESS;
@@ -1279,12 +1318,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxAccessImagePatch(vx_image image_,
 #endif
 					if (item.used_external_ptr) {
 						// copy if read is requested with explicit external buffer
-						if (addr->stride_x == ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3)
-							HafCpu_ChannelCopy_U8_U8(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2) * addr->stride_x, ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
-							ptr_returned, addr->stride_y, ptr_internal, img->u.img.stride_in_bytes);
+						if (addr->stride_x == 0 || ((addr->stride_x << 3) == img->u.img.pixel_size_in_bits_num && img->u.img.pixel_size_in_bits_denom == 1))
+							HafCpu_ChannelCopy_U8_U8(ImageWidthInBytesFloor((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2, img),
+								((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2), ptr_returned, addr->stride_y, ptr_internal, img->u.img.stride_in_bytes);
 						else
 							HafCpu_BufferCopyDisperseInDst(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2), ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
-							((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3, ptr_returned, addr->stride_y, addr->stride_x, ptr_internal, img->u.img.stride_in_bytes);
+							    (img->u.img.pixel_size_in_bits_num / img->u.img.pixel_size_in_bits_denom + 7) >> 3, ptr_returned, addr->stride_y, addr->stride_x, ptr_internal, img->u.img.stride_in_bytes);
 					}
 				}
 			}
@@ -1362,14 +1401,14 @@ VX_API_ENTRY vx_status VX_API_CALL vxCommitImagePatch(vx_image image_,
 					if (used_external_ptr) {
 						// copy from external buffer
 						vx_uint8 * buffer = img->buffer + (rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes + 
-							(((rect->start_x >> img->u.img.x_scale_factor_is_2) * img->u.img.pixel_size_in_bits) >> 3);
+							ImageWidthInBytesFloor((rect->start_x >> img->u.img.x_scale_factor_is_2), img);
 
-						if (addr->stride_x == ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3)
-							HafCpu_ChannelCopy_U8_U8(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2) * addr->stride_x, ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
-							buffer, img->u.img.stride_in_bytes, (vx_uint8 *)ptr, addr->stride_y);
+						if (addr->stride_x == 0 || ((addr->stride_x << 3) == img->u.img.pixel_size_in_bits_num && img->u.img.pixel_size_in_bits_denom == 1))
+							HafCpu_ChannelCopy_U8_U8(ImageWidthInBytesFloor(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2), img),
+								((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2), buffer, img->u.img.stride_in_bytes, (vx_uint8 *)ptr, addr->stride_y);
 						else
 							HafCpu_BufferCopyDisperseInSrc(((rect->end_x - rect->start_x) >> img->u.img.x_scale_factor_is_2) * addr->stride_x, ((rect->end_y - rect->start_y) >> img->u.img.y_scale_factor_is_2),
-							((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3, buffer, img->u.img.stride_in_bytes, (vx_uint8 *)ptr, addr->stride_y, addr->stride_x);
+							(img->u.img.pixel_size_in_bits_num / img->u.img.pixel_size_in_bits_denom + 7) >> 3, buffer, img->u.img.stride_in_bytes, (vx_uint8 *)ptr, addr->stride_y, addr->stride_x);
 					}
 					// update sync flags
 					auto dataToSync = img->u.img.isROI ? img->u.img.roiMasterImage : img;
@@ -1602,7 +1641,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxMapImagePatch(vx_image image_, const vx_rec
 			}
 			vx_uint8 * ptr_returned = img->buffer +
 				(rect->start_y >> img->u.img.y_scale_factor_is_2) * img->u.img.stride_in_bytes +
-				(((rect->start_x >> img->u.img.x_scale_factor_is_2) * img->u.img.pixel_size_in_bits) >> 3);
+				ImageWidthInBytesFloor((rect->start_x >> img->u.img.x_scale_factor_is_2), img);
 			// save the pointer and usage for use in vxCommitImagePatch
 			status = VX_SUCCESS;
 			for (auto i = img->mapped.begin(); i != img->mapped.end(); i++) {
@@ -1641,7 +1680,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxMapImagePatch(vx_image image_, const vx_rec
 				addr->scale_y = VX_SCALE_UNITY >> img->u.img.y_scale_factor_is_2;
 				addr->step_x = 1 << img->u.img.x_scale_factor_is_2;
 				addr->step_y = 1 << img->u.img.y_scale_factor_is_2;
-				addr->stride_x = ((vx_uint32)img->u.img.pixel_size_in_bits + 7) >> 3;
+				addr->stride_x = (img->u.img.pixel_size_in_bits_denom > 1 || (img->u.img.pixel_size_in_bits_num & 7)) ? 0 : (img->u.img.pixel_size_in_bits_num >> 3);
 				addr->stride_y = img->u.img.stride_in_bytes;
 			}
 		}
@@ -1698,8 +1737,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxUnmapImagePatch(vx_image image_, vx_map_id 
 * The function supports only channels that occupy an entire plane of a multi-planar
 * images, as listed below. Other cases are not supported.
 *     VX_CHANNEL_Y from YUV4, IYUV, NV12, NV21
-*     VX_CHANNEL_U from YUV4, IYUV
-*     VX_CHANNEL_V from YUV4, IYUV
+*     VX_CHANNEL_U from YUV4, IYUV, NV12, NV21
+*     VX_CHANNEL_V from YUV4, IYUV, NV12, NV21
 *
 * \param [in] img          The reference to the parent image.
 * \param [in] channel      The <tt>\ref vx_channel_e</tt> channel to use.
@@ -1727,6 +1766,10 @@ VX_API_ENTRY vx_image VX_API_CALL vxCreateImageFromChannel(vx_image img, vx_enum
 			else if (channel == VX_CHANNEL_V && (image->u.img.format == VX_DF_IMAGE_YUV4 || image->u.img.format == VX_DF_IMAGE_IYUV))
 			{
 				subImage = image->children[2];
+			}
+			else if ((channel == VX_CHANNEL_U || channel == VX_CHANNEL_V) && (image->u.img.format == VX_DF_IMAGE_NV12 || image->u.img.format == VX_DF_IMAGE_NV21))
+			{
+				subImage = image->children[1];
 			}
 		}
 	}
@@ -3190,7 +3233,7 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetParameterByIndex(vx_node node, vx_uint32
 		else if (node->parameters[index].state == VX_PARAMETER_STATE_REQUIRED && !value) {
 			status = VX_ERROR_INVALID_REFERENCE;
 		}
-		else if ((index < node->paramCount) && (!node->parameters[index].type || !value || node->parameters[index].type == value->type)) {
+		else if ((index < node->paramCount) && (!node->parameters[index].type || !value || node->parameters[index].type == value->type || node->parameters[index].type == VX_TYPE_REFERENCE)) {
 			if (node->paramList[index]) {
 				agoReleaseData(node->paramList[index], false);
 			}
@@ -3563,6 +3606,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxReadScalarValue(vx_scalar ref, void *ptr)
 				strcpy((char *)ptr, (const char *)data->buffer);
 				break;
 			default:
+				if (data->buffer) {
+					memcpy(ptr, data->buffer, data->size);
+					break;
+				}
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
 			}
@@ -3661,6 +3708,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxWriteScalarValue(vx_scalar ref, const void 
 				data->isInitialized = vx_true_e;
 				break;
 			default:
+				if (ptr) {
+					memcpy(data->buffer,ptr, data->size);
+					break;
+				}
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
 			}

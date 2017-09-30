@@ -317,9 +317,10 @@ int agoGpuOclCreateContext(AgoContext * context, cl_context opencl_context)
 #endif
 	// create command queue for buffer sync
 #if defined(CL_VERSION_2_0)
-	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], NULL, &status);
+	cl_queue_properties properties[] = { CL_QUEUE_PROPERTIES, context->opencl_cmdq_properties, 0 };
+	context->opencl_cmdq = clCreateCommandQueueWithProperties(context->opencl_context, context->opencl_device_list[device_id], properties, &status);
 #else
-	context->opencl_cmdq = clCreateCommandQueue(context->opencl_context, context->opencl_device_list[device_id], 0, &status);
+	context->opencl_cmdq = clCreateCommandQueue(context->opencl_context, context->opencl_device_list[device_id], context->opencl_cmdq_properties, &status);
 #endif
 	if (status) {
 		agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: clCreateCommandQueueWithProperties(%p,%p,0,*) => %d\n", context->opencl_context, context->opencl_device_list[device_id], status);
@@ -543,24 +544,6 @@ int agoGpuOclAllocBuffer(AgoData * data)
 	// allocate CPU buffer
 	if (agoAllocData(data)) {
 		return -1;
-	}
-	return 0;
-}
-
-int agoGpuOclAllocBuffers(AgoGraph * graph, AgoNode * node)
-{
-	for (vx_uint32 i = 0; i < node->paramCount; i++) {
-		AgoData * data = node->paramList[i];
-		if (data && !data->opencl_buffer) {
-			if (agoIsPartOfDelay(data)) {
-				int siblingTrace[AGO_MAX_DEPTH_FROM_DELAY_OBJECT], siblingTraceCount = 0;
-				data = agoGetSiblingTraceToDelayForUpdate(data, siblingTrace, siblingTraceCount);
-				if (!data) return -1;
-			}
-			if (agoGpuOclAllocBuffer(data) < 0) {
-				return -1;
-			}
-		}
 	}
 	return 0;
 }
@@ -834,6 +817,18 @@ static int agoGpuOclSetKernelArgs(cl_kernel opencl_kernel, vx_uint32& kernelArgI
 			return -1; 
 		}
 		kernelArgIndex++;
+		vx_uint32 stride[4] = {
+			(vx_uint32)data->u.tensor.stride[0],
+			(vx_uint32)data->u.tensor.stride[1],
+			(vx_uint32)data->u.tensor.stride[2],
+			(vx_uint32)data->u.tensor.stride[3]
+		};
+		err = clSetKernelArg(opencl_kernel, (cl_uint)kernelArgIndex, sizeof(stride), stride);
+		if (err) {
+			agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: clSetKernelArg(supernode,%d,*,tensor.offset) failed(%d) for group#%d\n", (cl_uint)kernelArgIndex, err, group);
+			return -1;
+		}
+		kernelArgIndex++;
 	}
 	else {
 		agoAddLogEntry(&data->ref, VX_FAILURE, "ERROR: agoGpuOclSetKernelArgs: doesn't support object type %s in group#%d for kernel arg setting\n", agoEnum2Name(data->ref.type), group);
@@ -1100,7 +1095,7 @@ static int agoGpuOclDataInputSync(AgoGraph * graph, cl_kernel opencl_kernel, vx_
 			if (agoGpuOclDataSetBufferAsKernelArg(data, opencl_kernel, kernelArgIndex, group) < 0)
 				return -1;
 		}
-		kernelArgIndex += 2;
+		kernelArgIndex += 3;
 		if (need_read_access) {
 			auto dataToSync = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data;
 			if (!(dataToSync->buffer_sync_flags & AGO_BUFFER_SYNC_FLAG_DIRTY_SYNCHED)) {
@@ -1341,7 +1336,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 	if (code.find("#pragma OPENCL EXTENSION cl_amd_media_ops : enable") != std::string::npos)
 	{
 		std::string clmediaopscode = OPENCL_FORMAT(
-			"uint amd_pack(float4 src){\n"
+			"inline uint amd_pack(float4 src){\n"
 			"	uint dst =  ((uint)(clamp (src.s0,0.0f,255.0f))     )\n"
 			"			  + ((uint)(clamp (src.s1,0.0f,255.0f))<< 8 ) \n"
 			"			  + ((uint)(clamp (src.s2,0.0f,255.0f))<< 16) \n"
@@ -1349,37 +1344,37 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"float amd_unpack3(uint src){\n"
+			"inline float amd_unpack3(uint src){\n"
 			"	float dst=  (float)((src >> 24) & 0xff);\n"
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"float amd_unpack2(uint src){\n"
+			"inline float amd_unpack2(uint src){\n"
 			"	float dst=  (float)((src >> 16) & 0xff);\n"
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"float amd_unpack1(uint src){\n"
+			"inline float amd_unpack1(uint src){\n"
 			"	float dst= (float)((src >> 8) & 0xff);\n"
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"float amd_unpack0(uint src){\n"
+			"inline float amd_unpack0(uint src){\n"
 			"	float dst=  (float)((src)& 0xff);\n"
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"uint amd_bitalign(uint src0,uint src1, uint src2){\n"
+			"inline uint amd_bitalign(uint src0,uint src1, uint src2){\n"
 			"	uint dst = (uint)(as_ulong((uint2)(src1,src0)) >> (src2 & 31));\n"
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"uint amd_bytealign(uint src0,uint src1, uint src2){\n"
+			"inline uint amd_bytealign(uint src0,uint src1, uint src2){\n"
 			"	uint dst = (uint)(as_ulong((uint2)(src1,src0)) >> (src2 & 31) * 8 );\n"
 			"	return dst;\n"
 			"}\n"
 			"\n"
-			"uint amd_lerp(uint src0, uint src1, uint src2) {\n"
+			"inline uint amd_lerp(uint src0, uint src1, uint src2) {\n"
 			"	uint dst = (((((src0 >>  0) & 0xff) + ((src1 >>  0) & 0xff) + ((src2 >>  0) & 1)) >> 1) <<  0) + \n"
 			"			   (((((src0 >>  8) & 0xff) + ((src1 >>  8) & 0xff) + ((src2 >>  8) & 1)) >> 1) <<  8) + \n"
 			"			   (((((src0 >> 16) & 0xff) + ((src1 >> 16) & 0xff) + ((src2 >> 16) & 1)) >> 1) << 16) + \n"
@@ -1387,7 +1382,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst;"
 			"}\n"
 			"\n"
-			"uint amd_sad(uint src0, uint src1, uint src2){ \n"
+			"inline uint amd_sad(uint src0, uint src1, uint src2){ \n"
 			"	uint dst = src2 + \n"
 			"			   abs(((src0 >>  0) & 0xff) - ((src1 >>  0) & 0xff)) + \n"
 			"			   abs(((src0 >>  8) & 0xff) - ((src1 >>  8) & 0xff)) + \n"
@@ -1396,7 +1391,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_sadhi(uint src0, uint src1, uint src2){ \n"
+			"inline uint amd_sadhi(uint src0, uint src1, uint src2){ \n"
 			"	uint dst = src2 + \n"
 			"			   (abs(((src0 >>  0) & 0xff) - ((src1 >>  0) & 0xff)) << 16) + \n"
 			"			   (abs(((src0 >>  8) & 0xff) - ((src1 >>  8) & 0xff)) << 16) + \n"
@@ -1405,7 +1400,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_sad4(uint4 src0, uint4 src1, uint src2) { \n"
+			"inline uint amd_sad4(uint4 src0, uint4 src1, uint src2) { \n"
 			"	uint dst = src2 + \n"
 			"			   abs(((src0.s0 >>  0) & 0xff) - ((src1.s0 >>  0) & 0xff)) + \n"
 			"              abs(((src0.s0 >>  8) & 0xff) - ((src1.s0 >>  8) & 0xff)) + \n"
@@ -1429,7 +1424,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			);
 
 		std::string clmediaops2code = OPENCL_FORMAT(
-			"uint amd_msad(uint src0, uint src1, uint src2){ \n"
+			"inline uint amd_msad(uint src0, uint src1, uint src2){ \n"
 			"	uchar4 src0u8 = as_uchar4(src0); \n"
 			"	uchar4 src1u8 = as_uchar4(src1); \n"
 			"	uint dst = src2 + \n"
@@ -1440,7 +1435,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"ulong amd_qsad(ulong src0, uint src1, ulong src2) { \n"
+			"inline ulong amd_qsad(ulong src0, uint src1, ulong src2) { \n"
 			"	uchar8 src0u8 = as_uchar8(src0); \n"
 			"	ushort4 src2u16 = as_ushort4(src2); \n"
 			"	ushort4 dstu16; \n"
@@ -1452,7 +1447,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"ulong amd_mqsad(ulong src0, uint src1, ulong src2) { \n"
+			"inline ulong amd_mqsad(ulong src0, uint src1, ulong src2) { \n"
 			"	uchar8 src0u8 = as_uchar8(src0); \n"
 			"	ushort4 src2u16 = as_ushort4(src2); \n"
 			"   ushort4 dstu16; \n"
@@ -1464,7 +1459,7 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_sadw(uint src0, uint src1, uint src2) { \n"
+			"inline uint amd_sadw(uint src0, uint src1, uint src2) { \n"
 			"	  ushort2 src0u16 = as_ushort2(src0); \n"
 			"     ushort2 src1u16 = as_ushort2(src1); \n"
 			"     uint dst = src2 + \n"
@@ -1473,12 +1468,12 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"	  return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_sadd(uint src0, uint src1, uint src2) { \n"
+			"inline uint amd_sadd(uint src0, uint src1, uint src2) { \n"
 			"	   uint dst = src2 +  abs(src0 - src1); \n"
 			"	   return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_bfe(uint src0, uint src1, uint src2) { \n"
+			"inline uint amd_bfe(uint src0, uint src1, uint src2) { \n"
 			"   uint dst;"
 			"	uint offset = src1 & 31;\n"
 			"	uint width  = src2 & 31;\n"
@@ -1491,22 +1486,22 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 			"   return dst;\n"
 			"}\n"
 			"\n"
-			"uint amd_bfm(uint src0 , uint src1){ \n"
+			"inline uint amd_bfm(uint src0 , uint src1){ \n"
 			"	uint dst = ((1 << (src0 & 0x1f)) - 1) << (src1 & 0x1f); \n"
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_min3(uint src0, uint src1, uint src2) { \n"
+			"inline uint amd_min3(uint src0, uint src1, uint src2) { \n"
 			"	uint dst = min(src0, min(src1,src2));\n"
 			"   return dst;\n "
 			"}\n"
 			"\n"
-			"uint amd_max3(uint src0, uint src1, uint src2) { \n"
+			"inline uint amd_max3(uint src0, uint src1, uint src2) { \n"
 			"	uint dst = max(src0, max(src1,src2)); \n"
 			"	return dst; \n"
 			"}\n"
 			"\n"
-			"uint amd_median3(uint src0, uint src1, uint src2){ \n"
+			"inline uint amd_median3(uint src0, uint src1, uint src2){ \n"
 			"	uint dst = max(min(src0,src1), min(max(src0,src1),src2)); \n"
 			"	return dst; \n"
 			"}\n"
@@ -1517,12 +1512,12 @@ static void agoEmulateAmdMediaOpsInOpenCL(std::string& code)
 	}
 }
 
-int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
+int agoGpuOclSuperNodeUpdate(AgoGraph * graph, AgoSuperNode * supernode)
 {
 	// make sure that all output images have same dimensions
 	// check to make sure that max input hierarchy level is less than min output hierarchy level
 	vx_uint32 width = 0, height = 0;
-	vx_uint32 max_input_hierarchical_level = 0, min_output_hierarchical_level = (1 << 30);
+	vx_uint32 max_input_hierarchical_level = 0, min_output_hierarchical_level = INT_MAX;
 	for (size_t index = 0; index < supernode->dataList.size(); index++) {
 		AgoData * data = supernode->dataList[index];
 		if (data->ref.type == VX_TYPE_IMAGE && supernode->dataInfo[index].argument_usage[VX_INPUT] == 0) {
@@ -1552,15 +1547,38 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 		agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: agoGpuOclSuperNodeFinalize: doesn't support mix of hierarchical levels inside same group#%d\n", supernode->group);
 		return -1;
 	}
+	supernode->width = width;
+	supernode->height = height;
+
+	// mark hierarchical level (start,end) of all supernodes
+	for (AgoSuperNode * supernode = graph->supernodeList; supernode; supernode = supernode->next) {
+		supernode->hierarchical_level_start = INT_MAX;
+		supernode->hierarchical_level_end = 0;
+		for (AgoNode * node : supernode->nodeList) {
+			supernode->hierarchical_level_start = min(supernode->hierarchical_level_start, node->hierarchical_level);
+			supernode->hierarchical_level_end = max(supernode->hierarchical_level_end, node->hierarchical_level);
+		}
+	}
+
+	return 0;
+}
+
+int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
+{
+	// get supernode image dimensions
+	vx_uint32 width = supernode->width;
+	vx_uint32 height = supernode->height;
 	// decide work group dimensions (256 work-items)
 	vx_uint32 work_group_width = AGO_OPENCL_WORKGROUP_SIZE_0;
 	vx_uint32 work_group_height = AGO_OPENCL_WORKGROUP_SIZE_1;
 	// save image size and compute global work
 	//   - each work item processes 8x1 pixels
-	supernode->width = width;
-	supernode->height = height;
 	supernode->opencl_global_work[0] = (((width + 7) >> 3) + (work_group_width  - 1)) & ~(work_group_width  - 1);
 	supernode->opencl_global_work[1] = (  height           + (work_group_height - 1)) & ~(work_group_height - 1);
+	supernode->opencl_global_work[2] = 1;
+	supernode->opencl_local_work[0] = work_group_width;
+	supernode->opencl_local_work[1] = work_group_height;
+	supernode->opencl_local_work[2] = 1;
 	for (size_t index = 0; index < supernode->dataList.size(); index++) {
 		AgoData * data = supernode->dataList[index];
 	}
@@ -1722,6 +1740,11 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 		if (node->akernel->func) {
 			node->opencl_code = "";
 			status = node->akernel->func(node, ago_kernel_cmd_opencl_codegen);
+			for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+				node->opencl_global_work[dim] = 1;
+				node->opencl_local_work[dim] = 1;
+			}
+			node->opencl_work_dim = 3;
 		}
 		else if (node->akernel->opencl_codegen_callback_f) {
 			// generation function declaration
@@ -1769,12 +1792,14 @@ int agoGpuOclSuperNodeFinalize(AgoGraph * graph, AgoSuperNode * supernode)
 			node->opencl_output_array_param_index_plus1 = 0;
 			node->opencl_local_buffer_usage_mask = 0;
 			node->opencl_local_buffer_size_in_bytes = 0;
-			vx_uint32 work_dim = 2;
-			vx_size global_work[3] = { supernode->opencl_global_work[0], supernode->opencl_global_work[1], 1 };
-			vx_size local_work[3] = { work_group_width, work_group_height, 1 };
 			status = node->akernel->opencl_codegen_callback_f(node, (vx_reference *)node->paramList, node->paramCount,
-				true, node->opencl_name, node->opencl_code, node->opencl_build_options, work_dim, global_work, 
-				local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
+				true, node->opencl_name, node->opencl_code, node->opencl_build_options, node->opencl_work_dim, supernode->opencl_global_work,
+				supernode->opencl_local_work, node->opencl_local_buffer_usage_mask, node->opencl_local_buffer_size_in_bytes);
+			for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+				node->opencl_global_work[dim] = 1;
+				node->opencl_local_work[dim] = 1;
+			}
+			node->opencl_work_dim = 3;
 		}
 		if (status != VX_SUCCESS) {
 			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: agoGpuOclSuperNodeFinalize: kernel %s in group#%d is not supported yet\n", node->akernel->name, supernode->group);
@@ -2056,9 +2081,9 @@ int agoGpuOclSuperNodeLaunch(AgoGraph * graph, AgoSuperNode * supernode)
 	// launch the kernel
 	int64_t stime = agoGetClockCounter();
 	cl_int err;
-	err = clEnqueueNDRangeKernel(supernode->opencl_cmdq, supernode->opencl_kernel, 2, NULL, supernode->opencl_global_work, NULL, 0, NULL, &supernode->opencl_event);
+	err = clEnqueueNDRangeKernel(supernode->opencl_cmdq, supernode->opencl_kernel, 3, NULL, supernode->opencl_global_work, supernode->opencl_local_work, 0, NULL, &supernode->opencl_event);
 	if (err) { 
-		agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,2,*,%dx%d,...) failed(%d) for group#%d\n", (cl_uint)supernode->opencl_global_work[0], (cl_uint)supernode->opencl_global_work[1], err, supernode->group);
+		agoAddLogEntry(&graph->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,3,*,{%d,%d,%d},{%d,%d,%d},...) failed(%d) for group#%d\n", (cl_uint)supernode->opencl_global_work[0], (cl_uint)supernode->opencl_global_work[1], (cl_uint)supernode->opencl_global_work[2], (cl_uint)supernode->opencl_local_work[0], (cl_uint)supernode->opencl_local_work[1], (cl_uint)supernode->opencl_local_work[2], err, supernode->group);
 		return -1; 
 	}
 	err = clFlush(supernode->opencl_cmdq);
@@ -2230,19 +2255,31 @@ int agoGpuOclSingleNodeLaunch(AgoGraph * graph, AgoNode * node)
 			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: agoGpuOclSingleNodeLaunch: invalid opencl_global_work_update_callback_f failed (%d) for kernel %s\n", status, node->akernel->name);
 			return -1;
 		}
+		for(vx_size dim = node->opencl_work_dim; dim < 3; dim++) {
+			node->opencl_global_work[dim] = 1;
+			node->opencl_local_work[dim] = 1;
+		}
+		node->opencl_work_dim = 3;
 	}
 	// launch the kernel
 	int64_t stime = agoGetClockCounter();
 	cl_int err;
-	err = clEnqueueNDRangeKernel(graph->opencl_cmdq, node->opencl_kernel, node->opencl_work_dim, NULL, node->opencl_global_work, NULL, 0, NULL, &node->opencl_event);
+	if(node->opencl_local_work[0] != 0) {
+		err = clEnqueueNDRangeKernel(graph->opencl_cmdq, node->opencl_kernel, node->opencl_work_dim, NULL, node->opencl_global_work, node->opencl_local_work, 0, NULL, &node->opencl_event);
+	}
+	else {
+		err = clEnqueueNDRangeKernel(graph->opencl_cmdq, node->opencl_kernel, node->opencl_work_dim, NULL, node->opencl_global_work, NULL, 0, NULL, &node->opencl_event);
+	}
 	if (err) { 
-		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,%d,*,{%d,%d,%d},...) failed(%d) for %s\n", (cl_uint)node->opencl_work_dim, (cl_uint)node->opencl_global_work[0], (cl_uint)node->opencl_global_work[1], (cl_uint)node->opencl_global_work[2], err, node->akernel->name);
+		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clEnqueueNDRangeKernel(supernode,%d,*,{%d,%d,%d},{%d,%d,%d},...) failed(%d) for %s\n", (cl_uint)node->opencl_work_dim, (cl_uint)node->opencl_global_work[0], (cl_uint)node->opencl_global_work[1], (cl_uint)node->opencl_global_work[2], (cl_uint)node->opencl_local_work[0], (cl_uint)node->opencl_local_work[1], (cl_uint)node->opencl_local_work[2], err, node->akernel->name);
 		return -1; 
 	}
-	err = clFlush(graph->opencl_cmdq);
-	if (err) { 
-		agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clFlush(supernode) failed(%d) for %s\n", err, node->akernel->name);
-		return -1; 
+	if(graph->enable_node_level_opencl_flush) {
+		err = clFlush(graph->opencl_cmdq);
+		if (err) {
+			agoAddLogEntry(&node->ref, VX_FAILURE, "ERROR: clFlush(supernode) failed(%d) for %s\n", err, node->akernel->name);
+			return -1;
+		}
 	}
 	int64_t etime = agoGetClockCounter();
 	graph->opencl_perf.kernel_enqueue += etime - stime;

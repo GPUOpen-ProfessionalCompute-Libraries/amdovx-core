@@ -1,7 +1,7 @@
 # AMD RunVX
 RunVX is a command-line tool to execute OpenVX graphs, with a simple, easy-to-use interface. It encapsulates most of the routine OpenVX calls, thus speeding up development and enabling rapid prototyping. As input, RunVX takes a GDF (Graph Description Format) file, a simple and intuitive syntax to describe the various data, nodes, and their dependencies. The tool has other useful features, such as, file read/write, data compares, image and keypoint data visualization, etc.
 
-This project uses OpenCV for camera capture and image display.
+If available, this project uses OpenCV for camera capture and image display.
 
 ## RunVX Usage and GDF Syntax
     runvx.exe [options] <file.gdf> [argument(s)]

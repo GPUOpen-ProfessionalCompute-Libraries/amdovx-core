@@ -251,8 +251,8 @@ int HafGpu_FastCorners_XY_U8(AgoNode * node)
 		// FAST without non-max supression
 
 		// OpenCL work items
-		node->opencl_global_work[0] = inputImg->u.img.width - 6;
-		node->opencl_global_work[1] = inputImg->u.img.height - 6;
+		node->opencl_global_work[0] = (inputImg->u.img.width  - 6 + work_group_width  - 1) & ~(work_group_width  - 1);
+		node->opencl_global_work[1] = (inputImg->u.img.height - 6 + work_group_height - 1) & ~(work_group_height - 1);
 
 		// Pragma and data structure declarations
 		sprintf(item,

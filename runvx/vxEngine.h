@@ -30,7 +30,7 @@ class CVxEngine {
 public:
 	CVxEngine();
 	virtual ~CVxEngine();
-	int Initialize(int paramCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual);
+	int Initialize(int paramCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual, bool enableFullProfile, bool disableNodeFlushForCL);
 	void SetConfigOptions(bool verbose, bool discardCompareErrors, bool enableDumpProfile, bool enableDumpGDF, int waitKeyDelayInMilliSeconds);
 	void SetFrameCountOptions(bool enableMultiFrameProcessing, bool framesEofRequested, bool frameCountSpecified, int frameStart, int frameEnd);
 	int SetGraphOptimizerFlags(vx_uint32 graph_optimizer_flags);
