@@ -195,6 +195,11 @@ If available, this project uses OpenCV for camera capture and image display.
           - image object initial values can be:
               Binary file with image data. For images created from handle,
               the vxSwapHandles API will be invoked before executing the graph.
+          - tensor object initial values can be:
+              Binary file with tensor data.
+              To replicate a file multiple times, use @repeat~N~<fileName>.
+              To fill the tensor with a value, use @fill~f32~<float-value>,
+              @fill~i32~<int-value>, @fill~i16~<int-value>, or @fill~u8~<uint-value>.
 
       read <dataName> <fileName> [ascii|binary] [<option(s)>]
           Read frame-level data from the specified <fileName>.

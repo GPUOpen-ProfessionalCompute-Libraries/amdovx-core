@@ -1355,6 +1355,11 @@ void PrintHelpGDF(const char * command)
 		"      - image object initial values can be:\n"
 		"          Binary file with image data. For images created from handle,\n"
 		"          the vxSwapHandles API will be invoked before executing the graph.\n"
+		"      - tensor object initial values can be:\n"
+		"          Binary file with tensor data.\n"
+		"          To replicate a file multiple times, use @repeat~N~<fileName>.\n"
+		"          To fill the tensor with a value, use @fill~f32~<float-value>,\n"
+		"          @fill~i32~<int-value>, @fill~i16~<int-value>, or @fill~u8~<uint-value>.\n"
 		"\n"
 		);
 	if (strstr("read", command)) printf(

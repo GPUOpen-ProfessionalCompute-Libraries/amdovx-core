@@ -156,16 +156,56 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		}
 		else if (!_stricmp(ioType, "init"))
 		{ // init request syntax: init,<fileName>
-			FILE * fp = fopen(RootDirUpdated(fileName), "rb");
-			if (!fp) {
-				ReportError("ERROR: Unable to open: %s\n", fileName);
+			if(!_strnicmp(fileName, "@fill~f32~", 10)) {
+				float value = atof(&fileName[10]);
+				float * buf = (float *)m_data;
+				for(size_t i = 0; i < m_size/4; i++)
+					buf[i] = value;
 			}
-			if (fread(m_data, 1, m_size, fp) != m_size)
-				ReportError("ERROR: not enough data (%d bytes) in %s\n", (vx_uint32)m_size, fileName);
-			vx_status status = vxCopyTensorPatch(m_tensor, m_num_of_dims, nullptr, nullptr, m_stride, m_data, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
-			fclose(fp);
-			if (status != VX_SUCCESS)
-				ReportError("ERROR: vxCopyTensorPatch: write failed (%d)\n", status);
+			else if(!_strnicmp(fileName, "@fill~i32~", 10)) {
+				vx_int32 value = atoi(&fileName[10]);
+				vx_int32 * buf = (vx_int32 *)m_data;
+				for(size_t i = 0; i < m_size/4; i++)
+					buf[i] = value;
+			}
+			else if(!_strnicmp(fileName, "@fill~i16~", 10)) {
+				vx_int16 value = (vx_int16)atoi(&fileName[10]);
+				vx_int16 * buf = (vx_int16 *)m_data;
+				for(size_t i = 0; i < m_size/2; i++)
+					buf[i] = value;
+			}
+			else if(!_strnicmp(fileName, "@fill~u8~", 9)) {
+				int value = atoi(&fileName[9]);
+				memset(m_data, value, m_size);
+			}
+			else {
+				int count = 1;
+				const char * tensorFileName = fileName;
+				if(!_strnicmp(tensorFileName, "@repeat~", 8)) {
+					tensorFileName += 8;
+					for(count = 0; *tensorFileName >= '0' && *tensorFileName <= '9'; tensorFileName++) {
+						count = count * 10 + *tensorFileName - '0';
+					}
+					if(*tensorFileName++ != '~' || count < 1)
+						ReportError("ERROR: invalid init @repeat~<n>~fileName syntax -- %s\n", fileName);
+					if((m_size % count) != 0)
+						ReportError("ERROR: file size is not multiple of tensor size -- %s\n", fileName);
+				}
+				FILE * fp = fopen(RootDirUpdated(tensorFileName), "rb");
+				if (!fp) {
+					ReportError("ERROR: Unable to open: %s\n", tensorFileName);
+				}
+				vx_size size = m_size / count;
+				if (fread(m_data, 1, size, fp) != size)
+					ReportError("ERROR: not enough data (%d bytes) in %s\n", (vx_uint32)size, tensorFileName);
+				for(int i = 1; i < count; i++) {
+					memcpy(m_data + i * size, m_data, size);
+				}
+				vx_status status = vxCopyTensorPatch(m_tensor, m_num_of_dims, nullptr, nullptr, m_stride, m_data, VX_WRITE_ONLY, VX_MEMORY_TYPE_HOST);
+				fclose(fp);
+				if (status != VX_SUCCESS)
+					ReportError("ERROR: vxCopyTensorPatch: write failed (%d)\n", status);
+			}
 		}
 		else if (!_stricmp(ioType, "write"))
 		{ // write request syntax: write,<fileName>[,ascii|binary]
