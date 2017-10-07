@@ -31,6 +31,9 @@ If available, this project uses OpenCV for camera capture and image display.
       -disable-virtual
           Replace all virtual data types in GDF with non-virtual data types.
           Use of this flag (i.e. for debugging) can make a graph run slower.
+      -dump-data-config:<dumpFilePrefix>,<object-type>[,object-type[...]]
+          Automatically dump all non-virtual objects of specified object types
+          into files '<dumpFilePrefix>dumpdata_####_<object-type>_<object-name>.raw'
     
     The supported list of OpenVX built-in kernel names is given below:
         org.khronos.openvx.color_convert
@@ -155,6 +158,9 @@ If available, this project uses OpenCV for camera capture and image display.
                   Turn on/off data compares or just discard data compare errors.
               set use-schedule-graph [on|off]
                   Turn on/off use of vxScheduleGraph instead of vxProcessGraph.
+              set dump-data-config [<dumpFilePrefix>,<obj-type>[,<obj-type>[...]]]
+                  Specify dump data config for portion of the graph. To disable
+                  don't specify any config.
 
       graph <command> [<arguments> ...]
           Specify below graph specific commands:

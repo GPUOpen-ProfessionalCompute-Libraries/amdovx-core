@@ -77,6 +77,8 @@ CVxEngine::CVxEngine()
 	m_disableCompare = false;
 	m_numGraphProcessed = 0;
 	m_graphVerified = false;
+	m_dumpDataEnabled = false;
+	m_dumpDataCount = 0;
 }
 
 CVxEngine::~CVxEngine()
@@ -140,6 +142,18 @@ int CVxEngine::SetGraphOptimizerFlags(vx_uint32 graph_optimizer_flags)
 	if (status)
 		ReportError("ERROR: vxSetGraphAttribute(*,VX_GRAPH_ATTRIBUTE_AMD_OPTIMIZER_FLAGS,%d) failed (%d:%s)\n", graph_optimizer_flags, status, ovxEnum2Name(status));
 	return 0;
+}
+
+void CVxEngine::SetDumpDataConfig(std::string dumpDataConfig)
+{
+	m_dumpDataEnabled = false;
+	// extract dumpDataFilePrefix and dumpDataObjectList (with added ',' at the end)
+	// to check if an object type is specified, use dumpDataObjectList.find(",<object-type>,") != npos
+	size_t pos = dumpDataConfig.find(",");
+	if(pos == std::string::npos) return;
+	m_dumpDataFilePrefix = dumpDataConfig.substr(0,pos);
+	m_dumpDataObjectList = dumpDataConfig.substr(pos) + ",";
+	m_dumpDataEnabled = true;
 }
 
 vx_context CVxEngine::getContext()
@@ -616,6 +630,12 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 			}
 			printf("> current settings for dump-gdf: %s\n", m_enableDumpGDF ? "on" : "off");
 		}
+		else if (!_stricmp(wordList[1], "dump-data-config"))
+		{ // syntax: set dump-data-config [<dumpFilePrefix>,<obj-type>[,<obj-type>[...]]]
+			std::string dumpDataConfig = (wordList.size() > 2) ? wordList[2] : "";
+			SetDumpDataConfig(dumpDataConfig);
+			printf("> current settings for dump-data-config: %s\n", dumpDataConfig.c_str());
+		}
 		else ReportError("ERROR: syntax error: %s\n" "See help for details.\n", originalText);
 	}
 	else if (!_stricmp(wordList[0], "graph") && wordList.size() > 1)
@@ -816,6 +836,21 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 		vx_status status = vxSetReferenceName(ref, wordList[1]);
 		if (status != VX_SUCCESS)
 			ReportError("ERROR: vxSetReferenceName(%s) failed (%d:%s)\n", wordList[1], status, ovxEnum2Name(status));
+		// check if dump-data-config is enabled for non-virtual data objects
+		if(m_dumpDataEnabled && objDesc.find("virtual") == std::string::npos) {
+			// check if object type is requeted for dump
+			std::string objType = objDesc.substr(0,objDesc.find(":"));
+			std::string objTypeKey = ","; objTypeKey += objType + ",";
+			if(m_dumpDataObjectList.find(objTypeKey) != std::string::npos) {
+				// issue an InitializeIO command with write to dump into a file
+				char io_params[256];
+				sprintf(io_params, "write,%sdump_%04d_%s_%s.raw", m_dumpDataFilePrefix.c_str(), m_dumpDataCount, objType.c_str(), wordList[1]);
+				int status = obj->InitializeIO(m_context, m_graph, obj->GetVxObject(), io_params);
+				if (status < 0)
+					ReportError("ERROR: dump-data-config for %s failed: %s\n", wordList[1], io_params);
+				m_dumpDataCount++;
+			}
+		}
 	}
 	else if (wordList.size() > 2 && (!_stricmp(wordList[0], "init") || 
 		!_stricmp(wordList[0], "read") || !_stricmp(wordList[0], "write") || 
@@ -1311,6 +1346,9 @@ void PrintHelpGDF(const char * command)
 		"              Turn on/off data compares or just discard data compare errors.\n"
 		"          set use-schedule-graph [on|off]\n"
 		"              Turn on/off use of vxScheduleGraph instead of vxProcessGraph.\n"
+		"          set dump-data-config [<dumpFilePrefix>,<obj-type>[,<obj-type>[...]]]\n"
+		"              Specify dump data config for portion of the graph. To disable\n"
+		"              don't specify any config.\n"
 		"\n"
 		);
 	if (strstr("graph", command)) printf(
