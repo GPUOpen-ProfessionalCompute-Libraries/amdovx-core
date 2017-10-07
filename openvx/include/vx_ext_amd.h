@@ -547,6 +547,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context
 */
 VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context context, vx_df_image format, AgoImageFormatDescription * desc);
 
+/* Tensor */
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensorFromHandle(vx_context context, vx_size number_of_dims, const vx_size * dims, vx_enum data_type, vx_int8 fixed_point_position, const vx_size * stride, void * ptr, vx_enum memory_type);
+VX_API_ENTRY vx_status VX_API_CALL vxSwapTensorHandle(vx_tensor tensor, void * new_ptr, void** prev_ptr);
+
 #ifdef  __cplusplus
 }
 #endif
