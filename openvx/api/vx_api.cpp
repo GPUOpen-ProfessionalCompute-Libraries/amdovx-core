@@ -7212,6 +7212,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryTensor(vx_tensor tensor, vx_enum attri
 					status = VX_SUCCESS;
 				}
 				break;
+			case VX_TENSOR_MEMORY_TYPE:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = data->import_type;
+					status = VX_SUCCESS;
+				}
+				break;
 #if ENABLE_OPENCL
 			case VX_TENSOR_OFFSET_OPENCL:
 				if (size == sizeof(vx_size)) {
