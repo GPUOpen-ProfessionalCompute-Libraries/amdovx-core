@@ -69,6 +69,8 @@ void show_usage(const char * program, bool detail)
 	printf("  -dump-data-config:<dumpFilePrefix>,<object-type>[,object-type[...]]\n");
 	printf("      Automatically dump all non-virtual objects of specified object types\n");
 	printf("      into files '<dumpFilePrefix>dumpdata_####_<object-type>_<object-name>.raw'.\n");
+	printf("  -discard-commands:<cmd>[,cmd[...]]\n");
+	printf("      Discard the listed commands.\n");
 	printf("\n");
 
 	if (!detail) return;
@@ -97,6 +99,7 @@ int main(int argc, char * argv[])
 	int waitKeyDelayInMilliSeconds = -1; // -ve indicates no user preference
 	bool enableFullProfile = false, disableNodeFlushForCL = false;
 	std::string dumpDataConfig = "";
+	std::string discardCommandList = "";
 	for (arg = 1; arg < argc; arg++){
 		if (argv[arg][0] == '-'){
 			if (!_stricmp(argv[arg], "-h")) {
@@ -170,6 +173,9 @@ int main(int argc, char * argv[])
 			else if (!_strnicmp(argv[arg], "-dump-data-config:", 18)) {
 				dumpDataConfig = &argv[arg][18];
 			}
+			else if (!_strnicmp(argv[arg], "-discard-commands:", 18)) {
+				discardCommandList = &argv[arg][18];
+			}
 			else if (!_strnicmp(argv[arg], "-graph-optimizer-flags:", 23)) {
 				if (sscanf(&argv[arg][23], "%i", &graphOptimizerFlags) == 1) {
 					doSetGraphOptimizerFlags = true;
@@ -202,7 +208,7 @@ int main(int argc, char * argv[])
 	int errorCode = 0;
 	try {
 		// initialize engine
-		if (engine.Initialize(argCount, defaultTargetAffinity, defaultTargetInfo, enableScheduleGraph, disableVirtual, enableFullProfile, disableNodeFlushForCL) < 0) throw - 1;
+		if (engine.Initialize(argCount, defaultTargetAffinity, defaultTargetInfo, enableScheduleGraph, disableVirtual, enableFullProfile, disableNodeFlushForCL, discardCommandList) < 0) throw - 1;
 		if (doSetGraphOptimizerFlags) {
 			engine.SetGraphOptimizerFlags(graphOptimizerFlags);
 		}

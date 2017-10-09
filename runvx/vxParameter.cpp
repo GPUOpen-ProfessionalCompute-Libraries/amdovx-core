@@ -101,6 +101,11 @@ void CVxParameter::AddToArrayListForView(int colorIndex, int x, int y)
 	}
 }
 
+int CVxParameter::SyncFrame(int frameNumber)
+{
+	return 0;
+}
+
 list<CVxParameter *> CVxParameter::m_paramList;
 
 ///////////////////////////////////////////////////////////////////
@@ -325,7 +330,9 @@ CVxParameter * CreateDataObject(vx_context context, vx_graph graph, std::map<std
 			return NULL;
 		return this_delay;
 	}
-	else if (!_strnicmp(desc, "tensor:", 7) || !_strnicmp(desc, "virtual-tensor:", 15) || !_strnicmp(desc, "tensor-from-roi:", 16)){
+	else if (!_strnicmp(desc, "tensor:", 7) || !_strnicmp(desc, "virtual-tensor:", 15) ||
+			 !_strnicmp(desc, "tensor-from-roi:", 16) || !_strnicmp(desc, "tensor-from-handle:", 19))
+	{
 		CVxParamTensor *this_tensor = new CVxParamTensor();
 		this_tensor->SetParamMap(m_paramMap);
 		this_tensor->SetCaptureFrameStart(captureFrameStart);

@@ -26,6 +26,9 @@ THE SOFTWARE.
 
 #include "vxUtils.h"
 
+// common constants
+#define MAX_BUFFER_HANDLES        16
+
 // constants local to vxParameter.h/cpp
 #define MAX_FILE_NAME_LENGTH    1024
 #define MAX_MODE_STRING_LENGTH    16
@@ -69,9 +72,10 @@ public:
 	// get OpenVX object type (e.g., VX_TYPE_IMAGE, VX_TYPE_SCALAR, ...)
 	vx_enum GetVxObjectType() { return m_vxObjType; }
 
-	// frame-level read, write, and compare
+	// frame-level sync, read, write, and compare
 	//   returns 0 on SUCCESS, else error code
 	//   ReadFrame() returns +ve value to indicate data unavailability
+	virtual int SyncFrame(int frameNumber);
 	virtual int ReadFrame(int frameNumber) = 0;
 	virtual int WriteFrame(int frameNumber) = 0;
 	virtual int CompareFrame(int frameNumber) = 0;

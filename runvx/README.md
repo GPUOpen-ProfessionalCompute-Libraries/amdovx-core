@@ -34,6 +34,8 @@ If available, this project uses OpenCV for camera capture and image display.
       -dump-data-config:<dumpFilePrefix>,<object-type>[,object-type[...]]
           Automatically dump all non-virtual objects of specified object types
           into files '<dumpFilePrefix>dumpdata_####_<object-type>_<object-name>.raw'
+      -discard-commands:<cmd>[,cmd[...]]
+          Discard the listed commands.
     
     The supported list of OpenVX built-in kernel names is given below:
         org.khronos.openvx.color_convert
@@ -106,6 +108,7 @@ If available, this project uses OpenCV for camera capture and image display.
               threshold:<thresh-type>,<data-type>
               tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>
               tensor-from-roi:<master-tensor>,<num-of-dims>,{<start0>,<start1>,...},{<end0>,<end1>,...}
+              tensor-from-handle:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>,{<stride0>,<stride1>,...},<num-alloc-handles>,<memory-type>
           For virtual object in default graph use the below syntax for
           <data-description>:
               virtual-array:<data-type>,<capacity>
@@ -180,6 +183,9 @@ If available, this project uses OpenCV for camera capture and image display.
                   Launch the default or specified graph(s).
               graph info [<graphName(s)>]
                   Show graph details for debug.
+
+      rename <dataNameOld> <dataNameNew>
+          Rename a data object\n"
 
       init <dataName> <initial-value>
           Initialize data object with specified value.

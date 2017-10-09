@@ -86,13 +86,17 @@ CVxEngine::~CVxEngine()
 	Shutdown();
 }
 
-int CVxEngine::Initialize(int argCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual, bool enableFullProfile, bool disableNodeFlushForCL)
+int CVxEngine::Initialize(int argCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual, bool enableFullProfile, bool disableNodeFlushForCL, std::string discardCommandList)
 {
 	// save configuration
 	m_paramCount = argCount;
 	m_enableScheduleGraph = enableScheduleGraph;
 	vx_status ovxStatus = VX_SUCCESS;
 	m_disableVirtual = disableVirtual;
+	// add ','s at the end of command list to be discarded to ease string search
+	m_discardCommandList = ",";
+	m_discardCommandList += discardCommandList;
+	m_discardCommandList += ",";
 
 	// create OpenVX context, register log_callback, and show implementation
 	vxRegisterLogCallback(nullptr, log_callback, vx_false_e); // to receive log messages from vxCreateContext (if any)
@@ -380,7 +384,9 @@ int CVxEngine::ProcessGraph(std::vector<const char *> * graphNameList, size_t be
 	m_timeMeasurements.clear();
 	int64_t start_time = utilGetClockCounter();
 	for (int frameNumber = m_frameStart; m_usingMultiFrameCapture || frameNumber < m_frameEnd; frameNumber++, count++){
-		//read input data, when specified
+		// sync frame
+		if ((status = SyncFrame(frameNumber)) < 0) throw - 1;
+		// read input data, when specified
 		if ((status = ReadFrame(frameNumber)) < 0) throw - 1;
 		if (m_framesEofRequested && status > 0) {
 			// data is not available
@@ -477,6 +483,24 @@ const char * RemoveWhiteSpacesAndComment(char * line)
 	return buf;
 }
 
+int CVxEngine::RenameData(const char * oldName, const char * newName)
+{
+	auto itOld = m_paramMap.find(oldName);
+	auto itNew = m_paramMap.find(newName);
+	if (itNew != m_paramMap.end()) {
+		ReportError("ERROR: data object with name '%s' already exists\n", newName);
+	}
+	else if (itOld == m_paramMap.end()) {
+		ReportError("ERROR: data object with name '%s' doesn't exist\n", oldName);
+	}
+	else {
+		auto obj = itOld->second;
+		m_paramMap.erase(itOld);
+		m_paramMap.insert(pair<string, CVxParameter *>(newName, obj));
+	}
+	return 0;
+}
+
 int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 {
 	// remove whitespaces and save original text for error reporting
@@ -503,6 +527,13 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 		s = t + 1;
 	}
 	if (!wordList.size())
+		return BUILD_GRAPH_SUCCESS;
+
+	// discard command if listed in discardCommandList
+	std::string commandKey = ",";
+	commandKey += wordList[0];
+	commandKey += ",";
+	if (m_discardCommandList.find(commandKey) != std::string::npos)
 		return BUILD_GRAPH_SUCCESS;
 
 	// process a GDF statement
@@ -852,6 +883,10 @@ int CVxEngine::BuildAndProcessGraphFromLine(int level, char * line)
 			}
 		}
 	}
+	else if (!_stricmp(wordList[0], "rename") && wordList.size() == 3)
+	{ // syntax: rename <old-name> <new-name>
+		RenameData(wordList[1], wordList[2]);
+	}
 	else if (wordList.size() > 2 && (!_stricmp(wordList[0], "init") || 
 		!_stricmp(wordList[0], "read") || !_stricmp(wordList[0], "write") || 
 		!_stricmp(wordList[0], "view") || !_stricmp(wordList[0], "compare") || 
@@ -1092,6 +1127,16 @@ int CVxEngine::Shell(int level, FILE * fp)
 	return 0;
 }
 
+int CVxEngine::SyncFrame(int frameNumber)
+{
+	for (auto it = m_paramMap.begin(); it != m_paramMap.end(); ++it){
+		int status = it->second->SyncFrame(frameNumber);
+		if (status)
+			return status;
+	}
+	return 0;
+}
+
 int CVxEngine::ReadFrame(int frameNumber)
 {
 	for (auto it = m_paramMap.begin(); it != m_paramMap.end(); ++it){
@@ -1286,6 +1331,7 @@ void PrintHelpGDF(const char * command)
 		"          threshold:<thresh-type>,<data-type>\n"
 		"          tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>\n"
 		"          tensor-from-roi:<master-tensor>,<num-of-dims>,{<start0>,<start1>,...},{<end0>,<end1>,...}\n"
+		"          tensor-from-handle:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>,{<stride0>,<stride1>,...},<num-alloc-handles>,<memory-type>\n"
 		"      For virtual object in default graph use the below syntax for\n"
 		"      <data-description>:\n"
 		"          virtual-array:<data-type>,<capacity>\n"
@@ -1370,6 +1416,11 @@ void PrintHelpGDF(const char * command)
 		"              Launch the default or specified graph(s).\n"
 		"          graph info [<graphName(s)>]\n"
 		"              Show graph details for debug.\n"
+		"\n"
+		);
+	if (strstr("rename", command)) printf(
+		"  rename <dataNameOld> <dataNameNew>\n"
+		"      Rename a data object\n"
 		"\n"
 		);
 	if (strstr("init", command)) printf(

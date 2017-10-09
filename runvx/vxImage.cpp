@@ -651,7 +651,7 @@ int CVxParamImage::Finalize()
 	return 0;
 }
 
-int CVxParamImage::ReadFrame(int frameNumber)
+int CVxParamImage::SyncFrame(int frameNumber)
 {
 	if (m_swap_handles) {
 		// swap handles if requested for images created from handle
@@ -660,7 +660,11 @@ int CVxParamImage::ReadFrame(int frameNumber)
 		if (status)
 			ReportError("ERROR: vxSwapImageHandle(%s,*,*,%d) failed (%d)\n", m_vxObjName, (int)m_planes, status);
 	}
+	return 0;
+}
 
+int CVxParamImage::ReadFrame(int frameNumber)
+{
 #if ENABLE_OPENCV
 	if (m_cvCapMat && m_cvCapDev) {
 		// read image from camera

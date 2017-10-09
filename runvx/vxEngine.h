@@ -30,7 +30,7 @@ class CVxEngine {
 public:
 	CVxEngine();
 	virtual ~CVxEngine();
-	int Initialize(int paramCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual, bool enableFullProfile, bool disableNodeFlushForCL);
+	int Initialize(int paramCount, int defaultTargetAffinity, int defaultTargetInfo, bool enableScheduleGraph, bool disableVirtual, bool enableFullProfile, bool disableNodeFlushForCL, std::string discardCommandList);
 	void SetConfigOptions(bool verbose, bool discardCompareErrors, bool enableDumpProfile, bool enableDumpGDF, int waitKeyDelayInMilliSeconds);
 	void SetFrameCountOptions(bool enableMultiFrameProcessing, bool framesEofRequested, bool frameCountSpecified, int frameStart, int frameEnd);
 	int SetGraphOptimizerFlags(vx_uint32 graph_optimizer_flags);
@@ -49,6 +49,7 @@ protected:
 	int ProcessGraph(std::vector<const char *> * graphNameList = nullptr, size_t beginIndex = 0);
 	int DumpInternalGDF();
 	int DumpGraphInfo(const char * graphName = nullptr);
+	int SyncFrame(int frameNumber);
 	int ReadFrame(int frameNumber);
 	int WriteFrame(int frameNumber);
 	int CompareFrame(int frameNumber);
@@ -57,6 +58,7 @@ protected:
 	void PerformanceStatistics(int status, std::vector<vx_graph>& graphList);
 	bool IsUsingMultiFrameCapture();
 	void ReleaseAllVirtualObjects();
+	int RenameData(const char * oldName, const char * newName);
 
 private:
 	// implementation specific data
@@ -92,6 +94,7 @@ private:
 	std::string m_dumpDataFilePrefix;
 	std::string m_dumpDataObjectList;
 	int m_dumpDataCount;
+	std::string m_discardCommandList;
 };
 
 void PrintHelpGDF(const char * command = nullptr);
