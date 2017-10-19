@@ -50,6 +50,7 @@ list(APPEND SOURCES
 
 add_executable(runvx ${SOURCES})
 target_link_libraries(runvx openvx)
+install (TARGETS runvx DESTINATION bin)
 
 if (OpenCL_FOUND)
 	target_compile_definitions(runvx PUBLIC ENABLE_OPENCL=1)

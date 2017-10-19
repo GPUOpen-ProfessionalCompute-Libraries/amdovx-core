@@ -73,6 +73,27 @@ else(OpenCL_FOUND)
 	target_compile_definitions(openvx PUBLIC ENABLE_OPENCL=0)
 endif(OpenCL_FOUND)
 
+install (TARGETS openvx DESTINATION lib)
+install (FILES
+            include/vx_ext_amd.h
+         DESTINATION include)
+install (FILES
+            include/VX/vx.h
+            include/VX/vx_api.h
+            include/VX/vx_compatibility.h
+            include/VX/vx_import.h
+            include/VX/vx_kernels.h
+            include/VX/vx_khr_icd.h
+            include/VX/vx_khr_ix.h
+            include/VX/vx_khr_nn.h
+            include/VX/vx_khr_tiling.h
+            include/VX/vx_khr_xml.h
+            include/VX/vx_nodes.h
+            include/VX/vx_types.h
+            include/VX/vx_vendors.h
+            include/VX/vxu.h
+         DESTINATION include/VX)
+
 if( POLICY CMP0054 )
   cmake_policy( SET CMP0054 OLD )
 endif()
