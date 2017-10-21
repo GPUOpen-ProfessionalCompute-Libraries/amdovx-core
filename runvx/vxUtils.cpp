@@ -562,6 +562,28 @@ int WriteImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp)
 		vx_size width = (addr.dim_x * addr.scale_x) / VX_SCALE_UNITY;
 		if (addr.stride_x != 0)
 			width_in_bytes = (width * addr.stride_x);
+
+//TO DO! filename
+//!!Here, Iam not sure if we have to extand the function parameters with filename, or
+//! we have to use this code in the root function!!
+#if ENABLE_OPENCV
+        int im_type;
+        vx_uint32 im_width = 0, im_height = 0;
+        vx_df_image im_format;
+        ERROR_CHECK(vxQueryImage(image, VX_IMAGE_WIDTH, &im_width, sizeof(im_width)));
+        ERROR_CHECK(vxQueryImage(image, VX_IMAGE_HEIGHT, &im_height, sizeof(im_height)));
+        ERROR_CHECK(vxQueryImage(image, VX_IMAGE_FORMAT, &im_format, sizeof(im_format)));
+        
+        if(im_format == VX_DF_IMAGE_RGB) {
+            im_type = CV_8UC3;
+        }else if(im_format == VX_DF_IMAGE_U8) {
+            im_type = CV_8U;
+        }
+        auto img = cv::Mat(im_height, im_width, im_type, src); //RGB24
+        imwrite("Output.png", img);
+#endif
+
+
 		for (vx_uint32 y = 0; y < addr.dim_y; y += addr.step_y){
 			vx_uint8 *srcp = (vx_uint8 *)vxFormatImagePatchAddress2d(src, 0, y, &addr);
 			fwrite(srcp, 1, width_in_bytes, fp);
