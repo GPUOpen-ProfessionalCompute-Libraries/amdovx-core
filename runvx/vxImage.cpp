@@ -394,7 +394,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 				cameraDevice >= 0)
 			{ // need OpenCV to process these read I/O requests ////////////////////
 #if ENABLE_OPENCV
-				if (m_format == VX_DF_IMAGE_RGB) {
+				if (m_format == VX_DF_IMAGE_RGB || m_format == VX_DF_IMAGE_U8) {
 					// pen video capture device and mark multi-frame capture
 					m_usingMultiFrameCapture = true;
 					VideoCapture * pCap = nullptr;
@@ -420,7 +420,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					}
 #endif
 					m_cvReadEofOccured = false;
-					int cvMatType = CV_8UC3;
+					int cvMatType = (m_format == VX_DF_IMAGE_RGB) ? CV_8UC3 : CV_8U;
 					m_cvCapMat = new Mat(m_width, m_height, cvMatType);
 					strcpy(m_cameraName, fileName);
 					g_numCvUse++;
