@@ -516,7 +516,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					else ReportError("ERROR: invalid image read/camera option: %s\n", option);
 				}
 			}
-			if (!_stricmp(ioType, "view") || !_stricmp(&fileName[extpos], ".mp4") || !_stricmp(&fileName[extpos], ".avi") || !_stricmp(&fileName[extpos], ".jpg"))
+			if (!_stricmp(ioType, "view") || !_stricmp(&fileName[extpos], ".mp4") || !_stricmp(&fileName[extpos], ".avi"))
 			{ // need OpenCV to process these write I/O requests ////////////////////
 #if ENABLE_OPENCV
 				if (!_stricmp(ioType, "view")) {
@@ -1103,32 +1103,50 @@ int CVxParamImage::ViewFrame(int frameNumber)
 int CVxParamImage::WriteFrame(int frameNumber)
 {
 #if ENABLE_OPENCV
-	if (ViewFrame(frameNumber) < 0)
-		return -1;
+    if (ViewFrame(frameNumber) < 0)
+        return -1;
 #endif
 
-	if (!m_fpWrite) {
-		if (m_fileNameWrite.length() > 0 && !m_usingWriter) {
-			char fileName[MAX_FILE_NAME_LENGTH];
-			sprintf(fileName, m_fileNameWrite.c_str(), frameNumber, m_width, m_height);
-			m_fpWrite = fopen(fileName, "wb+");
-			if (!m_fpWrite) ReportError("ERROR: unable to create: %s\n", fileName);
-		}
-	}
+    if (!m_fpWrite) {
+        if (m_fileNameWrite.length() > 0 && !m_usingWriter) {
+            char fileName[MAX_FILE_NAME_LENGTH];
+            sprintf(fileName, m_fileNameWrite.c_str(), frameNumber, m_width, m_height);
 
-	if (m_fpWrite) {
-		// write vx_image into file
-		WriteImage(m_image, &m_rectFull, m_fpWrite);
+#if ENABLE_OPENCV
+            // check if openCV imwrite need to be used
+            int extpos = (int)strlen(fileName) - 1;
+            while (extpos > 0 && fileName[extpos] != '.')
+                extpos--;
 
-		// close the file if one frame gets written per file
-		if (m_fileNameForWriteHasIndex && m_fpWrite) {
-			fclose(m_fpWrite);
-			m_fpWrite = nullptr;
-		}
-	}
+            if (!_stricmp(&fileName[extpos], ".jpg") || !_stricmp(&fileName[extpos], ".jpeg") ||
+                !_stricmp(&fileName[extpos], ".jpe") || !_stricmp(&fileName[extpos], ".png") ||
+                !_stricmp(&fileName[extpos], ".bmp") || !_stricmp(&fileName[extpos], ".tif") ||
+                !_stricmp(&fileName[extpos], ".ppm") || !_stricmp(&fileName[extpos], ".tiff") ||
+                !_stricmp(&fileName[extpos], ".pgm") || !_stricmp(&fileName[extpos], ".pbm"))
+            {
+                WriteImageCompressed(m_image, &m_rectFull,fileName);
+                return 0;
+            }
+#endif
+            m_fpWrite = fopen(fileName, "wb+");
+            if (!m_fpWrite) ReportError("ERROR: unable to create: %s\n", fileName);
+        }
+    }
 
-	return 0;
+    if (m_fpWrite) {
+        // write vx_image into file
+        WriteImage(m_image, &m_rectFull, m_fpWrite);
+
+        // close the file if one frame gets written per file
+        if (m_fileNameForWriteHasIndex && m_fpWrite) {
+            fclose(m_fpWrite);
+            m_fpWrite = nullptr;
+        }
+    }
+
+    return 0;
 }
+
 
 int CVxParamImage::CompareFrame(int frameNumber)
 {
