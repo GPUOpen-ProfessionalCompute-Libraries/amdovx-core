@@ -571,6 +571,43 @@ int WriteImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp)
 	return 0;
 }
 
+// write image compressed
+int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char * fileName) {
+    // get number of planes, image width in bytes for single plane
+    vx_size num_planes = 0;
+    int im_type = CV_8UC1;
+    vx_uint32 im_width = 0, im_height = 0;
+    vx_df_image im_format;
+    ERROR_CHECK(vxQueryImage(image, VX_IMAGE_WIDTH, &im_width, sizeof(im_width)));
+    ERROR_CHECK(vxQueryImage(image, VX_IMAGE_HEIGHT, &im_height, sizeof(im_height)));
+    ERROR_CHECK(vxQueryImage(image, VX_IMAGE_FORMAT, &im_format, sizeof(im_format)));
+    ERROR_CHECK(vxQueryImage(image, VX_IMAGE_ATTRIBUTE_PLANES, &num_planes, sizeof(num_planes)));
+
+    // write all image planes from vx_image
+    for (vx_uint32 plane = 0; plane < (vx_uint32)num_planes; plane++) {
+        vx_imagepatch_addressing_t addr;
+        vx_uint8 * src = NULL;
+        ERROR_CHECK(vxAccessImagePatch(image, rectFull, plane, &addr, (void **)&src, VX_READ_ONLY));
+
+        // set image format type
+        if (im_format == VX_DF_IMAGE_U8 || im_format == VX_DF_IMAGE_U1_AMD) im_type = CV_8UC1;
+        else if (im_format == VX_DF_IMAGE_S16) im_type = CV_16UC1; // CV_16SC1 is not supported
+        else if (im_format == VX_DF_IMAGE_U16) im_type = CV_16UC1;
+        else if (im_format == VX_DF_IMAGE_RGB) im_type = CV_8UC3; //RGB24
+        else if (im_format == VX_DF_IMAGE_RGBX) im_type = CV_8UC4;
+        else if (im_format == VX_DF_IMAGE_F32_AMD) im_type = CV_32FC1;
+        else {
+            printf("ERROR: display of image type (%4.4s) is not support. Exiting.\n", (const char *)&im_format);
+            throw - 1;
+        }
+
+        auto img = cv::Mat(im_height, im_width, im_type, src);
+        imwrite(fileName, img);
+
+        ERROR_CHECK(vxCommitImagePatch(image, rectFull, plane, &addr, src));
+    }
+}
+
 // read scalar value into a string
 int ReadScalarToString(vx_scalar scalar, char str[])
 {
