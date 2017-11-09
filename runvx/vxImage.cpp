@@ -396,7 +396,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 #if ENABLE_OPENCV
                 if (m_format == VX_DF_IMAGE_RGB || m_format == VX_DF_IMAGE_U8) {
                     // pen video capture device and mark multi-frame capture
-                    m_usingMultiFrameCapture = true;
+                    m_usingMultiFrameCapture = false;
                     VideoCapture * pCap = nullptr;
                     if (cameraDevice >= 0) {
                         pCap = new VideoCapture(cameraDevice);
@@ -404,8 +404,8 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
                     else {
                         pCap = new VideoCapture(fileName);
                         // if single .jpg are is specified, mark as single-frame capture
-                        if (strstr(fileName, "%") == NULL && !_stricmp(&fileName[strlen(fileName) - 4], ".jpg")) {
-                            m_usingMultiFrameCapture = false;
+                        if (strstr(fileName, "%") == NULL && (!_stricmp(&fileName[strlen(fileName) - 4], ".avi") || !_stricmp(&fileName[extpos], ".mp4"))) {
+                            m_usingMultiFrameCapture = true;
                         }
                     }
                     m_cvCapDev = pCap;
