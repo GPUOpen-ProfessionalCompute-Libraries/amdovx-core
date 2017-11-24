@@ -2310,6 +2310,7 @@ vx_status agoDirective(vx_reference reference, vx_enum directive)
 					status = VX_ERROR_NOT_SUPPORTED;
 				}
 				break;
+#if ENABLE_OPENCL
 			case VX_DIRECTIVE_AMD_DISABLE_OPENCL_FLUSH:
 				if (reference->type == VX_TYPE_GRAPH) {
 					((AgoGraph *)reference)->enable_node_level_opencl_flush = false;
@@ -2318,6 +2319,7 @@ vx_status agoDirective(vx_reference reference, vx_enum directive)
 					status = VX_ERROR_NOT_SUPPORTED;
 				}
 				break;
+#endif
 			default:
 				status = VX_ERROR_NOT_SUPPORTED;
 				break;
