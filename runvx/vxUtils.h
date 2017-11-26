@@ -178,6 +178,8 @@ vx_size CalculateImageWidthInBytes(vx_image image);
 int ReadImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp);
 // write image
 int WriteImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp);
+// write image compressed
+int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char * fileName);
 
 // read & write scalar value to/from a string
 int ReadScalarToString(vx_scalar scalar, char str[]);
@@ -193,3 +195,4 @@ vector<string> &split(const string &s, char delim, vector<string> &elems);
 int convert_image_format(string format);
 
 #endif
+
