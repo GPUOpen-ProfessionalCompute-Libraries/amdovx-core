@@ -572,7 +572,8 @@ int WriteImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp)
 }
 
 // write image compressed
-int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char * fileName) {
+int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char * fileName) 
+{
     // get number of planes, image width in bytes for single plane
     vx_size num_planes = 0;
     int im_type = CV_8UC1;
@@ -606,6 +607,7 @@ int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char *
 
         ERROR_CHECK(vxCommitImagePatch(image, rectFull, plane, &addr, src));
     }
+    return 0;
 }
 
 // read scalar value into a string
