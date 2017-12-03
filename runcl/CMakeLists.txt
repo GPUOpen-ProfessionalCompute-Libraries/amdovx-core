@@ -30,6 +30,7 @@ list(APPEND SOURCES
 )
 
 add_executable(runcl ${SOURCES})
+install (TARGETS runcl DESTINATION bin)
 
 if (OpenCL_FOUND)
 	target_compile_definitions(runcl PUBLIC ENABLE_OPENCL=1)

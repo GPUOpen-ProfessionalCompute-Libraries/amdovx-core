@@ -7212,6 +7212,12 @@ VX_API_ENTRY vx_status VX_API_CALL vxQueryTensor(vx_tensor tensor, vx_enum attri
 					status = VX_SUCCESS;
 				}
 				break;
+			case VX_TENSOR_MEMORY_TYPE:
+				if (size == sizeof(vx_enum)) {
+					*(vx_enum *)ptr = data->import_type;
+					status = VX_SUCCESS;
+				}
+				break;
 #if ENABLE_OPENCL
 			case VX_TENSOR_OFFSET_OPENCL:
 				if (size == sizeof(vx_size)) {
@@ -7542,6 +7548,100 @@ VX_API_ENTRY vx_status VX_API_CALL vxUnmapTensorPatch(vx_tensor tensor, vx_map_i
 				break;
 			}
 		}
+	}
+	return status;
+}
+
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensorFromHandle(vx_context context, vx_size number_of_dims, const vx_size * dims, vx_enum data_type, vx_int8 fixed_point_position, const vx_size * stride, void * ptr, vx_enum memory_type)
+{
+	AgoData * data = NULL;
+	if (agoIsValidContext(context) && number_of_dims > 0 && number_of_dims <= AGO_MAX_TENSOR_DIMENSIONS) {
+		CAgoLock lock(context->cs);
+		if (memory_type == VX_MEMORY_TYPE_HOST) {
+			char dimStr[256] = "";
+			for (vx_size i = 0; i < number_of_dims; i++)
+				sprintf(dimStr + strlen(dimStr), "%s%u", i ? "," : "", (vx_uint32)dims[i]);
+			char desc[512];
+			sprintf(desc, "tensor:%u,{%s},%s,%d", (vx_uint32)number_of_dims, dimStr, agoEnum2Name(data_type), fixed_point_position);
+			data = agoCreateDataFromDescription(context, NULL, desc, true);
+			if (data) {
+				agoGenerateDataName(context, "tensor", data->name);
+				agoAddData(&context->dataList, data);
+			}
+			data->import_type = VX_MEMORY_TYPE_HOST;
+			data->buffer = (vx_uint8 *)ptr;
+			data->opencl_buffer_offset = 0;
+			for (vx_size i = 0; i < number_of_dims; i++) {
+				if(data->u.tensor.stride[i] != stride[i]) {
+					agoAddLogEntry(&context->ref, VX_ERROR_INVALID_VALUE, "ERROR: vxCreateTensorFromHandle: invalid stride[%ld]=%ld (must be %ld)\n", i, stride[i], data->u.tensor.stride[i]);
+					vxReleaseTensor((vx_tensor *)&data);
+					break;
+				}
+			}
+		}
+#if ENABLE_OPENCL
+		else if (memory_type == VX_MEMORY_TYPE_OPENCL) {
+			char dimStr[256] = "";
+			for (vx_size i = 0; i < number_of_dims; i++)
+				sprintf(dimStr + strlen(dimStr), "%s%u", i ? "," : "", (vx_uint32)dims[i]);
+			char desc[512];
+			sprintf(desc, "tensor:%u,{%s},%s,%d", (vx_uint32)number_of_dims, dimStr, agoEnum2Name(data_type), fixed_point_position);
+			data = agoCreateDataFromDescription(context, NULL, desc, true);
+			if (data) {
+				agoGenerateDataName(context, "tensor", data->name);
+				agoAddData(&context->dataList, data);
+			}
+			data->import_type = VX_MEMORY_TYPE_OPENCL;
+			data->opencl_buffer = (cl_mem)ptr;
+			data->opencl_buffer_offset = 0;
+			for (vx_size i = 0; i < number_of_dims; i++) {
+				if(data->u.tensor.stride[i] != stride[i]) {
+					agoAddLogEntry(&context->ref, VX_ERROR_INVALID_VALUE, "ERROR: vxCreateTensorFromHandle: invalid stride[%ld]=%ld (must be %ld)\n", i, stride[i], data->u.tensor.stride[i]);
+					vxReleaseTensor((vx_tensor *)&data);
+					break;
+				}
+			}
+		}
+#endif
+	}
+	return (vx_tensor)data;
+}
+
+VX_API_ENTRY vx_status VX_API_CALL vxSwapTensorHandle(vx_tensor tensor, void * new_ptr, void** prev_ptr)
+{
+	AgoData * data = (AgoData *)tensor;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(data, VX_TYPE_TENSOR) && !data->u.tensor.roiMaster) {
+		CAgoLock lock(data->ref.context->cs);
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if (data->import_type == VX_MEMORY_TYPE_HOST) {
+			status = VX_SUCCESS;
+			if (prev_ptr) *prev_ptr = data->buffer;
+			data->buffer = (vx_uint8 *)new_ptr;
+			if (data->buffer) {
+				data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_COMMIT;
+			}
+			// propagate to ROIs
+			for (auto roi = data->roiDepList.begin(); roi != data->roiDepList.end(); roi++) {
+				(*roi)->buffer = data->buffer + (*roi)->u.tensor.offset;
+			}
+		}
+#if ENABLE_OPENCL
+		else if (data->import_type == VX_MEMORY_TYPE_OPENCL) {
+			status = VX_SUCCESS;
+			if (prev_ptr) *prev_ptr = data->opencl_buffer;
+			data->opencl_buffer = (cl_mem)new_ptr;
+			if (data->opencl_buffer) {
+				data->buffer_sync_flags &= ~AGO_BUFFER_SYNC_FLAG_DIRTY_MASK;
+				data->buffer_sync_flags |= AGO_BUFFER_SYNC_FLAG_DIRTY_BY_NODE_CL;
+			}
+			// propagate to ROIs
+			for (auto roi = data->roiDepList.begin(); roi != data->roiDepList.end(); roi++) {
+				(*roi)->opencl_buffer = data->opencl_buffer;
+			}
+		}
+#endif
 	}
 	return status;
 }

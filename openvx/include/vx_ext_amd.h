@@ -173,6 +173,9 @@ enum vx_tensor_attribute_amd_e {
 	VX_TENSOR_OFFSET_OPENCL   = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_TENSOR) + 0x6,
 	/*! \brief OpenCL buffer. <tt>cl_mem</tt>. */
 	VX_TENSOR_BUFFER_OPENCL   = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_TENSOR) + 0x7,
+    /*! \brief Queries memory type if created using vxCreateTensorFromHandle. If vx_tensor was not created using
+        vxCreateTensorFromHandle, VX_MEMORY_TYPE_NONE is returned. Use a <tt>\ref vx_memory_type_e</tt> parameter. */
+	VX_TENSOR_MEMORY_TYPE     = VX_ATTRIBUTE_BASE(VX_ID_AMD, VX_TYPE_TENSOR) + 0x8,
 };
 
 /*! \brief These enumerations are given to the \c vxDirective API to enable/disable
@@ -546,6 +549,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxSetContextImageFormatDescription(vx_context
 * \retval VX_ERROR_INVALID_FORMAT if format is already in use.
 */
 VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context context, vx_df_image format, AgoImageFormatDescription * desc);
+
+/* Tensor */
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensorFromHandle(vx_context context, vx_size number_of_dims, const vx_size * dims, vx_enum data_type, vx_int8 fixed_point_position, const vx_size * stride, void * ptr, vx_enum memory_type);
+VX_API_ENTRY vx_status VX_API_CALL vxSwapTensorHandle(vx_tensor tensor, void * new_ptr, void** prev_ptr);
 
 #ifdef  __cplusplus
 }

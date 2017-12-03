@@ -31,6 +31,11 @@ If available, this project uses OpenCV for camera capture and image display.
       -disable-virtual
           Replace all virtual data types in GDF with non-virtual data types.
           Use of this flag (i.e. for debugging) can make a graph run slower.
+      -dump-data-config:<dumpFilePrefix>,<object-type>[,object-type[...]]
+          Automatically dump all non-virtual objects of specified object types
+          into files '<dumpFilePrefix>dumpdata_####_<object-type>_<object-name>.raw'
+      -discard-commands:<cmd>[,cmd[...]]
+          Discard the listed commands.
     
     The supported list of OpenVX built-in kernel names is given below:
         org.khronos.openvx.color_convert
@@ -103,6 +108,7 @@ If available, this project uses OpenCV for camera capture and image display.
               threshold:<thresh-type>,<data-type>
               tensor:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>
               tensor-from-roi:<master-tensor>,<num-of-dims>,{<start0>,<start1>,...},{<end0>,<end1>,...}
+              tensor-from-handle:<num-of-dims>,{<dim0>,<dim1>,...},<data-type>,<fixed-point-pos>,{<stride0>,<stride1>,...},<num-alloc-handles>,<memory-type>
           For virtual object in default graph use the below syntax for
           <data-description>:
               virtual-array:<data-type>,<capacity>
@@ -155,6 +161,9 @@ If available, this project uses OpenCV for camera capture and image display.
                   Turn on/off data compares or just discard data compare errors.
               set use-schedule-graph [on|off]
                   Turn on/off use of vxScheduleGraph instead of vxProcessGraph.
+              set dump-data-config [<dumpFilePrefix>,<obj-type>[,<obj-type>[...]]]
+                  Specify dump data config for portion of the graph. To disable
+                  don't specify any config.
 
       graph <command> [<arguments> ...]
           Specify below graph specific commands:
@@ -174,6 +183,9 @@ If available, this project uses OpenCV for camera capture and image display.
                   Launch the default or specified graph(s).
               graph info [<graphName(s)>]
                   Show graph details for debug.
+
+      rename <dataNameOld> <dataNameNew>
+          Rename a data object\n"
 
       init <dataName> <initial-value>
           Initialize data object with specified value.
@@ -195,6 +207,11 @@ If available, this project uses OpenCV for camera capture and image display.
           - image object initial values can be:
               Binary file with image data. For images created from handle,
               the vxSwapHandles API will be invoked before executing the graph.
+          - tensor object initial values can be:
+              Binary file with tensor data.
+              To replicate a file multiple times, use @repeat~N~<fileName>.
+              To fill the tensor with a value, use @fill~f32~<float-value>,
+              @fill~i32~<int-value>, @fill~i16~<int-value>, or @fill~u8~<uint-value>.
 
       read <dataName> <fileName> [ascii|binary] [<option(s)>]
           Read frame-level data from the specified <fileName>.

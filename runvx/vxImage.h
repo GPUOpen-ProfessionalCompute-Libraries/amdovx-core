@@ -36,6 +36,7 @@ public:
 	virtual int Initialize(vx_context context, vx_graph graph, const char * desc);
 	virtual int InitializeIO(vx_context context, vx_graph graph, vx_reference ref, const char * io_params);
 	virtual int Finalize();
+	virtual int SyncFrame(int frameNumber);
 	virtual int ReadFrame(int frameNumber);
 	virtual int WriteFrame(int frameNumber);
 	virtual int CompareFrame(int frameNumber);

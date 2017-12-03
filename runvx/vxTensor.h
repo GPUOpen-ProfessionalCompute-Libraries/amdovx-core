@@ -38,6 +38,7 @@ public:
 	virtual int Initialize(vx_context context, vx_graph graph, const char * desc);
 	virtual int InitializeIO(vx_context context, vx_graph graph, vx_reference ref, const char * io_params);
 	virtual int Finalize();
+	virtual int SyncFrame(int frameNumber);
 	virtual int ReadFrame(int frameNumber);
 	virtual int WriteFrame(int frameNumber);
 	virtual int CompareFrame(int frameNumber);
@@ -64,6 +65,10 @@ private:
 	vx_size m_stride[MAX_TENSOR_DIMENSIONS];
 	vx_size m_start[MAX_TENSOR_DIMENSIONS];
 	vx_size m_end[MAX_TENSOR_DIMENSIONS];
+	vx_enum m_memory_type;
+	vx_size m_num_handles;
+	vx_size m_active_handle;
+	void * m_memory_handle[MAX_BUFFER_HANDLES];
 };
 
 #endif /* __VX_TENSOR_H__ */

@@ -394,9 +394,9 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 				cameraDevice >= 0)
 			{ // need OpenCV to process these read I/O requests ////////////////////
 #if ENABLE_OPENCV
-				if (m_format == VX_DF_IMAGE_RGB) {
+				if (m_format == VX_DF_IMAGE_RGB || m_format == VX_DF_IMAGE_U8) {
 					// pen video capture device and mark multi-frame capture
-					m_usingMultiFrameCapture = true;
+                    m_usingMultiFrameCapture = false;
 					VideoCapture * pCap = nullptr;
 					if (cameraDevice >= 0) {
 						pCap = new VideoCapture(cameraDevice);
@@ -404,8 +404,8 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					else {
 						pCap = new VideoCapture(fileName);
 						// if single .jpg are is specified, mark as single-frame capture
-						if (strstr(fileName, "%") == NULL && !_stricmp(&fileName[strlen(fileName) - 4], ".jpg")) {
-							m_usingMultiFrameCapture = false;
+						if (strstr(fileName, "%") == NULL && (!_stricmp(&fileName[strlen(fileName) - 4], ".avi") || !_stricmp(&fileName[extpos], ".mp4"))) {
+                            m_usingMultiFrameCapture = true;
 						}
 					}
 					m_cvCapDev = pCap;
@@ -420,8 +420,8 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					}
 #endif
 					m_cvReadEofOccured = false;
-					int cvMatType = CV_8UC3;
-					m_cvCapMat = new Mat(m_width, m_height, cvMatType);
+					int cvMatType = (m_format == VX_DF_IMAGE_RGB) ? CV_8UC3 : CV_8U;
+					m_cvCapMat = new Mat(m_height, m_width, cvMatType); //Mat(row, column, type)
 					strcpy(m_cameraName, fileName);
 					g_numCvUse++;
 					// skip frames if requested
@@ -516,7 +516,7 @@ int CVxParamImage::InitializeIO(vx_context context, vx_graph graph, vx_reference
 					else ReportError("ERROR: invalid image read/camera option: %s\n", option);
 				}
 			}
-			if (!_stricmp(ioType, "view") || !_stricmp(&fileName[extpos], ".mp4") || !_stricmp(&fileName[extpos], ".avi") || !_stricmp(&fileName[extpos], ".jpg"))
+			if (!_stricmp(ioType, "view") || !_stricmp(&fileName[extpos], ".mp4") || !_stricmp(&fileName[extpos], ".avi"))
 			{ // need OpenCV to process these write I/O requests ////////////////////
 #if ENABLE_OPENCV
 				if (!_stricmp(ioType, "view")) {
@@ -651,7 +651,7 @@ int CVxParamImage::Finalize()
 	return 0;
 }
 
-int CVxParamImage::ReadFrame(int frameNumber)
+int CVxParamImage::SyncFrame(int frameNumber)
 {
 	if (m_swap_handles) {
 		// swap handles if requested for images created from handle
@@ -660,7 +660,11 @@ int CVxParamImage::ReadFrame(int frameNumber)
 		if (status)
 			ReportError("ERROR: vxSwapImageHandle(%s,*,*,%d) failed (%d)\n", m_vxObjName, (int)m_planes, status);
 	}
+	return 0;
+}
 
+int CVxParamImage::ReadFrame(int frameNumber)
+{
 #if ENABLE_OPENCV
 	if (m_cvCapMat && m_cvCapDev) {
 		// read image from camera
@@ -670,8 +674,14 @@ int CVxParamImage::ReadFrame(int frameNumber)
 		}
 		VideoCapture * pCap = (VideoCapture *)m_cvCapDev;
 		Mat * pMat = (Mat *)m_cvCapMat;
+        //Get Mat type, bevor get a new frame from VideoCapture.
+        int type = pMat->type();
 		int timeout = 0;
 		*pCap >> *pMat;
+        //change Mat type.
+        if(type == CV_8U){ /*CV_8U convert to gray*/
+            cvtColor( *pMat, *pMat, CV_BGR2GRAY );
+        }
 		if (!pMat->data) {
 			// no data available, report that no more frames available
 			m_cvReadEofOccured = true;
@@ -1107,6 +1117,22 @@ int CVxParamImage::WriteFrame(int frameNumber)
 		if (m_fileNameWrite.length() > 0 && !m_usingWriter) {
 			char fileName[MAX_FILE_NAME_LENGTH];
 			sprintf(fileName, m_fileNameWrite.c_str(), frameNumber, m_width, m_height);
+#if ENABLE_OPENCV
+            // check if openCV imwrite need to be used
+            int extpos = (int)strlen(fileName) - 1;
+            while (extpos > 0 && fileName[extpos] != '.')
+                extpos--;
+ 
+            if (!_stricmp(&fileName[extpos], ".jpg") || !_stricmp(&fileName[extpos], ".jpeg") ||
+                !_stricmp(&fileName[extpos], ".jpe") || !_stricmp(&fileName[extpos], ".png") ||
+                !_stricmp(&fileName[extpos], ".bmp") || !_stricmp(&fileName[extpos], ".tif") ||
+                !_stricmp(&fileName[extpos], ".ppm") || !_stricmp(&fileName[extpos], ".tiff") ||
+                !_stricmp(&fileName[extpos], ".pgm") || !_stricmp(&fileName[extpos], ".pbm"))
+            {
+                WriteImageCompressed(m_image, &m_rectFull,fileName);
+                return 0;
+            }
+#endif
 			m_fpWrite = fopen(fileName, "wb+");
 			if (!m_fpWrite) ReportError("ERROR: unable to create: %s\n", fileName);
 		}
