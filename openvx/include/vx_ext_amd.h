@@ -47,16 +47,6 @@ THE SOFTWARE.
 #define AGO_TARGET_AFFINITY_GPU_INFO_SVM_AS_CLMEM      0x20
 #define AGO_TARGET_AFFINITY_GPU_INFO_SVM_NO_FGS        0x40
 
-//////////////////////////////////////////////////////////////////////
-//! \brief The NN extention data types [TODO: should be part of vx_khr_nn.h & vx_types.h]
-#define VX_TYPE_HOG                    (VX_TYPE_VENDOR_STRUCT_START + 0x00)
-#define VX_TYPE_HOUGH_LINES_P          (VX_TYPE_VENDOR_STRUCT_START + 0x01)
-#define VX_TYPE_LINE2D                 (VX_TYPE_VENDOR_STRUCT_START + 0x02)
-#define VX_TYPE_MATRIX_MULTIPLY_PARAMS (VX_TYPE_VENDOR_STRUCT_START + 0x03)
-#define VX_TYPE_NN_CONV_PARAMS         (VX_TYPE_VENDOR_STRUCT_START + 0x10)
-#define VX_TYPE_NN_DECONV_PARAMS       (VX_TYPE_VENDOR_STRUCT_START + 0x11)
-#define VX_TYPE_NN_ROIPOOL_PARAMS      (VX_TYPE_VENDOR_STRUCT_START + 0x12)
-
 /*! \brief Maximum size of scalar string buffer. The local buffers used for accessing scalar strings 
 * should be of size VX_MAX_STRING_BUFFER_SIZE_AMD and the maximum allowed string length is
 * VX_MAX_STRING_BUFFER_SIZE_AMD-1.

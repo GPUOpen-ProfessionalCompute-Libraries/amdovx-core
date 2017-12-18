@@ -110,9 +110,13 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "VX_NN_ACTIVATION_LINEAR", VX_NN_ACTIVATION_LINEAR },
 	{ "VX_NN_NORMALIZATION_SAME_MAP", VX_NN_NORMALIZATION_SAME_MAP },
 	{ "VX_NN_NORMALIZATION_ACROSS_MAPS", VX_NN_NORMALIZATION_ACROSS_MAPS },
-	{ "VX_TYPE_NN_CONV_PARAMS", VX_TYPE_NN_CONV_PARAMS},
-	{ "VX_TYPE_NN_DECONV_PARAMS", VX_TYPE_NN_DECONV_PARAMS },
-	{ "VX_TYPE_NN_ROIPOOL_PARAMS", VX_TYPE_NN_ROIPOOL_PARAMS },
+	{ "VX_TYPE_HOG_PARAMS", VX_TYPE_HOG_PARAMS },
+	{ "VX_TYPE_HOUGH_LINES_PARAMS", VX_TYPE_HOUGH_LINES_PARAMS },
+	{ "VX_TYPE_LINE_2D", VX_TYPE_LINE_2D },
+	{ "VX_TYPE_TENSOR_MATRIX_MULTIPLY_PARAMS", VX_TYPE_TENSOR_MATRIX_MULTIPLY_PARAMS },
+	{ "VX_TYPE_NN_CONVOLUTION_PARAMS", VX_TYPE_NN_CONVOLUTION_PARAMS },
+	{ "VX_TYPE_NN_DECONVOLUTION_PARAMS", VX_TYPE_NN_DECONVOLUTION_PARAMS },
+	{ "VX_TYPE_NN_ROI_POOL_PARAMS", VX_TYPE_NN_ROI_POOL_PARAMS },
 	// error codes
 	{ "VX_FAILURE", VX_FAILURE },
 	{ "VX_ERROR_REFERENCE_NONZERO", VX_ERROR_REFERENCE_NONZERO },
@@ -697,7 +701,14 @@ int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value)
 		printf("ERROR: GetScalarValueForStructTypes: string must start with '{'\n");
 		return -1;
 	}
-	else if (type == VX_TYPE_NN_CONV_PARAMS) {
+	else if (type == VX_TYPE_TENSOR_MATRIX_MULTIPLY_PARAMS) {
+		vx_tensor_matrix_multiply_params_t v;
+		v.transpose_input1 = ovxName2Enum(getNextToken(s, token, sizeof(token))) ? vx_true_e : vx_false_e;
+		v.transpose_input2 = ovxName2Enum(getNextToken(s, token, sizeof(token))) ? vx_true_e : vx_false_e;
+		v.transpose_input3 = ovxName2Enum(getNextToken(s, token, sizeof(token))) ? vx_true_e : vx_false_e;
+		*(vx_tensor_matrix_multiply_params_t *)value = v;
+	}
+	else if (type == VX_TYPE_NN_CONVOLUTION_PARAMS) {
 		vx_nn_convolution_params_t v;
 		v.padding_x = atoi(getNextToken(s, token, sizeof(token)));
 		v.padding_y = atoi(getNextToken(s, token, sizeof(token)));
@@ -708,7 +719,7 @@ int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value)
 		v.dilation_y = atoi(getNextToken(s, token, sizeof(token)));
 		*(vx_nn_convolution_params_t *)value = v;
 	}
-	else if (type == VX_TYPE_NN_DECONV_PARAMS) {
+	else if (type == VX_TYPE_NN_DECONVOLUTION_PARAMS) {
 		vx_nn_deconvolution_params_t v;
 		v.padding_x = atoi(getNextToken(s, token, sizeof(token)));
 		v.padding_y = atoi(getNextToken(s, token, sizeof(token)));
@@ -718,7 +729,7 @@ int GetScalarValueForStructTypes(vx_enum type, const char str[], void * value)
 		v.a_y = atoi(getNextToken(s, token, sizeof(token)));
 		*(vx_nn_deconvolution_params_t *)value = v;
 	}
-	else if (type == VX_TYPE_NN_ROIPOOL_PARAMS) {
+	else if (type == VX_TYPE_NN_ROI_POOL_PARAMS) {
 		vx_nn_roi_pool_params_t v;
 		v.pool_type = ovxName2Enum(getNextToken(s, token, sizeof(token)));
 		*(vx_nn_roi_pool_params_t *)value = v;
