@@ -254,6 +254,9 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 					if((m_size % count) != 0)
 						ReportError("ERROR: file size is not multiple of tensor size -- %s\n", fileName);
 				}
+				if(!_stricmp(fileName + strlen(fileName) - 4, ".dat")) {
+					ReportError("ERROR: read from .dat files not supported: %s\n", fileName);
+				}
 				FILE * fp = fopen(RootDirUpdated(tensorFileName), "rb");
 				if (!fp) {
 					ReportError("ERROR: Unable to open: %s\n", tensorFileName);
@@ -354,6 +357,9 @@ int CVxParamTensor::ReadFrame(int frameNumber)
 
 	// reading data from input file
 	char fileName[MAX_FILE_NAME_LENGTH]; sprintf(fileName, m_fileNameRead.c_str(), frameNumber);
+	if(!_stricmp(fileName + strlen(fileName) - 4, ".dat")) {
+		ReportError("ERROR: read from .dat files not supported: %s\n", fileName);
+	}
 	FILE * fp = fopen(fileName, m_readFileIsBinary ? "rb" : "r");
 	if (!fp) {
 		if (frameNumber == m_captureFrameStart) {
@@ -390,6 +396,55 @@ int CVxParamTensor::WriteFrame(int frameNumber)
 	char fileName[MAX_FILE_NAME_LENGTH]; sprintf(fileName, m_fileNameWrite.c_str(), frameNumber);
 	FILE * fp = fopen(fileName, m_writeFileIsBinary ? "wb" : "w");
 	if (!fp) ReportError("ERROR: Unable to create: %s\n", fileName);
+	if(!_stricmp(fileName + strlen(fileName) - 4, ".dat")) {
+		// write NNEF Tensor File Header
+		struct HeaderPart1 {
+			vx_uint8  magic[2];
+			vx_uint8  version_major;
+			vx_uint8  version_minor;
+			vx_uint32 offset_to_data;
+			vx_uint32 num_dims;
+		} h1 = {
+			{ 0x4e, 0xef }, 1, 0,
+			12 + 4 * (vx_uint32)m_num_of_dims + 4,
+			(vx_uint32)m_num_of_dims
+		};
+		vx_uint32 h2[4] = { 0 };
+		for(size_t i = 0; i < m_num_of_dims; i++)
+			h2[i] = (vx_uint32)m_dims[m_num_of_dims-1-i];
+		if(m_num_of_dims == 1) {
+			h2[0] = 1;
+			h2[1] = (vx_uint32)m_dims[0];
+			h1.num_dims += 1;
+			h1.offset_to_data += 4;
+		}
+		else if(m_num_of_dims == 3) {
+			h2[3] = h2[2];
+			h2[2] = h2[1];
+			h2[1] = h2[0];
+			h2[0] = 1;
+			h1.num_dims += 1;
+			h1.offset_to_data += 4;
+		}
+		struct HeaderPart3 {
+			vx_uint8  data_type;
+			vx_uint8  bit_width;
+			vx_uint16 len_of_quant_string;
+		} h3 = {
+			0, 32, 0
+		};
+		if(m_data_type == VX_TYPE_FLOAT32) h3.data_type = 0, h3.bit_width = 32;
+		else if(m_data_type == VX_TYPE_FLOAT16) h3.data_type = 0, h3.bit_width = 16;
+		else if(m_data_type == VX_TYPE_INT8) h3.data_type = 2, h3.bit_width = 8;
+		else if(m_data_type == VX_TYPE_UINT8) h3.data_type = 3, h3.bit_width = 8;
+		else if(m_data_type == VX_TYPE_INT16) h3.data_type = 2, h3.bit_width = 16;
+		else if(m_data_type == VX_TYPE_UINT16) h3.data_type = 3, h3.bit_width = 16;
+		else if(m_data_type == VX_TYPE_INT32) h3.data_type = 2, h3.bit_width = 32;
+		else if(m_data_type == VX_TYPE_UINT32) h3.data_type = 3, h3.bit_width = 32;
+		fwrite(&h1, 1, sizeof(h1), fp);
+		fwrite(&h2, 1, h1.num_dims * sizeof(vx_uint32), fp);
+		fwrite(&h3, 1, sizeof(h3), fp);
+	}
 	fwrite(m_data, 1, m_size, fp);
 	fclose(fp);
 
@@ -403,6 +458,9 @@ int CVxParamTensor::CompareFrame(int frameNumber)
 
 	// reading data from reference file
 	char fileName[MAX_FILE_NAME_LENGTH]; sprintf(fileName, m_fileNameCompare.c_str(), frameNumber);
+	if(!_stricmp(fileName + strlen(fileName) - 4, ".dat")) {
+		ReportError("ERROR: read from .dat files not supported: %s\n", fileName);
+	}
 	FILE * fp = fopen(fileName, m_compareFileIsBinary ? "rb" : "r");
 	if (!fp) {
 		ReportError("ERROR: Unable to open: %s\n", fileName);

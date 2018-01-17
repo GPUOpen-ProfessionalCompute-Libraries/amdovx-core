@@ -3757,6 +3757,23 @@ VX_API_ENTRY vx_status VX_API_CALL vxCopyScalar(vx_scalar scalar_, void *user_pt
 	return status;
 }
 
+VX_API_ENTRY vx_status VX_API_CALL vxCopyScalarWithSize(vx_scalar scalar_, vx_size size, void *user_ptr, vx_enum usage, vx_enum user_mem_type)
+{
+	AgoData * scalar = (AgoData *)scalar_;
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	if (agoIsValidData(scalar, VX_TYPE_SCALAR))
+	{
+		status = VX_ERROR_INVALID_PARAMETERS;
+		if ((user_mem_type == VX_MEMORY_TYPE_HOST) && user_ptr && (scalar->u.scalar.itemsize == size)) {
+			if (usage == VX_READ_ONLY)
+				status = vxReadScalarValue(scalar_, user_ptr);
+			else if (usage == VX_WRITE_ONLY)
+				status = vxWriteScalarValue(scalar_, user_ptr);
+		}
+	}
+	return status;
+}
+
 /*==============================================================================
 REFERENCE
 =============================================================================*/
@@ -7075,7 +7092,7 @@ VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensor(vx_context context, vx_size nu
  * \note Passing this reference to <tt>\ref vxCopyTensorPatch</tt> will return an error.
  * \ingroup group_tensor
  */
-VX_API_ENTRY vx_tensor VX_API_CALL vxCreateVirtualTensor(vx_graph graph, vx_size num_of_dims, vx_size * dims, vx_enum data_format, vx_int8 fixed_point_pos)
+VX_API_ENTRY vx_tensor VX_API_CALL vxCreateVirtualTensor(vx_graph graph, vx_size num_of_dims, const vx_size * dims, vx_enum data_format, vx_int8 fixed_point_pos)
 {
 	AgoData * data = NULL;
 	if (agoIsValidGraph(graph) && num_of_dims > 0 && num_of_dims <= AGO_MAX_TENSOR_DIMENSIONS) {

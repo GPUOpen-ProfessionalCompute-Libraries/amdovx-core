@@ -1,29 +1,18 @@
-/*
+/* 
+
  * Copyright (c) 2012-2017 The Khronos Group Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and/or associated documentation files (the
- * "Materials"), to deal in the Materials without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Materials, and to
- * permit persons to whom the Materials are furnished to do so, subject to
- * the following conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Materials.
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * MODIFICATIONS TO THIS FILE MAY MEAN IT NO LONGER ACCURATELY REFLECTS
- * KHRONOS STANDARDS. THE UNMODIFIED, NORMATIVE VERSIONS OF KHRONOS
- * SPECIFICATIONS AND HEADER INFORMATION ARE LOCATED AT
- *    https://www.khronos.org/registry/
- *
- * THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 #ifndef _OPENVX_IMPORT_H_
 #define _OPENVX_IMPORT_H_
@@ -33,7 +22,7 @@
  * part of the OpenVX Export and Import extension API
  * and also part of the OpenVX SC deployment feature set.
  */
-
+ 
  /*! \brief An enumeration of export uses. See <tt>\ref vxExportObjectsToMemory</tt> and
  * <tt>\ref vxImportObjectsFromMemory</tt>
  * \ingroup vx_enum_e
@@ -105,7 +94,7 @@ typedef struct _vx_import *vx_import;
  * all other entries will be supplied by the framework and may be initialised by the application to NULL. The *uses* array
  * must have the identical length and content as given at the time of export, and the value of *numrefs* must also match;
  * these measures increase confidence that the import contains the correct data.
-* \note Graph parameters may be changed after import by using the <tt>\ref vxSetGraphParameterByIndex</tt> API, and
+* \note Graph parameters may be changed after import by using the <tt>\ref vxSetGraphParameterByIndex</tt> API, and 
  * images may also be changed by using the <tt>\ref vxSwapImageHandle</tt> API.
  * When <tt>\ref vxSetGraphParameterByIndex</tt> is used, the framework will check that the new parameter is of the
  * correct type to run with the graph, which cannot be re-verified. If the reference supplied is not suitable, an error
@@ -135,12 +124,12 @@ typedef struct _vx_import *vx_import;
  * \ingroup group_import
  */
 VX_API_ENTRY vx_import VX_API_CALL vxImportObjectsFromMemory(
-    vx_context context,
-    vx_size numrefs,
-    vx_reference *refs,
+    vx_context context,  
+    vx_size numrefs,     
+    vx_reference *refs,  
     const vx_enum * uses,
     const vx_uint8 * ptr,
-    vx_size length);
+    vx_size length);    
 
 /*! \brief Releases an import object when no longer required.\n
  * \details This function releases the reference to the import object [*REQ*].\n
