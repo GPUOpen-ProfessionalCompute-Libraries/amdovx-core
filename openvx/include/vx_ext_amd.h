@@ -54,6 +54,11 @@ THE SOFTWARE.
 */
 #define VX_MAX_STRING_BUFFER_SIZE_AMD                   256
 
+/*! \brief The Neural Network activation functions vx_nn_activation_function_e extension.
+ */
+#define VX_NN_ACTIVATION_LEAKY_RELU  (VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_NN_ACTIVATION_FUNCTION_TYPE) + 0x9)
+
+
 /*! \brief The type enumeration lists all the AMD specific types in OpenVX.
 */
 enum ago_type_public_e {
