@@ -1,6 +1,8 @@
 # AMD OpenVX (AMDOVX)
 AMD OpenVX (beta) is a highly optimized open source implementation of the [Khronos OpenVX](https://www.khronos.org/registry/vx/) computer vision specification. It allows for rapid prototyping as well as fast execution on a wide range of computer hardware, including small embedded x86 CPUs and large workstation discrete GPUs.
 
+**IMPORTANT**: *amdovx-core* is a part of [https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-modules](https://github.com/GPUOpen-ProfessionalCompute-Libraries/amdovx-modules) project that contain additional OpenVX modules, such as, neural network inference, 360 degree video stitching, etc.
+
 The amdovx-core project consists of two components:
 * [OpenVX](openvx/README.md): AMD OpenVX library
 * [RunVX](runvx/README.md): command-line utility to execute OpenVX graph described in GDF text file
