@@ -576,6 +576,7 @@ int WriteImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp)
 	return 0;
 }
 
+#if ENABLE_OPENCV
 // write image compressed
 int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char * fileName) 
 {
@@ -614,6 +615,7 @@ int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char *
     }
     return 0;
 }
+#endif
 
 // read scalar value into a string
 int ReadScalarToString(vx_scalar scalar, char str[])
