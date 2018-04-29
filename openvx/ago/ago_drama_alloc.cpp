@@ -150,7 +150,7 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 			{
 				for (vx_uint32 i = 0; i < node->paramCount; i++) {
 					AgoData * data = node->paramList[i];
-					if (data && data->isVirtual) {
+					if (isDataValidForGd(data)) {
 						data->device_type_unused &= ~AGO_TARGET_AFFINITY_CPU;
 						for (vx_uint32 j = 0; j < data->numChildren; j++) {
 							data->children[j]->device_type_unused &= ~AGO_TARGET_AFFINITY_CPU;
@@ -172,19 +172,30 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 		return data->opencl_buffer_offset + data->size;
 	};
 	auto isMergePossible = [=](std::vector<AgoData *>& G, AgoData * data) -> bool {
-		vx_uint32 s = data->hierarchical_life_start;
-		vx_uint32 e = data->hierarchical_life_end;
-		cl_mem_object_type dataMemType = getMemObjectType(data);
+		bool possible = false;
 		for (auto d : G) {
-			cl_mem_object_type dMemType = getMemObjectType(d);
-			if((dataMemType != dMemType) ||
-			   (s >= d->hierarchical_life_start && s <= d->hierarchical_life_end) ||
-			   (e >= d->hierarchical_life_start && e <= d->hierarchical_life_end))
-			{
-				return false;
+			if(d->alias_data == data || d == data->alias_data) {
+				possible = true;
+				break;
 			}
 		}
-		return true;
+		if (!possible) {
+			possible = true;
+			vx_uint32 s = data->hierarchical_life_start;
+			vx_uint32 e = data->hierarchical_life_end;
+			cl_mem_object_type dataMemType = getMemObjectType(data);
+			for (auto d : G) {
+				cl_mem_object_type dMemType = getMemObjectType(d);
+				if((dataMemType != dMemType) ||
+				   (s >= d->hierarchical_life_start && s <= d->hierarchical_life_end) ||
+				   (e >= d->hierarchical_life_start && e <= d->hierarchical_life_end))
+				{
+					possible = false;
+					break;
+				}
+			}
+		}
+		return possible;
 	};
 	auto calcMergedCost = [=](std::vector<AgoData *>& G, AgoData * data) -> size_t {
 		size_t size = getMemObjectSize(data);
@@ -195,6 +206,26 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 	};
 	std::vector< std::vector<AgoData *> > Gd;
 	std::vector< size_t > Gsize;
+	for (AgoData * data : D) {
+		if (data->alias_data) {
+			size_t bestj = INT_MAX;
+			for (size_t j = 0; j < Gd.size(); j++) {
+				for (size_t k = 0; k < Gd[j].size(); k++) {
+					if(data->alias_data == Gd[j][k] || data == Gd[j][k]->alias_data) {
+						bestj = j;
+						break;
+					}
+				}
+				if(bestj != INT_MAX)
+					break;
+			}
+			if(bestj == INT_MAX) {
+				bestj = Gd.size();
+				Gd.push_back(std::vector<AgoData *>());
+			}
+			Gd[bestj].push_back(data);
+		}
+	}
 	for (AgoData * data : D) {
 		size_t bestj = INT_MAX, bestCost = INT_MAX;
 		if (!(bufferMergeFlags & 1)) {
@@ -228,7 +259,18 @@ int agoGpuOclAllocBuffers(AgoGraph * graph)
 		}
 		for (size_t i = 0; i < Gd[j].size(); i++) {
 			if(i != k) {
-				Gd[j][i]->opencl_buffer = Gd[j][k]->opencl_buffer;
+				if(Gd[j][i]->alias_offset > 0) {
+					cl_buffer_region region = {
+						Gd[j][i]->alias_offset,
+						Gd[j][k]->size + Gd[j][k]->opencl_buffer_offset - Gd[j][i]->alias_offset
+					};
+					Gd[j][i]->opencl_buffer = Gd[j][i]->opencl_buffer_allocated =
+						clCreateSubBuffer(Gd[j][k]->opencl_buffer, CL_MEM_READ_WRITE,
+								CL_BUFFER_CREATE_TYPE_REGION, &region, NULL);
+				}
+				else {
+					Gd[j][i]->opencl_buffer = Gd[j][k]->opencl_buffer;
+				}
 				Gd[j][i]->opencl_buffer_offset = Gd[j][k]->opencl_buffer_offset;
 			}
 		}

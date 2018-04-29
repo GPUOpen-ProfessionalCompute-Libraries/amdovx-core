@@ -2097,23 +2097,6 @@ int ovxKernel_Copy(AgoNode * node, AgoKernelCommand cmd)
 		meta = &node->metaList[1];
 		meta->data.ref.type = node->paramList[0]->ref.type;
 		memcpy(&meta->data.u, &node->paramList[0]->u, sizeof(meta->data.u));
-		// support tensor reshape
-		if(node->paramList[0]->ref.type == VX_TYPE_TENSOR &&
-		   node->paramList[0]->u.tensor.data_type == node->paramList[1]->u.tensor.data_type &&
-		   node->paramList[0]->u.tensor.fixed_point_pos == node->paramList[1]->u.tensor.fixed_point_pos)
-		{
-			vx_size icount = 1, ocount = 1;
-			for(vx_size dim = 0; dim < node->paramList[0]->u.tensor.num_dims; dim++) {
-				icount *= node->paramList[0]->u.tensor.dims[dim];
-			}
-			for(vx_size dim = 0; dim < node->paramList[1]->u.tensor.num_dims; dim++) {
-				ocount *= node->paramList[1]->u.tensor.dims[dim];
-			}
-			if(icount == ocount) {
-				// keep the output dimensions as-is to support reshape
-				memcpy(&meta->data.u, &node->paramList[1]->u, sizeof(meta->data.u));
-			}
-		}
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
@@ -19016,23 +18999,6 @@ int agoKernel_Copy_DATA_DATA(AgoNode * node, AgoKernelCommand cmd)
 		meta = &node->metaList[0];
 		meta->data.ref.type = node->paramList[1]->ref.type;
 		memcpy(&meta->data.u, &node->paramList[1]->u, sizeof(meta->data.u));
-		// support tensor reshape
-		if(node->paramList[0]->ref.type == VX_TYPE_TENSOR &&
-		   node->paramList[0]->u.tensor.data_type == node->paramList[1]->u.tensor.data_type &&
-		   node->paramList[0]->u.tensor.fixed_point_pos == node->paramList[1]->u.tensor.fixed_point_pos)
-		{
-			vx_size icount = 1, ocount = 1;
-			for(vx_size dim = 0; dim < node->paramList[0]->u.tensor.num_dims; dim++) {
-				icount *= node->paramList[0]->u.tensor.dims[dim];
-			}
-			for(vx_size dim = 0; dim < node->paramList[1]->u.tensor.num_dims; dim++) {
-				ocount *= node->paramList[1]->u.tensor.dims[dim];
-			}
-			if(icount == ocount) {
-				// keep the output dimensions as-is to support reshape
-				memcpy(&meta->data.u, &node->paramList[0]->u, sizeof(meta->data.u));
-			}
-		}
 		status = VX_SUCCESS;
 	}
 	else if (cmd == ago_kernel_cmd_initialize || cmd == ago_kernel_cmd_shutdown) {
