@@ -514,9 +514,9 @@ int agoGpuOclAllocBuffer(AgoData * data)
 		AgoData * dataMaster = data->u.tensor.roiMaster ? data->u.tensor.roiMaster : data; // to handle tensor ROI
 		if (!dataMaster->opencl_buffer) {
 			cl_int err = -1;
-			dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, dataMaster->size, NULL, &err);
+			dataMaster->opencl_buffer = dataMaster->opencl_buffer_allocated = agoGpuOclCreateBuffer(context, CL_MEM_READ_WRITE, dataMaster->size + dataMaster->opencl_buffer_offset, NULL, &err);
 			if (err) {
-				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Tensor)\n", context->opencl_context, (int)dataMaster->size, err);
+				agoAddLogEntry(&context->ref, VX_FAILURE, "ERROR: agoGpuOclCreateBuffer(%p,CL_MEM_READ_WRITE,%d,0,*) => %d (for Tensor)\n", context->opencl_context, (int)dataMaster->size + dataMaster->opencl_buffer_offset, err);
 				return -1;
 			}
 			dataMaster->opencl_buffer_offset = 0;

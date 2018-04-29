@@ -2941,7 +2941,7 @@ AgoData::AgoData()
 	  opencl_svm_buffer{ nullptr }, opencl_svm_buffer_allocated{ nullptr },
 #endif
 #endif
-	  opencl_buffer_offset{ 0 },
+	  opencl_buffer_offset{ 0 }, alias_data{ nullptr }, alias_offset{ 0 },
 	  isVirtual{ vx_false_e }, isDelayed{ vx_false_e }, isNotFullyConfigured{ vx_false_e }, isInitialized{ vx_false_e }, siblingIndex{ 0 },
 	  numChildren{ 0 }, children{ nullptr }, parent{ nullptr }, inputUsageCount{ 0 }, outputUsageCount{ 0 }, inoutUsageCount{ 0 },
 	  initialization_flags{ 0 }, device_type_unused{ 0 },
