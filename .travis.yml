@@ -12,6 +12,7 @@ services:
 branches:
   - master
   - develop
+  - OpenVX-1.0.1
 
 install:
   - sudo apt update
