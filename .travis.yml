@@ -18,18 +18,18 @@ install:
   - sudo apt update
   - sudo apt --yes install cmake git wget unzip libnuma-dev
   - wget -qO - http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | sudo apt-key add -
-  - sudo sh -c 'echo deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main > /etc/apt/sources.list.d/rocm.list'
+  - echo 'deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
   - sudo apt update
   - sudo apt install rocm-dkms
 
 before_script:
-  - docker pull kiritigowda/amdovx-test-docker
-  - docker run -it -d --name amdovx --network host kiritigowda/amdovx-test-docker bash
-  - docker cp ../amdovx-core amdovx:/amdovx-core
+  - docker pull kiritigowda/mivision-test-docker
+  - docker run -it -d --name mivision --network host kiritigowda/mivision-test-docker bash
+  - docker cp ../amdovx-core mivision:/amdovx-core
 
 script:
-  - docker exec amdovx cmake -H/amdovx-core -B/_build -DCMAKE_BUILD_TYPE=Release
-  - docker exec amdovx cmake --build /_build
+  - docker exec mivision cmake -H/amdovx-core -B/_build -DCMAKE_BUILD_TYPE=Release
+  - docker exec mivision cmake --build /_build
 
 after_success:
 
