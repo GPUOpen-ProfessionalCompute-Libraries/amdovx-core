@@ -55,6 +55,7 @@ using namespace std;
 #include <Windows.h>
 #include <intrin.h>
 #else
+#include <x86intrin.h>
 #include <dlfcn.h>
 #if __APPLE__
 #include <x86intrin.h>
