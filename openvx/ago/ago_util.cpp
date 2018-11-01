@@ -1624,11 +1624,12 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 			data->u.tensor.end[i] = data->u.tensor.dims[i];
 			data->u.tensor.stride[i] = data->size;
 			data->size *= data->u.tensor.dims[i];
-			// make sure that the size and stride[1] are multiple of 4
-			if (i == 0 && (data->size & 3)) {
-				data->size = (data->size + 3) & ~3;
-			}
-		}
+            // make sure that the size and stride[1] are multiple of 4:: commending out since it breaks fp16
+/*
+            if (i == 0 && (data->size & 3)) {
+                data->size = (data->size + 3) & ~3;
+            }
+*/		}
 		for (vx_size i = data->u.tensor.num_dims; i < AGO_MAX_TENSOR_DIMENSIONS; i++) {
 			data->u.tensor.start[i] = 0;
 			data->u.tensor.end[i] = 1;
