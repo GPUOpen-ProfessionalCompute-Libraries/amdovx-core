@@ -54,6 +54,10 @@ THE SOFTWARE.
 */
 #define VX_MAX_STRING_BUFFER_SIZE_AMD                   256
 
+/*! \brief The Neural Network activation functions vx_nn_activation_function_e extension.
+ */
+#define VX_NN_ACTIVATION_LEAKY_RELU  (VX_ENUM_BASE(VX_ID_AMD, VX_ENUM_NN_ACTIVATION_FUNCTION_TYPE) + 0x9)
+
 /*! \brief The type enumeration lists all the AMD specific types in OpenVX.
 */
 enum ago_type_public_e {
@@ -543,6 +547,8 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetContextImageFormatDescription(vx_context
 /* Tensor */
 VX_API_ENTRY vx_tensor VX_API_CALL vxCreateTensorFromHandle(vx_context context, vx_size number_of_dims, const vx_size * dims, vx_enum data_type, vx_int8 fixed_point_position, const vx_size * stride, void * ptr, vx_enum memory_type);
 VX_API_ENTRY vx_status VX_API_CALL vxSwapTensorHandle(vx_tensor tensor, void * new_ptr, void** prev_ptr);
+VX_API_ENTRY vx_status VX_API_CALL vxAliasTensor(vx_tensor tensorMaster, vx_size offset, vx_tensor tensor);
+VX_API_ENTRY vx_bool VX_API_CALL vxIsTensorAliased(vx_tensor tensorMaster, vx_size offset, vx_tensor tensor);
 
 #ifdef  __cplusplus
 }

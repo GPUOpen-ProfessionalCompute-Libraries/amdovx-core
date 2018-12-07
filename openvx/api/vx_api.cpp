@@ -7662,3 +7662,34 @@ VX_API_ENTRY vx_status VX_API_CALL vxSwapTensorHandle(vx_tensor tensor, void * n
 	}
 	return status;
 }
+
+VX_API_ENTRY vx_status VX_API_CALL vxAliasTensor(vx_tensor tensorMaster, vx_size offset, vx_tensor tensor)
+{
+	vx_status status = VX_ERROR_INVALID_REFERENCE;
+	AgoData * dataMaster = (AgoData *)tensorMaster;
+	AgoData * data = (AgoData *)tensor;
+	if (agoIsValidData(dataMaster, VX_TYPE_TENSOR) && agoIsValidData(data, VX_TYPE_TENSOR) &&
+	    !dataMaster->u.tensor.roiMaster && !data->u.tensor.roiMaster &&
+	    dataMaster->isVirtual && data->isVirtual)
+	{
+		data->alias_data = dataMaster;
+		data->alias_offset = offset;
+		status = VX_SUCCESS;
+	}
+	return status;
+}
+
+VX_API_ENTRY vx_bool VX_API_CALL vxIsTensorAliased(vx_tensor tensorMaster, vx_size offset, vx_tensor tensor)
+{
+	bool status = vx_false_e;
+	AgoData * dataMaster = (AgoData *)tensorMaster;
+	AgoData * data = (AgoData *)tensor;
+	if (agoIsValidData(dataMaster, VX_TYPE_TENSOR) && agoIsValidData(data, VX_TYPE_TENSOR) &&
+	    !dataMaster->u.tensor.roiMaster && !data->u.tensor.roiMaster &&
+	    dataMaster->isVirtual && data->isVirtual &&
+	    dataMaster == data->alias_data && offset == data->alias_offset)
+	{
+		status = vx_true_e;
+	}
+	return status;
+}

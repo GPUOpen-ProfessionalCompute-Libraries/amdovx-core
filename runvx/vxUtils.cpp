@@ -108,6 +108,7 @@ static struct { const char * name; vx_enum value; } s_table_constants[] = {
 	{ "VX_NN_ACTIVATION_SQUARE", VX_NN_ACTIVATION_SQUARE },
 	{ "VX_NN_ACTIVATION_SQRT", VX_NN_ACTIVATION_SQRT },
 	{ "VX_NN_ACTIVATION_LINEAR", VX_NN_ACTIVATION_LINEAR },
+	{ "VX_NN_ACTIVATION_LEAKY_RELU", VX_NN_ACTIVATION_LEAKY_RELU },
 	{ "VX_NN_NORMALIZATION_SAME_MAP", VX_NN_NORMALIZATION_SAME_MAP },
 	{ "VX_NN_NORMALIZATION_ACROSS_MAPS", VX_NN_NORMALIZATION_ACROSS_MAPS },
 	{ "VX_TYPE_HOG_PARAMS", VX_TYPE_HOG_PARAMS },
@@ -575,6 +576,7 @@ int WriteImage(vx_image image, vx_rectangle_t * rectFull, FILE * fp)
 	return 0;
 }
 
+#if ENABLE_OPENCV
 // write image compressed
 int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char * fileName) 
 {
@@ -613,6 +615,7 @@ int WriteImageCompressed(vx_image image, vx_rectangle_t * rectFull, const char *
     }
     return 0;
 }
+#endif
 
 // read scalar value into a string
 int ReadScalarToString(vx_scalar scalar, char str[])

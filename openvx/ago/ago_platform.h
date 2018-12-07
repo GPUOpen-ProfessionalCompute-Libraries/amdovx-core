@@ -56,8 +56,8 @@ using namespace std;
 #include <intrin.h>
 #else
 #include <dlfcn.h>
-#if __APPLE__
 #include <x86intrin.h>
+#if __APPLE__
 #include <cstdlib>
 #include <cmath>
 #endif

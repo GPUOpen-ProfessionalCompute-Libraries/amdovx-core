@@ -424,6 +424,8 @@ struct AgoData {
 	vx_uint32 hierarchical_life_end;
 	vx_uint32 initialization_flags;
 	vx_uint32 device_type_unused;
+	AgoData * alias_data;
+	vx_size   alias_offset;
 public:
 	AgoData();
 	~AgoData();

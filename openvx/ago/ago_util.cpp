@@ -1624,11 +1624,12 @@ int agoGetDataFromDescription(AgoContext * acontext, AgoGraph * agraph, AgoData 
 			data->u.tensor.end[i] = data->u.tensor.dims[i];
 			data->u.tensor.stride[i] = data->size;
 			data->size *= data->u.tensor.dims[i];
-			// make sure that the size and stride[1] are multiple of 4
-			if (i == 0 && (data->size & 3)) {
-				data->size = (data->size + 3) & ~3;
-			}
-		}
+            // make sure that the size and stride[1] are multiple of 4:: commending out since it breaks fp16
+/*
+            if (i == 0 && (data->size & 3)) {
+                data->size = (data->size + 3) & ~3;
+            }
+*/		}
 		for (vx_size i = data->u.tensor.num_dims; i < AGO_MAX_TENSOR_DIMENSIONS; i++) {
 			data->u.tensor.start[i] = 0;
 			data->u.tensor.end[i] = 1;
@@ -2941,7 +2942,7 @@ AgoData::AgoData()
 	  opencl_svm_buffer{ nullptr }, opencl_svm_buffer_allocated{ nullptr },
 #endif
 #endif
-	  opencl_buffer_offset{ 0 },
+	  opencl_buffer_offset{ 0 }, alias_data{ nullptr }, alias_offset{ 0 },
 	  isVirtual{ vx_false_e }, isDelayed{ vx_false_e }, isNotFullyConfigured{ vx_false_e }, isInitialized{ vx_false_e }, siblingIndex{ 0 },
 	  numChildren{ 0 }, children{ nullptr }, parent{ nullptr }, inputUsageCount{ 0 }, outputUsageCount{ 0 }, inoutUsageCount{ 0 },
 	  initialization_flags{ 0 }, device_type_unused{ 0 },

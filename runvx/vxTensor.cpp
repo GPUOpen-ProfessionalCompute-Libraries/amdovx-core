@@ -127,7 +127,7 @@ int CVxParamTensor::Initialize(vx_context context, vx_graph graph, const char * 
 		ioParams = ScanParameters(desc, "tensor-from-handle:<num-of-dims>,{dims},<data-type>,<fixed-point-pos>,{strides},<num-handles>,<memory-type>",
 			"s:D,L,s,d,L,D,s", objType, &m_num_of_dims, &m_num_of_dims, m_dims, data_type, &m_fixed_point_pos, &m_num_of_dims, m_stride, &m_num_handles, memory_type_str);
 		if(m_num_handles > MAX_BUFFER_HANDLES)
-			ReportError("ERROR: num-handles is out of range: %ld (must be less than %d)\n", m_num_handles, MAX_BUFFER_HANDLES);
+			ReportError("ERROR: num-handles is out of range: " VX_FMT_SIZE " (must be less than %d)\n", m_num_handles, MAX_BUFFER_HANDLES);
 		m_data_type = ovxName2Enum(data_type);
 		vx_uint64 memory_type = 0;
 		if (GetScalarValueFromString(VX_TYPE_ENUM, memory_type_str, &memory_type) < 0)
@@ -220,7 +220,7 @@ int CVxParamTensor::InitializeIO(vx_context context, vx_graph graph, vx_referenc
 		else if (!_stricmp(ioType, "init"))
 		{ // init request syntax: init,<fileName>
 			if(!_strnicmp(fileName, "@fill~f32~", 10)) {
-				float value = atof(&fileName[10]);
+				float value = (float)atof(&fileName[10]);
 				float * buf = (float *)m_data;
 				for(size_t i = 0; i < m_size/4; i++)
 					buf[i] = value;
@@ -339,7 +339,7 @@ int CVxParamTensor::SyncFrame(int frameNumber)
 		if (status)
 			ReportError("ERROR: vxSwapTensorHandle(%s,*,*) failed (%d)\n", m_vxObjName, status);
 		if (prev_ptr != m_memory_handle[prev_handle])
-			ReportError("ERROR: vxSwapTensorHandle(%s,*,*) didn't return correct prev_ptr at [%ld]\n", m_vxObjName, prev_handle);
+			ReportError("ERROR: vxSwapTensorHandle(%s,*,*) didn't return correct prev_ptr at [" VX_FMT_SIZE "]\n", m_vxObjName, prev_handle);
 	}
 	return 0;
 }
