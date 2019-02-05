@@ -1,3 +1,7 @@
+
+# AMD OpenVX is now delivered in the MIVisionX. This content is archived for historical reference.
+For the latest information on AMD OpenVX, go to https://gpuopen-professionalcompute-libraries.github.io/MIVisionX/
+
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/GPUOpen-ProfessionalCompute-Libraries/amdovx-core.svg?branch=develop)](https://travis-ci.org/GPUOpen-ProfessionalCompute-Libraries/amdovx-core)
 
